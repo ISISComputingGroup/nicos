@@ -1,7 +1,7 @@
 Requirements
 ------------
 
-* At least Python 2.7 or Python 3.6
+* At least Python 3.6
 
 If not mentioned otherwise, Python packages are available from PyPI
 (https://pypi.python.org/pypi).
@@ -32,7 +32,7 @@ If not mentioned otherwise, Python packages are available from PyPI
   - the MLZ TACO Python libraries (see https://forge.frm2.tum.de/wiki/projects:software_distribution)
   - PyTango 8.1.x or 9.x (for TANGO interface, needs TANGO libraries)
   - EPICSv3 and pyepics (for Epics interface)
-  - a working installation of omniORBpy (http://omniorb.sourceforge.net/) (for CARESS interface)
+  - a working installation of omniORBpy 4.2.X (http://omniorb.sourceforge.net/) (for CARESS interface)
   - pyserial (for TACO-less serial line communication)
 
 * Optional for the basic system:
@@ -40,9 +40,8 @@ If not mentioned otherwise, Python packages are available from PyPI
   - scipy (for data fitting)
   - docutils (for formatting interactive help nicely)
   - matplotlib (for resolution plots)
-  - gnuplot (for plots in the electronig logbook)
+  - gnuplot (for plots in the electronic logbook)
   - Grace (for scanplot)
-  - mysql-connector-python (preferred) or MySQLdb (for proposal DB query)
   - lxml (for U-Bahn service)
   - astropy or pyfits (for the handling of FITS formatted files)
   - ldap3 (for ldap authentication)
@@ -50,11 +49,12 @@ If not mentioned otherwise, Python packages are available from PyPI
   - keyring, keyrings.alt, PyCrypto for encrypted password storage (note: using
     the keystore commandline program may require additional system dependent
     dependencies)
+  - requests-oauthlib to use the OAuth authentication
   - slackclient python package to use the Slack notifier
 
 * For the GUI and status monitor:
 
-  - PyQt5 (PyQt4 is still supported but deprecated)
+  - PyQt5
   - gr (optional, for plots, see: http://gr-framework.org/c.html#linux-packages)
   - QScintilla-python (optional, for the script editor component)
     (not installable with pip)
@@ -65,6 +65,7 @@ If not mentioned otherwise, Python packages are available from PyPI
   - python-redmine (optional, for the bug reporting dialog)
   - sshtunnel (optional, for the ssh tunneling between GUI and server)
   - python-nxs (optional, for writing NeXus files, readable by Mantid)
+  - dvipng (optional, for the hklplot command, this is not a Python package)
 
 * For development (running tests, generating documentation):
 
@@ -94,7 +95,7 @@ pip can be obtained from https://pip.pypa.io/en/stable/
 
 For Ubuntu::
 
-  sudo apt-get install python-pip
+  sudo apt-get install python3-pip
 
 
 Packages to install for common distributions
@@ -109,24 +110,24 @@ Debian/Ubuntu
 You might have to use ``deb [trusted=yes]`` for the GR repository as the GPG signing
 is currently broken.
 
+The `pyctl` and `lttb` packages are available in the MLZ repositories linked at:
+https://forge.frm2.tum.de/wiki/projects:software_distribution:deb
+
 * Basic system::
 
-     apt-get install python-{dev,zmq,numpy,scipy,psutil,rsa,six,systemd} gnuplot
+     apt-get install python3-{dev,zmq,numpy,scipy,psutil,rsa,six,systemd} gnuplot
+     apt-get install python3-{keyring,keyrings.alt,crypto,lxml,html2text,lttb,nicos-pyctl}
 
 * Optional components::
 
-     apt-get install python-{mysql.connector,docutils,serial,matplotlib,astropy}
-     apt-get install python-{lxml,ldap3,crypto,keyring,keyrings.alt}
+     apt-get install python3-{ldap3,docutils,serial,matplotlib,astropy,h5py,markdown}
 
 * GUI and status monitor::
 
-     apt-get install python-{pyqt5,pyqt5.qsci,gr}
+     apt-get install python3-{pyqt5,pyqt5.qsci,pyqt5.qtwebengine,gr}
+     apt-get install dvipng texlive-{latex-extra,fonts-recommended} cm-super
 
 * Development and documentation build::
 
-     apt-get install python-{sip-dev,pytest,pytest-cov,mock,coverage,sphinx}
-     apt-get install pyqt5-{dev,dev-tools}
-
-* For the old live data widget you have to install some development packages::
-
-     apt-get install libqwt5-qt4-dev libtiff5-dev libcfitsio3-dev
+     apt-get install python3-{sip-dev,pytest,pytest-cov,mock,coverage,sphinx}
+     apt-get install python3-pyqt5-{dev,dev-tools}

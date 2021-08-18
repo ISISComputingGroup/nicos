@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,10 +23,9 @@
 # *****************************************************************************
 """YAML data sink classes for STRESS-SPEC."""
 
-from __future__ import absolute_import, division, print_function
-
 import re
 import time
+from io import TextIOWrapper
 
 import numpy as np
 
@@ -35,7 +34,6 @@ from nicos.core import Override, Param, listof
 from nicos.core.constants import FINAL, POINT, SCAN, SUBSCAN
 from nicos.devices.datasinks.scan import TIMEFMT, AsciiScanfileSink, \
     AsciiScanfileSinkHandler
-from nicos.pycompat import TextIOWrapper, iteritems, to_utf8
 from nicos.utils import AutoDefaultODict
 
 try:
@@ -95,8 +93,7 @@ class YamlDatafileSinkHandler(AsciiScanfileSinkHandler):
         position['precision'] = precision
 
     def _fill_user(self, user, name, roles):
-        _user = re.split(r'(<)?(\w+(?:[\.-]\w+)+@\w+(?:\.\w+)+)(?(1)>)',
-                         to_utf8(name).decode())
+        _user = re.split(r'(<)?(\w+(?:[\.-]\w+)+@\w+(?:\.\w+)+)(?(1)>)', name)
         user['name'] = _user[0].strip()
         user['email'] = _user[2] if len(_user) > 2 else ''
         user['roles'] = roles
@@ -195,16 +192,16 @@ class YamlDatafileSinkHandler(AsciiScanfileSinkHandler):
         for device, key, value in valuelist:
             if device not in ['demo', 'DEMO']:
                 if key in ['facility', 'website']:
-                    instrument[key] = to_utf8(value)
+                    instrument[key] = value.encode()
                 elif key == 'instrument':
                     instrument['name'] = value
                 elif key == 'operators':
                     instrument[key] = []
                     for operator in value:
-                        instrument[key].append(to_utf8(operator))
+                        instrument[key].append(operator.encode())
                 elif key == 'doi':
                     instrument['references'] = []
-                    instrument['references'].append(to_utf8(value))
+                    instrument['references'].append(value.encode())
 
     def _write_limits(self, valuelist):
         # self.log.info('Limits: %r', valuelist)
@@ -266,7 +263,7 @@ class YamlDatafileSinkHandler(AsciiScanfileSinkHandler):
         self._fname = fp.shortpath
         self._filepath = fp.filepath
         if not quickyaml:
-            self._file = TextIOWrapper(fp)
+            self._file = TextIOWrapper(fp, encoding='utf-8')
         else:
             fp.close()
             self._file = io.FileIO(self._filepath, 'w')
@@ -364,7 +361,7 @@ class YamlDatafileSinkHandler(AsciiScanfileSinkHandler):
 
     def _fill_header(self):
         bycategory = {}
-        for (dev, key), (_v, v, _, cat) in iteritems(self.dataset.metainfo):
+        for (dev, key), (_v, v, _, cat) in self.dataset.metainfo.items():
             if cat:
                 if key == 'operators':  # don't use the formatted list
                     bycategory.setdefault(cat, []).append((dev, key, _v))
@@ -389,7 +386,6 @@ class YamlDatafileSinkHandler(AsciiScanfileSinkHandler):
 
     def putMetainfo(self, metainfo):
         self.log.debug('ADD META INFO %r', metainfo)
-        return
 
     def putResults(self, quality, results):
         """Called when the point dataset main results are updated.
@@ -497,6 +493,5 @@ class YamlDatafileSink(AsciiScanfileSink):
 
     parameter_overrides = {
         'settypes': Override(default=[SCAN, SUBSCAN]),
-        'semicolon': Override(default=''),
         'commentchar': Override(default='',)
     }

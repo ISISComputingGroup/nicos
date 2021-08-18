@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,9 +24,6 @@
 
 """Utilities for (de-)compressing files."""
 
-from __future__ import absolute_import, division, print_function
-
-import errno
 import os
 import zipfile
 from os import path
@@ -57,19 +54,16 @@ def zipFiles(zipfilename, rootdir, logger=None):
                     continue  # ignore (potentially old data) zip files
                 try:
                     zf.write(path.join(root, fn), path.join(xroot, fn))
-                except Exception as err:
-                    # ignore some OS errors:
-                    if isinstance(err, OSError) and \
-                       err.errno in (errno.EACCES, errno.ENOENT):
-                        # - EACCES means the user created a file with wrong
-                        #   permissions (NICOS doesn't do that)
-                        # - ENOENT means a dangling symlink
-                        if logger:
-                            logger.warning('could not add %s to zip: %s',
-                                           path.join(xroot, fn), err)
-                    else:
-                        remove_zip = True
-                        raise
+                except (FileNotFoundError, PermissionError) as err:
+                    # - FileNotFoundError: a dangling symlink
+                    # - PermissionError: the user created a file with wrong
+                    #   permissions (NICOS doesn't do that)
+                    if logger:
+                        logger.warning('could not add %s to zip: %s',
+                                       path.join(xroot, fn), err)
+                except Exception:
+                    remove_zip = True
+                    raise
                 nfiles += 1
                 if nfiles % 500 == 0:
                     if logger:

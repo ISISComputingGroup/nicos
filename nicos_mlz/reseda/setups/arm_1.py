@@ -3,8 +3,9 @@
 description = 'Arm 1 (NRSE)'
 group = 'optional'
 
-taco_base = '//resedasrv.reseda.frm2/reseda'
 tango_base = 'tango://resedahw2.reseda.frm2:10000/reseda'
+
+includes = ['coderbus']
 
 devices = dict(
     arm1_rot_mot = device('nicos.devices.tango.Motor',
@@ -13,9 +14,24 @@ devices = dict(
         fmtstr = '%.3f',
         lowlevel = True,
     ),
-    arm1_rot_enc = device('nicos.devices.taco.Coder',
+    arm1_rot_enc = device('nicos.devices.vendor.ipc.Coder',
         description = 'Rotation arm 1 (encoder)',
-        tacodevice = '%s/enc/arm1' % taco_base,
+        # bitlength: 25
+        # devname: reseda/rs485/encoder
+        # direction: forward
+        # encoding: gray
+        # offset: -180.0
+        # parity: no
+        # protocol: ssi
+        # stepsperunit: 427.0
+        # type: EncoderEncoder
+        bus = 'encoderbus',
+        addr = 86,
+        slope = 427.,
+        zerosteps = 33506891,
+        circular = -360,
+        confbyte = 0x79, # 0111 1001
+        unit = 'deg',
         fmtstr = '%.3f',
         lowlevel = True,
     ),
@@ -36,7 +52,7 @@ devices = dict(
         precision = 0.05,
         pollinterval = 60,
         maxage = 119,
-        unit = u'deg',
+        unit = 'deg',
     ),
     T_arm1_coil1 = device('nicos.devices.tango.AnalogInput',
         description = 'Arm 1 coil 1 temperature',
@@ -44,7 +60,7 @@ devices = dict(
         fmtstr = '%.1f',
         pollinterval = 10,
         maxage = 21,
-        unit = u'degC',
+        unit = 'degC',
     ),
     T_arm1_coil2 = device('nicos.devices.tango.AnalogInput',
         description = 'Arm 1 coil 2 temperature',
@@ -52,7 +68,7 @@ devices = dict(
         fmtstr = '%.1f',
         pollinterval = 10,
         maxage = 21,
-        unit = u'degC',
+        unit = 'degC',
     ),
     T_arm1_coil3 = device('nicos.devices.tango.AnalogInput',
         description = 'Arm 1 coil 3 temperature',
@@ -60,7 +76,7 @@ devices = dict(
         fmtstr = '%.1f',
         pollinterval = 10,
         maxage = 21,
-        unit = u'degC',
+        unit = 'degC',
     ),
     T_arm1_coil4 = device('nicos.devices.tango.AnalogInput',
         description = 'Arm 1 coil 4 temperature',
@@ -68,6 +84,6 @@ devices = dict(
         fmtstr = '%.1f',
         pollinterval = 10,
         maxage = 21,
-        unit = u'degC',
+        unit = 'degC',
     ),
 )

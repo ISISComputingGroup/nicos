@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import ntpath
 from time import time as currenttime
 
@@ -40,8 +38,7 @@ from nicos.devices.generic.detector import ActiveChannel, ImageChannelMixin, \
     PostprocessPassiveChannel
 from nicos.devices.tango import PyTangoDevice
 from nicos.devices.vendor.lima import Andor2LimaCCD, Andor3LimaCCD
-
-from nicos_mlz.antares.lib.calculations import gam_rem_adp_log, scharr_filter
+from nicos.utils.gammafilter import gam_rem_adp_log, scharr_filter
 
 
 class UsesFastshutter(DeviceMixinBase):

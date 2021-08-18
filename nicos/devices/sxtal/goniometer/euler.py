@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,8 +27,6 @@ Euler
 class for stroing clockwise eulerian angles
 
 '''
-
-from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
@@ -111,7 +109,7 @@ class Euler(PositionBase):
         """
         if not hasattr(self, 'alpha'):
             self.alpha = np.deg2rad(60)  # TODO: get from experiment?
-            self.kappamax = np.rad2deg(180)
+            self.kappamax = np.deg2rad(180)
 
         si = np.sin(0.5 * self.chi)
         co = np.sin(self.alpha) ** 2 - si ** 2

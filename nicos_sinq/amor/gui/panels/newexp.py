@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2018-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2018-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,15 +22,12 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import os
 
 from nicos.clients.gui.panels.generic import GenericPanel
 from nicos.core import ConfigurationError
 from nicos.core.params import mailaddress
 from nicos.guisupport.qt import QDialogButtonBox, QMessageBox, pyqtSlot
-from nicos.utils import decodeAny
 
 
 class AmorNewExpPanel(GenericPanel):
@@ -54,18 +51,18 @@ class AmorNewExpPanel(GenericPanel):
                                   'session.experiment.proposalpath, '
                                   'session.experiment.remark', None)
         if values:
-            usersplit = decodeAny(values[2]).split('<')
+            usersplit = values[2].split('<')
             username = usersplit[0].strip()
             useremail = usersplit[1][:-1] if len(usersplit) > 1 else ''
             values = (values[0], values[1], username, useremail, values[3],
                       values[4])
             self._orig_proposal_info = values
             self.proposalNum.setText(values[0])
-            self.expTitle.setText(decodeAny(values[1]))
+            self.expTitle.setText(values[1])
             self.userName.setText(values[2])
             self.userEmail.setText(values[3])
-            self.proposalDir.setText(decodeAny(values[4]))
-            self.remark.setText(decodeAny(values[5]))
+            self.proposalDir.setText(values[4])
+            self.remark.setText(values[5])
 
     def on_client_connected(self):
         # fill proposal
@@ -96,10 +93,10 @@ class AmorNewExpPanel(GenericPanel):
 
     def _getProposalInput(self):
         prop = self.proposalNum.text()
-        title = self.expTitle.text().encode('utf-8')
-        username = self.userName.text().encode('utf-8')
-        remark = self.remark.text().encode('utf-8')
-        proposaldir = self.proposalDir.text().encode('utf-8')
+        title = self.expTitle.text()
+        username = self.userName.text()
+        remark = self.remark.text()
+        proposaldir = self.proposalDir.text()
         if proposaldir and not os.path.isdir(proposaldir):
             QMessageBox.critical(self, 'Error', 'The provided proposal path '
                                  'does not exist!')
@@ -110,11 +107,11 @@ class AmorNewExpPanel(GenericPanel):
                                  'a different one!')
             raise ConfigurationError('')
         try:
-            useremail = mailaddress(self.userEmail.text().encode('utf-8'))
+            useremail = mailaddress(self.userEmail.text())
         except ValueError:
             QMessageBox.critical(self, 'Error', 'The user email entry is '
                                  'not  a valid email address')
-            raise ConfigurationError('')
+            raise ConfigurationError('') from None
         return prop, title, username, useremail, proposaldir, remark
 
     @pyqtSlot()

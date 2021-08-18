@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import hashlib
 import shutil
 import tempfile
@@ -34,7 +32,6 @@ from os import path
 import pytest
 
 from nicos.core import ADMIN, GUEST, USER, NicosError, User
-from nicos.pycompat import to_utf8
 from nicos.services.daemon.auth import AuthenticationError
 from nicos.services.daemon.auth.list import Authenticator as ListAuthenticator
 from nicos.services.daemon.auth.params import UserLevelAuthEntry, \
@@ -51,12 +48,16 @@ try:
     from nicos.utils.credentials.keystore import nicoskeystore
 except ImportError:
     nicoskeystore = None
-
+try:
+    from nicos.services.daemon.auth.oauth2 import \
+        Authenticator as OAuthAuthenticator
+except ImportError:
+    OAuthAuthenticator = None
 
 session_setup = 'empty'
 
 
-class TestUserPassLevelAuthEntry(object):
+class TestUserPassLevelAuthEntry:
 
     @pytest.mark.parametrize("inp, outp", [
         [['user', 'passwd', 'user'], ('user', 'passwd', USER)],
@@ -81,7 +82,7 @@ class TestUserPassLevelAuthEntry(object):
         assert raises(ValueError, UserPassLevelAuthEntry, inp)
 
 
-class TestUserLevelAuthEntry(object):
+class TestUserLevelAuthEntry:
 
     @pytest.mark.parametrize("inp, outp", [
         [['user', 'user'], ('user', USER)],
@@ -103,13 +104,28 @@ class TestUserLevelAuthEntry(object):
         assert raises(ValueError, UserLevelAuthEntry, inp)
 
 
+@pytest.mark.skipif(OAuthAuthenticator is None,
+                    reason='oauthlib packages not installed')
+class TestOAuthAuthenticator:
+
+    @pytest.fixture
+    def OAuthAuth(self, request):
+        Auth = OAuthAuthenticator('authenicator',
+                                  tokenurl='https://unit.test/',
+                                  clientid='')
+        yield Auth
+
+    def test_oauth_errors(self, session, OAuthAuth):
+        assert raises(AuthenticationError, OAuthAuth.authenticate, 'user', '')
+
+
 @pytest.fixture(scope='function')
 def ListAuth(request):
     passwds = []
     for (user, pw, level) in request.function.passwd:
         # note: we currently allow empty password to match any password!
         # pylint: disable=compare-to-empty-string
-        hashed = hashlib.sha1(to_utf8(pw)).hexdigest() if pw != '' else pw
+        hashed = hashlib.sha1(pw.encode()).hexdigest() if pw != '' else pw
         passwds.append((user, hashed, level))
 
     Auth = ListAuthenticator('authenicator',

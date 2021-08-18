@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,17 +24,16 @@
 
 """Session class used with the NICOS daemon."""
 
-from __future__ import absolute_import, division, print_function
-
+import builtins
 import sys
 import threading
 
 from nicos.core import ACCESS_LEVELS, AccessError, watchdog_user
+from nicos.core.constants import FILE
 from nicos.core.sessions.simple import NoninteractiveSession
 from nicos.core.sessions.utils import LoggingStdout
 from nicos.devices.cacheclient import DaemonCacheClient
 from nicos.protocols.daemon import BREAK_AFTER_STEP
-from nicos.pycompat import builtins, exec_, string_types
 from nicos.services.daemon.htmlhelp import HelpGenerator
 from nicos.services.daemon.pyctl import ControlStop
 from nicos.utils.loggers import INFO
@@ -72,14 +71,17 @@ class DaemonSession(NoninteractiveSession):
         if value is not None and getattr(value, '__display__', True):
             self.log.log(INFO, repr(value))
 
-    def _beforeStart(self, daemondev):
+    def _beforeStart(self, daemondev, daemonized):
         from nicos.services.daemon.utils import DaemonLogHandler
         self.daemon_device = daemondev
         self.daemon_handler = DaemonLogHandler(daemondev)
         # create a new root logger that gets the daemon handler
-        self.createRootLogger()
+        self.createRootLogger(console=not daemonized)
         self.log.addHandler(self.daemon_handler)
-        sys.stdout = LoggingStdout(sys.stdout)
+
+        # We don't want all output to end up on stdout, which is usually either
+        # /dev/null or the systemd journal.
+        sys.stdout = LoggingStdout()
 
         # add an object to be used by DaemonSink objects
         self.emitfunc = daemondev.emit_event
@@ -112,28 +114,33 @@ class DaemonSession(NoninteractiveSession):
         NoninteractiveSession.setMode(self, mode)
         self.emitfunc('mode', mode)
 
-    def updateLiveData(self, tag, uid, detector, filename, dtype, nx, ny, nt,
-                       time, data):
-        self.emitfunc('liveparams', (tag, uid, detector, filename, dtype,
-                                     nx, ny, nt, time))
-        for buf in data:  # data is a list of ``memory_buffer``
-            self.emitfunc('livedata', buf)
+    def updateLiveData(self, parameters, databuffers, labelbuffers=None):
+        if labelbuffers is None:
+            labelbuffers = []
+        self.emitfunc('livedata', parameters, databuffers + labelbuffers)
 
-    def notifyDataFile(self, tag, uid, detector, filename_or_filenames):
-        if isinstance(filename_or_filenames, string_types):
+    def notifyDataFile(self, ftype, uid, detector, filename_or_filenames):
+        if isinstance(filename_or_filenames, str):
             filenames = [filename_or_filenames]
         else:
             filenames = filename_or_filenames
-        nxyt = len(filenames) * [0]
-        self.emitfunc('liveparams', (tag, uid, detector, filenames,
-                                     '', nxyt, nxyt, nxyt, 0))
-        self.emitfunc('livedata', '')
+        filedescs = [{'filename': fname, 'fileformat': ftype}
+                     for fname in filenames]
+        params = dict(
+            uid=uid,
+            time=0,
+            det=detector,
+            tag=FILE,
+            filedescs=filedescs,
+        )
+
+        self.emitfunc('livedata', params)
 
     def notifyFitCurve(self, dataset, title, xvalues, yvalues):
         self.emitfunc('datacurve', (title, xvalues, yvalues))
 
     def breakpoint(self, level):
-        exec_(self._bpcode[level])
+        exec(self._bpcode[level])
 
     def pause(self, prompt):
         self.log.info('pause from script...')
@@ -145,7 +152,7 @@ class DaemonSession(NoninteractiveSession):
         if 'level' in required:
             script = self.daemon_device.current_script()
             rlevel = required['level']
-            if isinstance(rlevel, string_types):
+            if isinstance(rlevel, str):
                 for k, v in ACCESS_LEVELS.items():
                     if v == rlevel:
                         rlevel = k
@@ -173,7 +180,7 @@ class DaemonSession(NoninteractiveSession):
         except Exception:
             self.log.warning('Could not generate the help for %r', obj, exc=1)
             return
-        if not isinstance(obj, string_types):
+        if not isinstance(obj, str):
             self.log.info('Showing help in the calling client...')
         self.emitfunc_private('showhelp', data)
 

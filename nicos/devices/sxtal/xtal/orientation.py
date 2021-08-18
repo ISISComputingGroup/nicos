@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Tools for handling orientation calculations."""
-
-from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import scipy.optimize
@@ -77,7 +75,7 @@ def euler_from_rotmat(R):
         return psi, theta, phi
 
 
-class RefinementParams(object):
+class RefinementParams:
     def __init__(self):
         self.couples = {}
         self.params = {}
@@ -118,7 +116,7 @@ class RefinementParams(object):
         self.errors[name] = 0.0
 
 
-class orient(object):
+class orient:
     def __init__(self, a, b=None, c=None, alpha=90.0, beta=90.0, gamma=90.0):
         if isinstance(a, SXTalCell):
             self.cell = a

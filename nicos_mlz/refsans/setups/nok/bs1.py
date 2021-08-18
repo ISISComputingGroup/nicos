@@ -2,7 +2,8 @@ description = "DoubleSlit [slit k1] between nok8 and nok9"
 
 group = 'lowlevel'
 
-includes = ['nok_ref', 'nokbus4']
+includes = ['nok_ref', 'zz_absoluts']
+
 instrument_values = configdata('instrument.values')
 showcase_values = configdata('cf_showcase.showcase_values')
 optic_values = configdata('cf_optic.optic_values')
@@ -26,8 +27,8 @@ devices = dict(
         nok_end = 9770.5,
         nok_gap = 18.0,
         masks = {
-            'slit':   -1.725,
-            'point':  -2.325,
+            'slit': -1.10,  # 2021-03-17 15:37:19 TheoMH -1.725 + _axis -1.8
+            'point': 0.70,  # 2021-03-17 15:37:19 TheoMH -1.725
             'gisans': -40.915 * optic_values['gisans_scale'],
         },
         lowlevel = True,
@@ -41,9 +42,9 @@ devices = dict(
         nok_end = 9770.5,
         nok_gap = 18.0,
         masks = {
-            'slit':   -2.255,
-            'point':  -1.655,
-            'gisans': 0.915,
+            'slit': -1.00,  # 2021-03-17 15:37:19 TheoMH -2.255
+            'point': -1.00,  # 2021-03-17 15:37:19 TheoMH -2.255
+            'gisans':-2.255,
         },
         lowlevel = True,
         unit = 'mm',
@@ -52,25 +53,10 @@ devices = dict(
         description = 'Axis of BS1, reactor side',
         motor = 'bs1r_motor',
         # obs = ['bs1r_analog'],
-        backlash = 0,
-        precision = 0.05,
+        backlash = -0.5,
+        precision = optic_values['precision_ipcsms'],
         unit = 'mm',
         lowlevel = True,
-    ),
-    bs1r_motor = device(code_base + 'ipc.NOKMotorIPC',
-        description = 'IPC controlled Motor of BS1, reactor side',
-        abslimits = (-178.0, 11.8),
-        bus = 'nokbus4',
-        addr = 0x67,
-        slope = 800.0,
-        speed = 50,
-        accel = 50,
-        confbyte = 32,
-        ramptype = 2,
-        microstep = 1,
-        refpos = -41.8,
-        zerosteps = int(791.825 * 800),
-        lowlevel = showcase_values['hide_poti'] and showcase_values['NOreference'],
     ),
     bs1r_acc = device(code_base + 'nok_support.MotorEncoderDifference',
          description = 'calc error Motor and poti',
@@ -83,7 +69,9 @@ devices = dict(
         description = 'Position sensing for BS1, reactor side',
         reference = 'nok_refc2',
         measure = 'bs1r_poti',
-        poly = [-108.4, 998.068 / 3.835],
+        # 2020-04-20 17:33:56 poly = [-108.4, 998.068 / 3.835],
+        # 2020-04-21 07:59:00 poly = [-106.429, 998.068 / 3.835],
+        poly = [-105.176, 998.068 / 3.835],
         serial = 7542,
         length = 250.0,
         lowlevel = showcase_values['hide_poti'] and showcase_values['NOreference'],
@@ -98,25 +86,10 @@ devices = dict(
         description = 'Axis of BS1, sample side',
         motor = 'bs1s_motor',
         # obs = ['bs1s_analog'],
-        backlash = 0,
-        precision = 0.05,
+        backlash = -0.5,
+        precision = optic_values['precision_ipcsms'],
         unit = 'mm',
         lowlevel = True,
-    ),
-    bs1s_motor = device(code_base + 'ipc.NOKMotorIPC',
-        description = 'IPC controlled Motor of BS1, sample side',
-        abslimits = (-177.002, 139.998),
-        bus = 'nokbus4',
-        addr = 0x68,
-        slope = 800.0,
-        speed = 50,
-        accel = 50,
-        confbyte = 32,
-        ramptype = 2,
-        microstep = 1,
-        refpos = 89.529,
-        zerosteps = int(660.44 * 800),
-        lowlevel = showcase_values['hide_poti'] and showcase_values['NOreference'],
     ),
     bs1s_acc = device(code_base + 'nok_support.MotorEncoderDifference',
          description = 'calc error Motor and poti',
@@ -129,6 +102,7 @@ devices = dict(
         description = 'Position sensing for BS1, sample side',
         reference = 'nok_refc2',
         measure = 'bs1s_poti',
+        # 2020-04-29 11:56:21 poly = [39.1, 999.452 / 1.919],
         poly = [39.1, 999.452 / 1.919],
         serial = 7784,
         length = 500.0,

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,13 +26,10 @@
 A remote debugger for the NICOS daemon.
 """
 
-from __future__ import absolute_import, division, print_function
-
+import queue
 import sys
 from bdb import Breakpoint
 from pdb import Pdb
-
-from nicos.pycompat import queue
 
 
 class FakeStdin(queue.Queue):
@@ -41,7 +38,7 @@ class FakeStdin(queue.Queue):
         return self.get()
 
 
-class Rpdb(Pdb):  # pylint: disable=too-many-public-methods
+class Rpdb(Pdb):
     """Minimally modified Pdb to work with remote input."""
 
     # use self.stdin.read(), not readline
@@ -60,7 +57,7 @@ class Rpdb(Pdb):  # pylint: disable=too-many-public-methods
         # get input lines from our fake input stream
         self.stdin = FakeStdin()
 
-    def set_trace(self, frame, limitframe):  # pylint: disable=W0221
+    def set_trace(self, frame, limitframe):
         # Overridden to not set the trace function in frames below "limitframe"
         if frame is None:
             frame = sys._getframe().f_back

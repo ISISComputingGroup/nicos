@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,6 @@
 #
 # *****************************************************************************
 """Base classes for the TOFTOF chopper system."""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import Attach, HasLimits, HasTimeout, Moveable, Override, \
     Param, Readable, intrange, listof, oneof, status, tupleof
@@ -61,6 +59,9 @@ class BaseChopperController(HasTimeout, Readable):
                         type=listof(float), internal=True, default=[0] * 8),
         'changetime': Param('Time of last change',
                             userparam=False, type=float,),
+        'frametime': Param('Time between neutron pulses',
+                            unit='s', type=float, mandatory=False,
+                            volatile=True, category='general',),
     }
 
     parameter_overrides = {
@@ -97,6 +98,10 @@ class BaseChopperController(HasTimeout, Readable):
 
     def doReadResolution(self):
         return calc.Eres1(self.wavelength, self.speed)
+
+    def doReadFrametime(self):
+        _, chspeed, chratio, _, _ = self._getparams()
+        return calc.calculateFrameTime(chspeed, chratio)
 
 
 class SpeedReadout(Readable):

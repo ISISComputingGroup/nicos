@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,6 @@
 #   Artur Glavic <artur.glavic@psi.ch>
 #
 # *****************************************************************************
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import HasCommunication, Param
 from nicos.core.params import host
@@ -47,14 +45,12 @@ class MoxaCommunicator(HasCommunication):
         should implement this method if something is to be executed after
         connecting to socket and before sending the command.
         """
-        pass
 
     def _command_post_send(self, sock):
         """This function is executed after sending the command. The subclasses
         should implement this method if for e.g. the reply is to be checked
         before returning the output.
         """
-        pass
 
     def _command_tty(self, cmd, has_output=True):
         # open TCP connection to Moxa terminal server and close after execution

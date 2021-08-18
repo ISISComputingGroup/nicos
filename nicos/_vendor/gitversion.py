@@ -10,17 +10,13 @@
 # rather than in a git working copy), then we fall back on reading the
 # contents of the RELEASE-VERSION file.
 
-from __future__ import absolute_import, division, print_function
-
 from os import path
 from subprocess import PIPE, Popen
 
 # read config file and set environment variables
 from nicos import config
-from nicos.pycompat import from_utf8
 
 __all__ = ['get_git_version', 'get_nicos_version']
-
 
 
 config.apply()
@@ -32,12 +28,17 @@ def get_releasefile_path():
     return path.join(thispath, 'RELEASE-VERSION')
 
 
+def translate_version(ver):
+    ver = ver.lstrip('v').rsplit('-', 2)
+    return '%s.post%s+%s' % tuple(ver) if len(ver) == 3 else ver[0]
+
+
 def get_git_version(abbrev=4, cwd=None):
     try:
         p = Popen(['git', 'describe', '--abbrev=%d' % abbrev],
                   cwd=cwd or config.nicos_root, stdout=PIPE, stderr=PIPE)
         stdout, _stderr = p.communicate()
-        return from_utf8(stdout.strip()).strip('v')
+        return translate_version(stdout.strip().decode('utf-8', 'ignore'))
     except Exception:
         return None
 

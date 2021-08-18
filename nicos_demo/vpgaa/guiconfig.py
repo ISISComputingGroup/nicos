@@ -52,17 +52,16 @@ windows = [
     window('Errors', 'errors',
            panel('nicos.clients.gui.panels.errors.ErrorPanel')),
     window('Live data', 'live',
-           panel('nicos.clients.gui.panels.liveqwt.LiveDataPanel',
-                 instrument = 'imaging'), setups='tomo'),
+           panel('nicos.clients.gui.panels.live.ImagingLiveDataPanel'),
+                 setups='tomo'),
     window('Live data', 'live',
-           panel('nicos_mlz.pgaa.gui.panels.live.LiveDataPanel'),
+           panel('nicos_mlz.pgaa.gui.panels.live.LiveDataPanel',
+                 filetypes=['fits'],),
            setups='not tomo'),
 ]
 
 tools = [
     tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
-         receiver='f.carsughi@fz-juelich.de',
-         mailserver='smtp.frm2.tum.de',
          sender='pgaa@frm2.tum.de',
         ),
     tool('Calculator', 'nicos.clients.gui.tools.calculator.CalculatorTool'),

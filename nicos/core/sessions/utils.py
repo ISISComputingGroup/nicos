@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,20 +24,18 @@
 
 """Utilities for the session classes."""
 
-from __future__ import absolute_import, division, print_function
-
+import builtins
 import keyword
 import os
 import re
 import rlcompleter
-import socket
 import time
 
 from nicos import session
 from nicos.core.constants import MAINTENANCE, MASTER, SIMULATION, SLAVE
 from nicos.core.device import Device, DeviceAlias
 from nicos.core.errors import UsageError
-from nicos.pycompat import builtins, iteritems
+from nicos.utils import getfqdn
 
 try:
     import readline
@@ -84,7 +82,7 @@ class NicosNamespace(dict):
         dict.__delitem__(self, name)
 
 
-class SimClock(object):
+class SimClock:
     """Simulation clock."""
 
     def __init__(self):
@@ -101,7 +99,7 @@ class SimClock(object):
         self.time += sec
 
 
-class NicosCompleter(object):
+class NicosCompleter:
     """
     This is a custom version of rlcompleter.Completer that doesn't show private
     attributes when completing attribute access.
@@ -112,15 +110,13 @@ class NicosCompleter(object):
 
     attr_hidden = {'attached_devices', 'parameters', 'hardware_access',
                    'temporary', 'log', 'valuetype', 'mro'}
-    global_hidden = {'basestring', 'buffer', 'bytearray', 'bytes',
-                     'callable', 'classmethod', 'coerce', 'cmp', 'compile',
-                     'delattr', 'eval', 'execfile', 'filter', 'frozenset',
-                     'getattr', 'globals', 'hasattr', 'hash', 'id',
-                     'input', 'intern', 'isinstance', 'issubclass', 'iter',
-                     'locals', 'long', 'map', 'memoryview', 'property',
-                     'raw_input', 'reduce', 'reload', 'setattr', 'slice',
-                     'staticmethod', 'super', 'unichr', 'unicode', 'type',
-                     'vars', 'xrange'} | BUILTIN_EXCEPTIONS
+    global_hidden = {'ascii', 'breakpoint', 'bytearray', 'bytes', 'callable',
+                     'classmethod', 'compile', 'delattr', 'eval', 'exec',
+                     'filter', 'format', 'frozenset', 'getattr', 'globals',
+                     'hasattr', 'hash', 'id', 'input', 'isinstance',
+                     'issubclass', 'iter', 'locals', 'map', 'memoryview',
+                     'next', 'object', 'property', 'setattr', 'slice',
+                     'staticmethod', 'super', 'type'} | BUILTIN_EXCEPTIONS
     hidden_keyword = {'assert', 'class', 'del', 'exec', 'yield'}
     special_device = {'move', 'drive', 'maw', 'switch', 'wait', 'read',
                       'status', 'stop', 'reset', 'set', 'get', 'fix',
@@ -210,7 +206,7 @@ class NicosCompleter(object):
         if '(' in line:
             command = line[:line.index('(')].lstrip()
             if command in self.special_device:
-                from nicos.core import Device, Readable, Moveable
+                from nicos.core import Readable, Moveable
                 if command in self.special_moveable:
                     cls = Moveable
                 elif command in self.special_readable:
@@ -221,7 +217,7 @@ class NicosCompleter(object):
                         k.startswith(text) and
                         isinstance(session.devices[k], cls)]
             elif command in self.special_setups:
-                all_setups = [name for (name, info) in iteritems(session._setup_info)
+                all_setups = [name for (name, info) in session._setup_info.items()
                               if info and info['group'] in ('basic',
                                                             'optional',
                                                             'plugplay',
@@ -260,24 +256,15 @@ class NicosCompleter(object):
             return self.global_matches(text, line)
 
 
-class LoggingStdout(object):
-    """
-    Standard output stream replacement that tees output to a logger.
-    """
-
-    def __init__(self, orig_stdout):
-        self.orig_stdout = orig_stdout
+class LoggingStdout:
+    """Standard output stream replacement that feeds output to a logger."""
 
     def write(self, text):
         if text.strip():
             session.log.info(text)
-        try:
-            self.orig_stdout.write(text)
-        except UnicodeEncodeError:
-            self.orig_stdout.write(text.encode('utf-8'))
 
     def flush(self):
-        self.orig_stdout.flush()
+        pass
 
 
 # session id support
@@ -285,8 +272,8 @@ class LoggingStdout(object):
 def makeSessionId():
     """Create a unique identifier for the current session."""
     try:
-        hostname = socket.getfqdn()
-    except socket.error:
+        hostname = getfqdn()
+    except OSError:
         hostname = 'localhost'
     pid = os.getpid()
     timestamp = int(time.time())
@@ -381,7 +368,7 @@ def guessCorrectCommand(source, attribute=False):
         pass
 
 
-class AttributeRaiser(object):
+class AttributeRaiser:
     """Class that raises an exception on attribute access."""
 
     def __init__(self, excls, exmsg):
@@ -397,8 +384,5 @@ class AttributeRaiser(object):
     def __delattr__(self, key):
         raise self.excls(self.exmsg)
 
-    # pylint: disable=nonzero-method
-    def __nonzero__(self):
+    def __bool__(self):
         return False
-
-    __bool__ = __nonzero__

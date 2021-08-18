@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Module to test custom specific modules."""
-
-from __future__ import absolute_import, division, print_function
 
 import pytest
 
@@ -93,12 +91,15 @@ def test_skewmotor(session):
     assert bg.precision == 0.1
     assert bg.read(0) == 0
     bg.maw(1)
-    assert bg.read(0) == 1
-    assert bg._attached_motor_1.read(0) == 0
-    assert bg._attached_motor_2.read(0) == 2
-    assert bg._attached_motor_1.isAtTarget(0)
-    assert bg._attached_motor_2.isAtTarget(2)
-    assert bg.isAtTarget(1)
+    bgpos = bg.read(0)
+    m1pos = bg._attached_one.read(0)
+    m2pos = bg._attached_two.read(0)
+    assert bgpos == 1
+    assert m1pos == 0
+    assert m2pos == 2
+    assert bg._attached_one.isAtTarget(m1pos, 0)
+    assert bg._attached_two.isAtTarget(m2pos, 2)
+    assert bg.isAtTarget(bgpos, 1)
 
 
 def test_focuspoint(session):
@@ -114,7 +115,7 @@ def test_focuspoint(session):
     assert state[0] == status.OK
     assert state[1] == 'focus'
 
-    fp.maw(1000)
+    fp.maw(1100)
     state = fp.status(0)
     assert state[0] == status.OK
     assert state[1] == 'idle'
@@ -123,11 +124,14 @@ def test_focuspoint(session):
 def test_resolution(session):
     rfp = session.getDevice('real_flight_path')
     res = session.getDevice('resolution')
+    chopper = session.getDevice('chopper')
+    chopper.maw({'D': 22.8, 'chopper2_pos': 5, 'gap': 0.1,
+                 'wlmax': 21.0, 'wlmin': 3.0})
     assert rfp.read(0) == 11.153
     assert res.read(0) == 6.168
 
 
-class TestDevices(object):
+class TestDevices:
     """Test class for the 'simple' REFSANS devices."""
 
     @pytest.fixture(scope='function', autouse=True)
@@ -137,14 +141,18 @@ class TestDevices(object):
     def test_analog_encoder(self, session):
         dev = session.getDevice('acoder')
         raw = session.getDevice('rawcoder')
+        identity = session.getDevice('identitycoder')
         assert dev.read(0) == 1
+        assert identity.read(0) == raw.read(0)
         raw.maw(1)
         assert dev.read(0) == 3
+        assert identity.read(0) == raw.read(0)
         raw.maw(-1)
         assert dev.read(0) == -1
+        assert identity.read(0) == raw.read(0)
 
 
-class TestChopper(object):
+class TestChopper:
     """Test class for the REFSANS chopper device."""
 
     @pytest.fixture(scope='function', autouse=True)
@@ -202,3 +210,22 @@ class TestChopper(object):
                                    'wlmax': 21.0, 'wlmin': 0.0}
         assert chopper2.phase == 300
         assert chopper.mode == 'virtual_disc2_pos_6'
+
+
+class TestDimetixLaser:
+    """Class to test the DimetixLaser code."""
+
+    @pytest.fixture(scope='function', autouse=True)
+    def prepare(self, session):
+        signal = session.getDevice('dix_signal')
+        yield
+        signal.curvalue = 10000
+
+    def test_good_read(self, session):
+        """Signal strength is ok."""
+        assert session.getDevice('dix').read(0) == 1234
+
+    def test_bad_read(self, session):
+        """Signal strength is bad."""
+        session.getDevice('dix_signal').curvalue = 7000
+        assert session.getDevice('dix').read(0) == -2000

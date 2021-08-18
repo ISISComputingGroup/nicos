@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,8 +21,6 @@
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
-
-from __future__ import absolute_import, division, print_function
 
 import threading
 
@@ -60,10 +58,10 @@ class Pyro4Device(HasCommunication):
                 Pyro4.config.MAX_RETRIES = self.comtries
             if self.hmackey and hasattr(Pyro4.config, "HMAC_KEY"):  # Pyro 4.18
                 # pylint: disable=assigning-non-slot
-                Pyro4.config.HMAC_KEY = self.hmackey
+                Pyro4.config.HMAC_KEY = self.hmackey.encode()
             self._dev = Pyro4.Proxy(self.pyro4device)
-            if self.hmackey and hasattr(self._dev, "_pyroHMACKey"):  # Pyro 4.43
-                self._dev._pyroHmacKey = self.hmackey
+            if self.hmackey and hasattr(self._dev, "_pyroHmacKey"):  # Pyro 4.43
+                self._dev._pyroHmacKey = self.hmackey.encode()
             self._dev._pyroRelease()
 
 

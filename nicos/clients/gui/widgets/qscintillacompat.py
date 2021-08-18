@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """NICOS GUI user editor qscintilla compat edit widget."""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.guisupport.qt import QColor, QPainter, QPlainTextEdit, QRect, \
     QSize, Qt, QTextCursor, QTextDocument, QTextEdit, QTextFormat, QWidget
@@ -83,7 +81,7 @@ class QScintillaCompatible(QPlainTextEdit):
                                  self.fontMetrics().height(), Qt.AlignRight,
                                  number)
 
-            block = block.next()  # pylint: disable=next-method-called
+            block = block.next()
             top = bottom
             bottom = top + int(self.blockBoundingRect(block).height())
             blockNumber += 1

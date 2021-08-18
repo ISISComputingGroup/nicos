@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,13 +22,10 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from nicos import session
 from nicos.core import Attach, InvalidValueError, Moveable, Override, Param, \
     Readable, anytype, dictof, listof, oneof
 from nicos.core.utils import multiWait
-from nicos.pycompat import iteritems
 
 # Storage structure of tunewave tables:
 # {measmode: {wavelength: {echotime: {tunedev : value}}}}
@@ -87,14 +84,14 @@ class EchoTime(Moveable):
     def doRead(self, maxage=0):
         # read all tuning devices
         devs = {key: value.read(maxage)
-                for key, value in iteritems(self._tunedevs)}
+                for key, value in self._tunedevs.items()}
 
         # find correct echotime for current device setup in currently active
         # tunewave table
-        for echotime, tunedevs in iteritems(self.currenttable):
+        for echotime, tunedevs in self.currenttable.items():
             self.log.debug('checking if we are at echotime %s', echotime)
             success = True
-            for tunedev, value in iteritems(tunedevs):
+            for tunedev, value in tunedevs.items():
                 # XXX: horrible hack
                 if tunedev.endswith('reg_amp'):
                     continue
@@ -123,9 +120,10 @@ class EchoTime(Moveable):
                 break
         else:
             raise InvalidValueError('Given echo time not supported by current '
-                                    'tunewave table (%s/%s)'
+                                    'tunewave table (%s/%s) within %s'
                                     % (getattr(session.experiment, 'measurementmode', 'mieze'),
-                                       self._attached_wavelength.read()))
+                                       self._attached_wavelength.read(),
+                                       self.wavelengthtolerance))
 
         # stop stopfirst devices
         for devname in self.stopfirst:
@@ -147,7 +145,7 @@ class EchoTime(Moveable):
 
         # move all tuning devices at once without blocking
         wait_on = set()
-        for tunedev, val in sorted(iteritems(self.currenttable[value])):
+        for tunedev, val in sorted(self.currenttable[value].items()):
             if tunedev in self.stopfirst:
                 self.log.debug('skipping %s (will be set later)', tunedev)
                 continue
@@ -179,7 +177,7 @@ class EchoTime(Moveable):
         return sorted(self._tunedevs)
 
     def doReadAvailtables(self):
-        return {key: sorted(value) for key, value in iteritems(self.tables)}
+        return {key: sorted(value) for key, value in self.tables.items()}
 
     def doReadCurrenttable(self):
         cur_wavelength = self._attached_wavelength.read()
@@ -189,7 +187,7 @@ class EchoTime(Moveable):
 
         # determine current tunewave table by measurement mode and fuzzy
         # matched wavelength
-        for wavelength, tunewavetable in iteritems(table):
+        for wavelength, tunewavetable in table.items():
             if self._fuzzy_match(cur_wavelength, wavelength, precision):
                 return self._validate_table(tunewavetable)
 
@@ -232,8 +230,7 @@ class EchoTime(Moveable):
 
     def _fuzzy_match(self, value, setpoint, precision):
         """General fuzzy matching of values (used for float comparisons)."""
-        return (value >= (setpoint - precision)
-                and value <= (setpoint + precision))
+        return (setpoint - precision) <= value <= (setpoint + precision)
 
     def _validate_table(self, table):
         """Validates the structure of a single tunewave table and and all the
@@ -242,10 +239,10 @@ class EchoTime(Moveable):
         # Structure of a single tunewave table: {echotime: {tunedev : value}}
 
         result = {}
-        for echotime, tunedevs in iteritems(table):
+        for echotime, tunedevs in table.items():
             echotime = float(echotime)
             result[echotime] = {}
-            for tunedev, value in iteritems(tunedevs):
+            for tunedev, value in tunedevs.items():
                 result[echotime][tunedev] = self._tunedevs[tunedev].valuetype(value)
 
         return result

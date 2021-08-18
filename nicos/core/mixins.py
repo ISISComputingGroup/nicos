@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """Meta classes and Mixins for usage in NICOS."""
 
-from __future__ import absolute_import, division, print_function
-
 import threading
 import types
 from time import time as currenttime
@@ -38,7 +36,6 @@ from nicos.core.errors import AccessError, CommunicationError, \
 from nicos.core.params import Override, Param, anytype, dictof, floatrange, \
     intrange, limits, none_or, nonemptylistof, string, tupleof
 from nicos.core.utils import statusString, usermethod
-from nicos.pycompat import add_metaclass, itervalues
 from nicos.utils import formatArgs, lazy_property
 
 
@@ -51,11 +48,11 @@ class DeviceMixinMeta(type):
     def __new__(mcs, name, bases, attrs):
         # set source class for parameters
         if 'parameters' in attrs:
-            for pinfo in itervalues(attrs['parameters']):
+            for pinfo in attrs['parameters'].values():
                 pinfo.classname = attrs['__module__'] + '.' + name
         for base in bases:
             if hasattr(base, 'parameters'):
-                for pinfo in itervalues(base.parameters):
+                for pinfo in base.parameters.values():
                     if pinfo.classname is None:
                         pinfo.classname = base.__module__ + '.' + base.__name__
         newtype = type.__new__(mcs, name, bases, attrs)
@@ -77,7 +74,10 @@ class DeviceMixinMeta(type):
             value = getattr(newtype, aname)
             if not isinstance(value, (types.FunctionType, types.MethodType)):
                 continue
-            args = formatArgs(value, strip_self=True)
+            if hasattr(value, 'help_arglist'):
+                args = '(%s)' % value.help_arglist
+            else:
+                args = formatArgs(value, strip_self=True)
             if value.__doc__:
                 docline = value.__doc__.strip().splitlines()[0]
             else:
@@ -87,7 +87,7 @@ class DeviceMixinMeta(type):
 
         return newtype
 
-    def __instancecheck__(cls, inst):  # pylint: disable=C0203
+    def __instancecheck__(cls, inst):
         from nicos.core.device import DeviceAlias, NoDevice  # isort:skip
         if inst.__class__ == DeviceAlias and inst._initialized:
             if isinstance(inst._obj, NoDevice):
@@ -98,8 +98,7 @@ class DeviceMixinMeta(type):
         return issubclass(inst.__class__, cls)
 
 
-@add_metaclass(DeviceMixinMeta)
-class DeviceMixinBase(object):
+class DeviceMixinBase(metaclass=DeviceMixinMeta):
     """
     Base class for all NICOS device mixin classes not derived from `Device`.
 
@@ -268,9 +267,9 @@ class HasOffset(DeviceMixinBase):
     TODO: handle limit/offset coupling
     """
     parameters = {
-        'offset':  Param('Offset of device zero to hardware zero', unit='main',
-                         settable=True, category='offsets', chatty=True,
-                         fmtstr='main'),
+        'offset': Param('Offset of device zero to hardware zero', unit='main',
+                        settable=True, category='offsets', chatty=True,
+                        fmtstr='main'),
     }
 
     def doWriteOffset(self, value):
@@ -321,10 +320,10 @@ class HasPrecision(DeviceMixinBase):
                            settable=True, category='precisions'),
     }
 
-    def doIsAtTarget(self, pos):
-        if self.target is None:
+    def doIsAtTarget(self, pos, target):
+        if target is None:
             return True  # avoid bootstrapping problems
-        return abs(self.target - pos) <= self.precision
+        return abs(target - pos) <= self.precision
 
 
 class HasMapping(DeviceMixinBase):
@@ -349,7 +348,7 @@ class HasMapping(DeviceMixinBase):
 
     # mapped values usually are string constants and have no unit
     parameter_overrides = {
-        'unit':      Override(mandatory=False),
+        'unit': Override(mandatory=False),
     }
 
     def doIsAllowed(self, target):
@@ -535,9 +534,9 @@ class HasWindowTimeout(HasPrecision, HasTimeout):
     Also we add a stabilising phase in the timeouttimes list.
     """
     parameters = {
-        'window':    Param('Time window for checking stabilization', unit='s',
-                           default=60.0, fmtstr='%.1f', settable=True,
-                           category='general'),
+        'window': Param('Time window for checking stabilization',
+                        unit='s', default=60.0, fmtstr='%.1f', settable=True,
+                        category='general'),
     }
 
     parameter_overrides = {
@@ -592,10 +591,15 @@ class HasWindowTimeout(HasPrecision, HasTimeout):
         res.append(('', res[-1][1] + self.window))
         return res
 
-    def isAtTarget(self, val):
+    def isAtTarget(self, pos=None, target=None):
+        if target is None:
+            target = self.target
+        if pos is None:
+            pos = self.read(0)
+
         ct = currenttime()
-        self._cacheCB('value', val, ct)
-        if self.target is None:
+        self._cacheCB('value', pos, ct)
+        if target is None:
             return True
 
         # check subset of _history which is in window
@@ -604,11 +608,11 @@ class HasWindowTimeout(HasPrecision, HasTimeout):
         hist = self._history[:]
         window_start = ct - self.window
         hist_in_window = [v for (t, v) in hist if t >= window_start]
-        stable = all(abs(v - self.target) <= self.precision
+        stable = all(abs(v - target) <= self.precision
                      for v in hist_in_window)
-        if 0 < len(hist_in_window) < len(hist) and stable:  # pylint: disable=len-as-condition
+        if 0 < len(hist_in_window) < len(hist) and stable:
             if hasattr(self, 'doIsAtTarget'):
-                return self.doIsAtTarget(val)
+                return self.doIsAtTarget(pos, target)
             return True
         return False
 
@@ -656,10 +660,10 @@ class HasCommunication(DeviceMixinBase):
     """
 
     parameters = {
-        'comtries':  Param('Maximum retries for communication',
-                           type=intrange(1, 100), default=3, settable=True),
-        'comdelay':  Param('Delay between retries', unit='s', default=0.1,
-                           fmtstr='%.1f', settable=True),
+        'comtries': Param('Maximum retries for communication',
+                          type=intrange(1, 100), default=3, settable=True),
+        'comdelay': Param('Delay between retries', unit='s', default=0.1,
+                          fmtstr='%.1f', settable=True),
     }
 
     @lazy_property
@@ -724,7 +728,8 @@ class CanDisable(DeviceMixinBase):
             try:
                 session.checkAccess(self.requires)
             except AccessError as err:
-                raise AccessError(self, 'cannot %s device: %s' % (what, err))
+                raise AccessError(
+                    self, 'cannot %s device: %s' % (what, err)) from None
         if self._sim_intercept:
             return
         self.doEnable(on)

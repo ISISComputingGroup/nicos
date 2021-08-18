@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,9 +26,8 @@
 NICOS value plot widget.
 """
 
-from __future__ import absolute_import, division, print_function
-
 import functools
+import itertools
 import operator
 from time import localtime, strftime, time as currenttime
 
@@ -50,11 +49,9 @@ from gr import MARKERTYPE_ASTERISK, MARKERTYPE_BOWTIE, MARKERTYPE_CIRCLE, \
 from gr.pygr import Plot, PlotAxes, PlotCurve
 
 from nicos.guisupport.qt import QHBoxLayout, QSize, QTimer, QWidget, pyqtSignal
-from nicos.guisupport.qtgr import GUIConnector, InteractiveGRWidget, \
-    LegendEvent, MouseEvent
+from nicos.guisupport.qtgr import InteractiveGRWidget, LegendEvent, MouseEvent
 from nicos.guisupport.timeseries import TimeSeries, buildTickDistAndSubTicks
 from nicos.guisupport.widget import NicosWidget, PropDef
-from nicos.pycompat import zip_longest
 from nicos.utils import extractKeyAndIndex
 
 DATEFMT = '%Y-%m-%d'
@@ -121,6 +118,7 @@ class MaskedPlotCurve(PlotCurve):
         self.fillx = kwargs.pop('fillx', 0)
         self.filly = kwargs.pop('filly', 0)
         PlotCurve.__init__(self, *args, **kwargs)
+        self._markersize = 1.0
 
     @property
     def x(self):
@@ -143,6 +141,18 @@ class MaskedPlotCurve(PlotCurve):
     @y.setter
     def y(self, y):
         PlotCurve.y.__set__(self, y)
+
+    @property
+    def markersize(self):
+        return self._markersize
+
+    @markersize.setter
+    def markersize(self, size):
+        self._markersize = size
+
+    def drawGR(self):
+        gr.setmarkersize(self._markersize)
+        PlotCurve.drawGR(self)
 
 
 class NicosPlotAxes(PlotAxes):
@@ -197,7 +207,7 @@ class NicosTimePlotAxes(NicosPlotAxes):
     def doAutoScale(self, curvechanged=None):
         vc = self.getVisibleCurves() or self.getCurves()
         win = NicosPlotAxes.doAutoScale(self, curvechanged)
-        xmin, xmax, ymin, ymax = win  # pylint: disable=unpacking-non-sequence
+        xmin, xmax, ymin, ymax = win
         if self.slidingwindow and self.autoscale & PlotAxes.SCALE_X and \
            (vc.xmax - xmin) > self.slidingwindow:
             xmin = vc.xmax - self.slidingwindow
@@ -237,7 +247,6 @@ To access items of a sequence, use subscript notation, e.g. T.userlimits[0]
     width = PropDef('width', int, 30, 'Width of the plot widget in units '
                     'of app font character width.')
 
-    # pylint: disable=W0231
     def __init__(self, parent, designMode=False):
         self.ncurves = 0
         self.ctimers = {}
@@ -273,10 +282,9 @@ To access items of a sequence, use subscript notation, e.g. T.userlimits[0]
         self.curves = []
 
         # event support
-        guiConn = GUIConnector(self.widget)
-        guiConn.connect(LegendEvent.ROI_CLICKED, self.on_legendItemClicked,
-                        LegendEvent)
-        guiConn.connect(MouseEvent.MOUSE_MOVE, self.on_mouseMove)
+        self.widget.cbm.addHandler(LegendEvent.ROI_CLICKED,
+                                   self.on_legendItemClicked, LegendEvent)
+        self.widget.cbm.addHandler(MouseEvent.MOUSE_MOVE, self.on_mouseMove)
 
         self.timeSeriesUpdate.connect(self.on_timeSeriesUpdate)
 
@@ -366,10 +374,12 @@ To access items of a sequence, use subscript notation, e.g. T.userlimits[0]
         self.ctimers[curve].timeout.connect(update)
 
     def registerKeys(self):
-        for key, name in zip_longest(self.props['devices'], self.props['names']):
+        for key, name in itertools.zip_longest(self.props['devices'],
+                                               self.props['names']):
             if name is None:
                 name = key
             key, index, scale, offset = extractKeyAndIndex(key)
             keyid = self._source.register(self, key)
-            self.keyindices.setdefault(keyid, []).append(index)
-            self.addcurve(keyid, index, name, scale, offset)
+            if (keyid, index) not in self.series:
+                self.keyindices.setdefault(keyid, []).append(index)
+                self.addcurve(keyid, index, name, scale, offset)

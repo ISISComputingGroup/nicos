@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,15 +19,14 @@
 #
 # Module authors:
 #   Alexander Lenz <alexander.lenz@frm2.tum.de>
+#   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
 
 """NICOS GUI log viewer panel with simple filter options."""
 
-from __future__ import absolute_import, division, print_function
-
+import html
 import os.path
-from cgi import escape
 
 from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.utils import loadUi
@@ -52,6 +51,7 @@ class LogViewerPanel(Panel):
             QDateTime.currentDateTime().addDays(-1))
         self.dateTimeEditTo.setDateTime(QDateTime.currentDateTime())
 
+        client.connected.connect(self.on_client_connected)
 
     def on_client_connected(self):
         # determine log path via daemon
@@ -147,7 +147,7 @@ class LogViewerPanel(Panel):
         result = []
         dateStr = fileDate.toString('yyyy-MM-dd ')
 
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
             # store if last line was added,
             # this is used to filter tracebacks etc properly
             lastLineAdded = False
@@ -196,5 +196,5 @@ class LogViewerPanel(Panel):
     def _colorizeLevel(self, line, level):
         style = self.STYLES.get(level, '')
         if style:
-            return '<span style="%s">%s</span>' % (style, escape(line))
-        return escape(line)
+            return '<span style="%s">%s</span>' % (style, html.escape(line))
+        return html.escape(line)

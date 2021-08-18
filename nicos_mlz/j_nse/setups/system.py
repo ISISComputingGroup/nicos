@@ -16,6 +16,9 @@ modules = ['nicos.commands.standard']
 includes = [
     'notifiers',
     'coiltemp',
+    'reactor',
+    'guidehall',
+    'nl2a',
 ]
 
 devices = dict(
@@ -23,7 +26,7 @@ devices = dict(
         description = 'instrument object',
         instrument = 'J-NSE',
         responsible = 'O. Holderer <o.holderer@fz-juelich.de>',
-        operators = [u'Jülich Centre for Neutron Science (JCNS)'],
+        operators = ['Jülich Centre for Neutron Science (JCNS)'],
         website = 'http://www.mlz-garching.de/j-nse',
     ),
     Sample = device('nicos.devices.sample.Sample',
@@ -37,13 +40,9 @@ devices = dict(
         serviceexp = 'service',
         sample = 'Sample',
     ),
-    filesink = device('nicos.devices.datasinks.AsciiScanfileSink',
-        semicolon = False,
-    ),
-    conssink = device('nicos.devices.datasinks.ConsoleScanSink',
-    ),
-    daemonsink = device('nicos.devices.datasinks.DaemonSink',
-    ),
+    filesink = device('nicos.devices.datasinks.AsciiScanfileSink'),
+    conssink = device('nicos.devices.datasinks.ConsoleScanSink'),
+    daemonsink = device('nicos.devices.datasinks.DaemonSink'),
     Space = device('nicos.devices.generic.FreeSpace',
         description = 'The amount of free space for storing data',
         path = None,

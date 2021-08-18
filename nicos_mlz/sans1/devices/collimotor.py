@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,14 +24,12 @@
 
 """Devices for the SANS-1 collimation system."""
 
-from __future__ import absolute_import, division, print_function
-
 import time
 
 from numpy import int32, uint16, uint32
 
 from nicos import session
-from nicos.core import SIMULATION, Attach, CommunicationError, \
+from nicos.core import ADMIN, SIMULATION, USER, Attach, CommunicationError, \
     ConfigurationError, HasTimeout, InvalidValueError, Moveable, MoveError, \
     Override, Param, PositionError, UsageError, floatrange, intrange, \
     none_or, oneof, oneofdict, requires, status, usermethod
@@ -135,7 +133,8 @@ class Sans1ColliBase(PyTangoDevice):
             self._dev.WriteOutputWord((WATCHDOG_REGISTER, WATCHDOG_DISABLE))
             # check 'dwordorder' is 'little'
             if self._getProperty('dwordorder') != 'little':
-                raise ConfigurationError("dwordorder property must be set to 'little'!")
+                raise ConfigurationError("dwordorder property must "
+                                         "be set to 'little'!")
 
 
 class Sans1ColliCoder(Sans1ColliBase, Coder):
@@ -317,7 +316,7 @@ class Sans1ColliMotor(Sans1ColliBase, CanReference, SequencerMixin, HasTimeout, 
         self._writeControlBit(4, 1)     # docu: bit4 = reference, autoresets
         # according to docu, the refpos is (also) a parameter of the KL....
 
-    def doSetPosition(self, value):
+    def doSetPosition(self, pos):
         for _ in range(100):
             if self._readStatusWord() & (1 << 7):
                 continue
@@ -341,7 +340,7 @@ class Sans1ColliMotor(Sans1ColliBase, CanReference, SequencerMixin, HasTimeout, 
         loops = 10
         for loop in range(loops):
             self.log.debug('setPosition: loop %d of %d', loop, loops)
-            self._writeDestination(self._phys2steps(value))
+            self._writeDestination(self._phys2steps(pos))
             # index=1: update current position
             self._writeUpperControlWord((1 << 8) | 1)
 
@@ -542,7 +541,7 @@ class Sans1ColliMotor(Sans1ColliBase, CanReference, SequencerMixin, HasTimeout, 
             return max(status.BUSY, _status[0]), _status[1]
         return _status
 
-    @requires(level='admin')
+    @requires(level=ADMIN)
     def doReference(self):
         if self._seq_is_running():
             raise MoveError(self, 'Cannot reference a moving device!')
@@ -673,14 +672,14 @@ class Sans1ColliMotorAllParams(Sans1ColliMotor):
     # more advanced stuff: setting/getting parameters
     # only to be used manually at the moment
     @usermethod
-    @requires(level='user')
+    @requires(level=USER)
     def readParameter(self, index):
         self.log.debug('readParameter %d', index)
         try:
             index = int(self._paridx.get(index, index))
         except ValueError:
             raise UsageError(self, 'Unknown parameter %r, try one of %s' %
-                             (index, ', '.join(self._paridx)))
+                             (index, ', '.join(self._paridx))) from None
         if self._readStatusWord() & (1 << 7):
             raise UsageError(self, 'Can not access Parameters while Motor is '
                              'moving, please stop it first!')
@@ -712,7 +711,7 @@ class Sans1ColliMotorAllParams(Sans1ColliMotor):
         return self._readReturn()
 
     @usermethod
-    @requires(level='admin')
+    @requires(level=ADMIN)
     def writeParameter(self, index, value, store2eeprom=False):
         self.log.debug('writeParameter %d:0x%04x', index, value)
         if store2eeprom:
@@ -773,8 +772,8 @@ class Sans1ColliMotorAllParams(Sans1ColliMotor):
         return ['off', 'on'][self._readControlBit(0)]
 
     # Parameter 1 : CurrentPosition
-    def doSetPosition(self, value):
-        self.writeParameter(1, self._phys2steps(value))
+    def doSetPosition(self, pos):
+        self.writeParameter(1, self._phys2steps(pos))
 
     # Parameter 2 : Refpos
     def doReadRefpos(self):

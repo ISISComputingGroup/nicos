@@ -3,14 +3,16 @@ group = 'special'
 
 _expcolumn = Column(
     Block('Experiment', [
-        BlockRow(Field(name='Proposal', key='exp/proposal', width=7),
-                 Field(name='Title',    key='exp/title',    width=30,
-                       istext=True, maxlen=15),
-                 Field(name='Sample',   key='sample/samplename', width=20,
-                       istext=True, maxlen=15),
-                 Field(name='Last file', key='exp/lastscan'),
-                 Field(name='EchoTime', dev='echotime', unit='ns', width=15),
-                 Field(name='Wavelength', dev='selector_lambda', unit='A')),
+        BlockRow(
+            Field(name='Proposal', key='exp/proposal', width=7),
+            # Field(name='Title', key='exp/title', width=30, istext=True,
+            #       maxlen=15),
+            # Field(name='Sample', key='sample/samplename', width=20,
+            #       istext=True, maxlen=15),
+            Field(name='Last file', key='exp/lastscan'),
+            Field(name='EchoTime', dev='echotime', unit='ns', width=15),
+            Field(name='Wavelength', dev='selector_lambda', unit='A'),
+        ),
         ],
         setups='selector and tuning',
     ),
@@ -20,9 +22,9 @@ _column1 = Column(
     Block('Cryostat', [
         BlockRow(
             Field(name='Setpoint', key='T_ccr_tube/setpoint',
-                   unitkey='T/unit'),
+                  unitkey='T/unit'),
             Field(name='Target', key='T_ccr_tube/target',
-                   unitkey='T/unit'),
+                  unitkey='T/unit'),
         ),
         BlockRow(
             Field(name='Manual Heater Power Stick',
@@ -45,52 +47,87 @@ _column1 = Column(
              Field(name='C', dev='T_ccr_cold_head'),
              Field(name='D', dev='T_ccr_sample_tube'),
         ),
+        BlockRow(
+            Field(plot='cryo 30min', name='Temp 30min', devs='T_ccr_sample_tube',
+                  width=60, height=40, plotwindow=1800),
+        ),
         ],
         setups='ccr'
         ),
     Block('Environment', [
-        BlockRow(Field(name='Power', dev='ReactorPower', format='%.1f', width=6),
-                 Field(name='6-fold', dev='Sixfold', min='open', width=6)),
-        BlockRow(#Field(dev='DoseRate', name='Rate', width=6),
-                 Field(dev='Crane', width=7)),
+        BlockRow(
+            Field(name='Power', dev='ReactorPower', format='%.1f', width=6),
+            Field(name='6-fold', dev='Sixfold', min='open', width=6),
+        ),
+        BlockRow(
+            # Field(dev='DoseRate', name='Rate', width=6),
+            Field(dev='Crane', width=7),
+        ),
         ],
         setups='reactor and guidehall',
     ),
     Block('Attenuators', [
-        BlockRow(Field(name='att0', dev='att0'),
-                 Field(name='att1', dev='att1'),
-                 Field(name='att2', dev='att2')),
+        BlockRow(
+            Field(name='att0', dev='att0'),
+            Field(name='att1', dev='att1'),
+            Field(name='att2', dev='att2'),
+        ),
         ],
         setups='attenuators',
     ),
-#    Block('Pressures', [
-#        BlockRow(Field(name='Guides and Tube', dev='P_ng_elements', unit='mbar'),
-#                 Field(name='Polariser', dev='P_polarizer', units='mbar'),
-#                 Field(name='Selector', dev='P_selector_vacuum', units='mbar')),
-#        ],
-#        setups='pressure'
-#    ),
+    # Block('Pressures', [
+    #     BlockRow(
+    #         Field(name='Guides and Tube', dev='P_ng_elements', unit='mbar'),
+    #         Field(name='Polariser', dev='P_polarizer', units='mbar'),
+    #         Field(name='Selector', dev='P_selector_vacuum', units='mbar'),
+    #     ),
+    #     ],
+    #     setups='pressure'
+    # ),
+    Block('', [
+        BlockRow(
+            Field(name='Live data', picture='reseda-online/live.png',
+                refresh=1, width=24, height=24),
+        ),
+        ]
+    ),
 )
 
 _column2 = Column(
     Block('Sample slits', [
-        BlockRow(Field(dev='slit1', name='Entrance slit', width=24, istext=True)),
-        BlockRow(Field(dev='slit2', name='Sample slit', width=24, istext=True)),
+        BlockRow(
+            Field(dev='slit1', name='Entrance slit', width=24, istext=True),
+        ),
+        BlockRow(
+            Field(dev='slit2', name='Sample slit', width=24, istext=True),
+        ),
         ],
         setups='slitsng',
     ),
     Block('Sample table', [
-        BlockRow(Field(name='Rotation', dev='srz', unit='deg')),
-        BlockRow('stx', 'sty'),
-        BlockRow('sgx', 'sgy'),
+        # BlockRow(
+        #     Field(name='Rotation', dev='srz', unit='deg'),
+        # ),
+        BlockRow(
+            Field(dev='stx'),
+            Field(dev='sty'),
+            Field(dev='stz'),
+        ),
+        BlockRow(
+            Field(dev='sgx'),
+            Field(dev='sgy'),
+            Field(dev='srz'),
+        ),
         ],
         setups='sampletable',
     ),
     Block('arms', [
-        BlockRow(Field(name='arm1', dev='arm1_rot', unit='deg'),
-                 Field(name='arm2', dev='arm2_rot', unit='deg')),
+        BlockRow(
+            Field(name='arm1', dev='arm1_rot', unit='deg'),
+            Field(name='arm2', dev='arm2_rot', unit='deg'),
+        ),
         ],
-     ),
+    ),
 )
 
 ccrs = []
@@ -128,7 +165,7 @@ for i in range(10, 22 + 1):
     ))
 
 cryos = []
-for cryo in 'cci3he1 cci3he2 cci3he3 ccidu1 ccidu2'.split():
+for cryo in 'cci3he01 cci3he02 cci3he03 ccidu01 ccidu02'.split():
     cryos.append(Block(cryo.title(), [
         BlockRow(
             Field(name='Setpoint', key='t_%s/setpoint' % cryo,
@@ -148,41 +185,49 @@ for cryo in 'cci3he1 cci3he2 cci3he3 ccidu1 ccidu2'.split():
         setups=cryo,
     ))
 
-_ccmsans = Block('SANS-1 5T Magnet', [
-    BlockRow(Field(name='Field', dev='b_ccmsans', width=12)),
-    BlockRow(Field(name='Target', key='b_ccmsans/target', width=12),
-             Field(name='Asymmetry', key='b_ccmsans/asymmetry', width=12),
+_ccm5h = Block('SANS-1 5T Magnet', [
+    BlockRow(
+        Field(name='Field', dev='B_ccm5h', width=12),
     ),
-    BlockRow(Field(name='Power Supply 1', dev='a_ccmsans_left', width=12),
-             Field(name='Power Supply 2', dev='a_ccmsans_right', width=12),
+    BlockRow(
+        Field(name='Target', key='b_ccm5h/target', width=12),
+        Field(name='Asymmetry', key='b_ccm5h/asymmetry', width=12),
+    ),
+    BlockRow(
+        Field(name='Power Supply 1', dev='I1_ccm5h', width=12),
+        Field(name='Power Supply 2', dev='I2_ccm5h', width=12),
     ),
     ],
-    setups='ccmsans',
+    setups='ccm5h',
 )
 
 _miramagnet = Block('MIRA 0.5T Magnet', [
-    BlockRow(Field(name='Field', dev='B_miramagnet', width=12),
-             Field(name='Target', key='B_miramagnet/target', width=12),
+    BlockRow(
+        Field(name='Field', dev='B_miramagnet', width=12),
+        Field(name='Target', key='B_miramagnet/target', width=12),
     ),
-    BlockRow(Field(name='Current', dev='I_miramagnet', width=12)),
+    BlockRow(
+        Field(name='Current', dev='I_miramagnet', width=12),
+    ),
     ],
     setups='miramagnet',
 )
 
 _amagnet = Block('Antares Magnet', [
-    BlockRow(Field(name='Field', dev='B_amagnet', width=12),
-             Field(name='Target', key='B_amagnet/target', width=12),
+    BlockRow(
+        Field(name='Field', dev='B_amagnet', width=12),
+        Field(name='Target', key='B_amagnet/target', width=12),
     ),
     BlockRow(
-             Field(name='Current', dev='amagnet_current', width=12),
-             Field(name='ON/OFF', dev='amagnet_onoff', width=12),
+        Field(name='Current', dev='amagnet_current', width=12),
+        Field(name='ON/OFF', dev='amagnet_onoff', width=12),
     ),
     BlockRow(
-             Field(name='Polarity', dev='amagnet_polarity', width=12),
-             Field(name='Connection', dev='amagnet_connection', width=12),
+        Field(name='Polarity', dev='amagnet_polarity', width=12),
+        Field(name='Connection', dev='amagnet_connection', width=12),
     ),
     BlockRow(
-             Field(name='Lambda out', dev='l_out', width=12),
+        Field(name='Lambda out', dev='l_out', width=12),
     ),
     ],
     setups='amagnet',
@@ -190,48 +235,72 @@ _amagnet = Block('Antares Magnet', [
 
 _ccm2a = Block('CCM2a Magnet', [
     BlockRow(
-             Field(name='Field', dev='B_ccm2a', width=12),
-            ),
+        Field(name='Field', dev='B_ccm2a', width=12),
+    ),
     BlockRow(
-             Field(name='Target', key='B_ccm2a/target', width=12),
-             Field(name='Readback', dev='B_ccm2a_readback', width=12),
-            ),
+        Field(name='Target', key='B_ccm2a/target', width=12),
+        Field(name='Readback', dev='B_ccm2a_readback', width=12),
+    ),
     BlockRow(
-             Field(name='T1', dev='ccm2a_T1', width=12),
-             Field(name='T2', dev='ccm2a_T2', width=12),
-            ),
+        Field(name='T1', dev='ccm2a_T1', width=12),
+        Field(name='T2', dev='ccm2a_T2', width=12),
+    ),
     BlockRow(
-             Field(name='TA', dev='ccm2a_TA', width=12),
-             Field(name='TB', dev='ccm2a_TB', width=12),
-            ),
+        Field(name='TA', dev='ccm2a_TA', width=12),
+        Field(name='TB', dev='ccm2a_TB', width=12),
+    ),
     ],
     setups='ccm2a',
 )
 
-magnets = [_ccm2a, _ccmsans, _miramagnet, _amagnet]
+magnets = [_ccm2a, _ccm5h, _miramagnet, _amagnet]
 
 _column3 = Column(
     Block('Cascade detector', [
-        BlockRow(Field(name='ROI', key='psd_channel.roi', format='%.0f', width=15),
-                 Field(name='Last image', key='exp/lastpoint')),
-        BlockRow(Field(name='cts ROI', key='psd/value[2]', format='%.0f', width=9),
-                 Field(name='Contrast ROI', key='psd/value[4]', format='%.2f', width=9)),
-        BlockRow(Field(name='cts total', key='psd/value[3]', format='%.0f', width=9),
-                 Field(name='Contrast total', key='psd/value[8]', format='%.2f', width=9)),
-        BlockRow('timer', 'monitor1' ),
-        BlockRow(Field(dev='mon_hv', width=9),
-                 Field(dev='det_hv', format='%.0f', width=9)),
-        BlockRow(Field(dev='psd_chop_freq', width=12),
-                 Field(dev='psd_timebin_freq', width=12)),
+        BlockRow(
+            Field(name='ROI', key='psd_channel.roi', format='%.0f', width=15),
+            Field(name='Last image', key='exp/lastpoint'),
+        ),
+        BlockRow(
+            Field(name='cts ROI', key='psd/value[2]', format='%.0f', width=9),
+            Field(name='Contrast ROI', key='psd/value[4]', format='%.2f',
+                  width=9),
+        ),
+        BlockRow(
+            Field(name='cts total', key='psd/value[3]', format='%.0f',
+                  width=9),
+            Field(name='Contrast total', key='psd/value[8]', format='%.2f',
+                  width=9),
+        ),
+        BlockRow(
+            Field(dev='timer'),
+            Field(dev='monitor1'),
+        ),
+        BlockRow(
+            Field(dev='mon_hv', width=9),
+            Field(dev='det_hv', format='%.0f', width=9),
+        ),
+        BlockRow(
+            Field(dev='psd_chop_freq', width=12),
+            Field(dev='psd_timebin_freq', width=12),
+        ),
         ],
         setups='det_cascade and det_base',
     ),
     Block('3He detector', [
-         BlockRow(Field(name='Counts', key='det/value[2]', format='%.0f', width=12)),
-         BlockRow(Field(name='monitor', key='det/value[1]', format='%.0f', width=12)),
-         BlockRow(Field(name='timer', key='det/value[0]', format='%.0f', width=12)),
-         BlockRow(Field(dev='mon_hv', width=9),
-                 Field(dev='det_hv', format='%.0f', width=9)),
+        BlockRow(
+            Field(name='Counts', key='det/value[2]', format='%.0f', width=12),
+        ),
+        BlockRow(
+            Field(name='monitor', key='det/value[1]', format='%.0f', width=12),
+        ),
+        BlockRow(
+            Field(name='timer', key='det/value[0]', format='%.0f', width=12),
+        ),
+        BlockRow(
+            Field(dev='mon_hv', width=9),
+            Field(dev='det_hv', format='%.0f', width=9),
+        ),
         ],
         setups='det_3he and det_base',
     ),
@@ -249,5 +318,6 @@ devices = dict(
         valuefont = 'Consolas',
         fontsize = 17,
         layout = [[_expcolumn], [_column1, _column2, _column3]],
+        noexpired = True,
     ),
 )

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,14 +24,14 @@
 # *****************************************************************************
 """REFSANS SDS (safe detector system) devices."""
 
-from __future__ import absolute_import, division, print_function
-
 import requests
 
-from nicos.core import Override, Param, Readable, intrange, oneof, status
+from nicos.core import Moveable, Override, Param, Readable, intrange, oneof, \
+    status, usermethod
 from nicos.core.errors import CommunicationError, ConfigurationError, \
     NicosError
 from nicos.core.mixins import HasOffset
+from nicos.core.params import Attach
 
 
 class JsonBase(Readable):
@@ -58,12 +58,12 @@ class JsonBase(Readable):
             self.log.info(line)
             self.log.info('url %s' % self.url)
             self.log.info('err %s' % e)
-            raise CommunicationError(self, 'HTTP Timeout failed')
+            raise CommunicationError(self, 'HTTP Timeout failed') from e
         except Exception as e:
             self.log.info(line)
             self.log.info('url %s' % self.url)
             self.log.info('err %s' % e)
-            raise ConfigurationError(self, 'HTTP request failed')
+            raise ConfigurationError(self, 'HTTP request failed') from e
         res = {}
         for key in keys:
             res[key] = data[key]
@@ -94,15 +94,14 @@ class CPTReadout(HasOffset, JsonBase):
         data = self._read_controller([self.valuekey, 'start_act'])
         self.log.debug('res: %r', data)
         self.log.debug('channel %d', channel)
-        if channel == 0:
+        if channel == -1:
             self.log.debug('calc speed')
             res = 3e9 / data['start_act']  # speed
             res -= self.offset  # should be Zero
-        elif channel == -1:
+        elif channel == 90:
             self.log.debug('calc phase in respect to Disk 1 of Disc 1')
             self.log.debug('offset %.2f', self.offset)
-            res = -360.0 * data[self.valuekey][0] / data['start_act']
-            res -= self.offset
+            res = -360.0 * data[self.valuekey][6] / data['start_act']
             res = self._kreis(res)
         else:
             self.log.debug('calc phase in respect to Disk 1')
@@ -132,13 +131,41 @@ class CPTReadout(HasOffset, JsonBase):
         return self._read_ctrl(self.channel)
 
 
+class CPTReadoutproof(CPTReadout):
+
+    attached_devices = {
+        'chopper': Attach('to get status of controller', Moveable),
+        'speed': Attach('self speed', Readable),
+    }
+
+    def doStatus(self, maxage=0):
+        statChopper = self._attached_chopper.status()
+        if statChopper[0] != status.OK:
+            return statChopper
+        speedChopper = self._attached_chopper.read()
+        speedSelf = self._attached_speed.read()
+        self.log.info('%d %d', speedChopper, speedSelf)
+        if abs(speedChopper - speedSelf) > .05:
+            return status.BUSY, 'speed'
+        if abs(self._read_ctrl(self.channel) - 1) > .5:
+            return status.ERROR, 'window Error'
+        return status.OK, ''
+
+
 class SdsRatemeter(JsonBase):
-    """Read the count rates for the different input channels of the SDS."""
+    """Read count rates for the different input channels of the SDS."""
 
     parameters = {
         'channel': Param('Channel to be rated',
                          type=oneof('a', 'x', 'y'), default='a',
-                         settable=False)
+                         settable=False),
+        'mode': Param('mode of the beam',
+                      type=oneof('reflectivity', 'gisans'),
+                      settable=True, userparam=True, default='gisans'),
+        'masks': Param('Maps mask to attached devices positions',
+                       type=dict, mandatory=True),
+        'controlurl': Param('URL to the control side',
+                            type=str, userparam=False),
     }
 
     parameter_overrides = {
@@ -146,13 +173,36 @@ class SdsRatemeter(JsonBase):
         'unit': Override(default='cps'),
     }
 
+    def doWriteMode(self, target):
+        self.log.debug('WriteMode to: %s', target)
+        val = int(self.masks[target])
+        try:
+            res = requests.post(self.controlurl, timeout=self.timeout,
+                                data={'mon_limit_start': '%d' % val})
+            if res.status_code != 200:
+                self.log.error('write mode: res %d %s', res.status_code,
+                               res.reason)
+            res.close()
+        except ConnectionError as e:
+            self.log.error('write mode: %s', e)
+
+    @usermethod
+    def clear(self):
+        try:
+            res = requests.post(self.controlurl, timeout=self.timeout,
+                                data={'mon_button': '1'})
+            if res.status_code != 200:
+                self.log.error('clear res: %d %s', res.status_code, res.reason)
+            res.close()
+        except ConnectionError as e:
+            self.log.error('clear: %s', e)
+
     def doStatus(self, maxage=0):
         try:
             res = self._read_controller([self.valuekey])
             if int(res[self.valuekey]) == 0:
                 return status.OK, ''
-            else:
-                return status.ERROR, 'System tripped! please clear'
+            return status.ERROR, 'System tripped! Please, clear.'
         except CommunicationError:
             return status.WARN, 'Timeout during talk to the hardware.'
         except NicosError:
@@ -160,7 +210,7 @@ class SdsRatemeter(JsonBase):
 
     def doRead(self, maxage=0):
         res = self._read_controller(['mon_counts_cps_%s' % self.channel])
-        res = int(res.values()[0])
+        res = int(list(res.values())[0])  # Pyth3 res.popitem()[1]
         ret = int(res / 2.46)
         self.log.info('system %dfoo countrate %dcps', res, ret)
         return ret

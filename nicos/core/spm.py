@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -30,8 +30,8 @@ The syntax is very simple and allows no variables, loops or conditionals: a
 command line consists of a command and optional arguments, separated by spaces.
 
 Arguments can be numbers, device names, strings and symbols (words that signify
-a command option).  Strings can be quoted or unquoted as long as they start with
-a nondigit character.
+a command option).  Strings can be quoted or unquoted as long as they start
+with a nondigit character.
 
 Examples::
 
@@ -44,14 +44,11 @@ Examples::
 # * figure out how to convert code examples in docstrings
 # * add a way to make commands unavailable (e.g. manualscan)
 
-from __future__ import absolute_import, division, print_function
-
 import re
 from itertools import chain, cycle, islice
 
 from nicos.core.device import Device
 from nicos.core.errors import SPMError
-from nicos.pycompat import iteritems, srepr
 
 id_re = re.compile('[a-zA-Z_][a-zA-Z0-9_]*$')
 string1_re = re.compile(r"'(\\\\|\\'|[^'])*'")
@@ -73,7 +70,7 @@ def spmsyntax(*arguments, **options):
 class bare(str):
     """String that repr()s as itself without quotes."""
     def __repr__(self):
-        return self
+        return str(self)
 
 
 class NoParse(Exception):
@@ -83,7 +80,7 @@ class NoParse(Exception):
         self.expected = expected
 
 
-class Token(object):
+class Token:
     desc = 'token'
 
     def handle(self, arg, session):
@@ -101,6 +98,7 @@ class String(Token):
             return bare(arg)
         return arg
 
+
 String = String()
 
 
@@ -113,6 +111,7 @@ class Bare(Token):
                 return arg
         return bare('(' + arg + ')')
 
+
 Bare = Bare()
 
 
@@ -123,7 +122,7 @@ class Num(Token):
         try:
             return float(arg)
         except ValueError:
-            raise NoParse('number', arg)
+            raise NoParse('number', arg) from None
 
 Num = Num()
 
@@ -135,7 +134,7 @@ class Int(Token):
         try:
             return int(arg)
         except ValueError:
-            raise NoParse('integer', arg)
+            raise NoParse('integer', arg) from None
 
 Int = Int()
 
@@ -168,6 +167,7 @@ class Bool(Token):
     def complete(self, text, session, argsofar):
         return [c for c in ['true', 'false'] if c.startswith(text)]
 
+
 Bool = Bool()
 
 
@@ -193,6 +193,7 @@ class Dev(Token):
         return [dev for dev in session.explicit_devices if dev.startswith(text)
                 and isinstance(session.devices[dev], self.devtype)]
 
+
 AnyDev = Dev()
 
 
@@ -209,6 +210,7 @@ class DevParam(Token):
         except Exception:
             return []
 
+
 DevParam = DevParam()
 
 
@@ -224,7 +226,7 @@ class SetupName(Token):
         return arg
 
     def complete(self, text, session, argsofar):
-        all_setups = [name for (name, info) in iteritems(session._setup_info)
+        all_setups = [name for (name, info) in session._setup_info.items()
                       if info and info['group'] in ('basic', 'optional',
                                                     'plugplay', '')]
         if self.what == 'all':
@@ -251,15 +253,16 @@ class DeviceName(Token):
                 c not in session.devices and not
                 session.configured_devices[c][1].get('lowlevel')]
 
+
 DeviceName = DeviceName()
 
 
-class Multi(object):
+class Multi:
     def __init__(self, *types):
         self.types = types
 
 
-class SPMHandler(object):
+class SPMHandler:
     """The main handler for SPM commands."""
 
     def __init__(self, session):
@@ -284,7 +287,7 @@ class SPMHandler(object):
             command = tokens[0]
             if len(tokens) == 1:
                 # complete command
-                return select([n for (n, o) in iteritems(self.session.namespace)
+                return select([n for (n, o) in self.session.namespace.items()
                                if hasattr(o, 'is_usercommand') or
                                isinstance(o, Device)], word)
             cmdobj = self.session.namespace.get(command)
@@ -311,7 +314,7 @@ class SPMHandler(object):
         # assume we're completing the last word on the command line
         if multargs or len(args) <= posargs:
             # is it a positional argument
-            el = next(islice(arguments, len(args)-1, len(args)))
+            el = next(islice(arguments, len(args) - 1, len(args)))
             return el.complete(word, self.session, args)
         else:
             # must be an option
@@ -354,8 +357,8 @@ class SPMHandler(object):
         try:
             commands = self.tokenize(command)
         except NoParse as err:
-            return self.error('could not parse starting at %s, expected %s' %
-                              (srepr(err.token), err.expected))
+            return self.error('could not parse starting at %r, expected %s' %
+                              (err.token, err.expected))
         code = []
         for tokens in commands:
             if not tokens:
@@ -368,8 +371,7 @@ class SPMHandler(object):
             elif isinstance(cmdobj, Device):
                 code.append(self.handle_device(cmdobj, tokens[1:]))
             else:
-                return self.error('no such command or device: %s' %
-                                  srepr(command))
+                return self.error('no such command or device: %r' % command)
         return '; '.join(code)
 
     def tokenize(self, command, partial=False):
@@ -406,8 +408,8 @@ class SPMHandler(object):
                         tokens.append(rest)
                         return tokens
                     raise NoParse('closing parenthesis', rest)
-                tokens.append(rest[:i+1])
-                rest = rest[i+1:]
+                tokens.append(rest[:i + 1])
+                rest = rest[i + 1:]
             elif rest.startswith('['):
                 i = 1
                 while i < len(rest):
@@ -419,8 +421,8 @@ class SPMHandler(object):
                         tokens.append(rest)
                         return tokens
                     raise NoParse('closing bracket', rest)
-                tokens.append(rest[:i+1])
-                rest = rest[i+1:]
+                tokens.append(rest[:i + 1])
+                rest = rest[i + 1:]
             elif rest[0].isspace():
                 m = spaces_re.match(rest)
                 rest = rest[m.end():]
@@ -465,28 +467,28 @@ class SPMHandler(object):
             try:
                 parg = element.handle(args[0], self.session)
             except NoParse as err:
-                return self.error('invalid argument at %s, expected %s' %
-                                  (srepr(err.token), err.expected))
+                return self.error('invalid argument at %r, expected %s' %
+                                  (err.token, err.expected))
             cmdargs.append(parg)
             args = args[1:]
             nargs += 1
         # now come options
         cmdopts = {}
         if len(args) % 2:
-            return self.error('too many arguments at %s, expected end of '
-                              'command' % srepr(args[-1]))
+            return self.error('too many arguments at %r, expected end of '
+                              'command' % args[-1])
         while args:
             opt, val = args[:2]
             args = args[2:]
             if not id_re.match(opt):
-                return self.error('invalid syntax at %s, expected option name'
-                                  % srepr(opt))
+                return self.error('invalid syntax at %r, expected option name'
+                                  % opt)
             if opt in options:
                 try:
                     val = options[opt].handle(val, self.session)
                 except NoParse as err:
-                    return self.error('invalid argument at %s, expected %s' %
-                                      (srepr(err.token), err.expected))
+                    return self.error('invalid argument at %r, expected %s' %
+                                      (err.token, err.expected))
             else:
                 val = bare(val)
             cmdopts[opt] = val

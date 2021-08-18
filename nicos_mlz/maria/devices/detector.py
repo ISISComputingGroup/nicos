@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,11 +22,9 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.core import Attach, Moveable, Param
 from nicos.core.errors import InvalidValueError
-from nicos.devices.generic.detector import Detector, PassiveChannel
+from nicos.devices.generic.detector import Detector
 
 from nicos_mlz.jcns.devices.shutter import CLOSED, OPEN
 
@@ -35,8 +33,6 @@ class MariaDetector(Detector):
 
     attached_devices = {
         "shutter": Attach("Shutter to open before exposure", Moveable),
-        "lives": Attach("Live channels", PassiveChannel,
-                        multiple=True, optional=True)
     }
 
     parameters = {
@@ -62,31 +58,3 @@ class MariaDetector(Detector):
         if not self.ctrl_shutter:
             adevs.pop("shutter")
         return adevs
-
-    def _presetiter(self):
-        for i, dev in enumerate(self._attached_lives):
-            if i == 0:
-                yield ("live", dev)
-            yield ("live%d" % (i + 1), dev)
-        for itm in Detector._presetiter(self):
-            yield itm
-
-    def doSetPreset(self, **preset):
-        Detector.doSetPreset(self, **preset)
-        preset = self._getPreset(preset)
-        if not preset:
-            return
-
-        for dev in self._attached_lives:
-            dev.islive = False
-
-        for name in preset:
-            if name in self._presetkeys and self._presetkeys[name] and \
-                    name.startswith("live"):
-                dev = self._presetkeys[name]
-                dev.ismaster = True
-                dev.islive = True
-        self.log.debug("   presets: %s", preset)
-        self.log.debug("presetkeys: %s", self._presetkeys)
-        self.log.debug("   masters: %s", self._masters)
-        self.log.debug("    slaves: %s", self._slaves)

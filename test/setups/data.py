@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -43,23 +43,23 @@ sinklist = [
 # Omit them from the datasinks list in that case.
 
 try:
-    import PIL  # pylint: disable=unused-import, import-error
+    import PIL  # pylint: disable=unused-import
     sinklist.append('tiffsink')
 except Exception:
     pass
 
 try:
-    import astropy.io.fits  # pylint: disable=unused-import, import-error
+    import astropy.io.fits  # pylint: disable=unused-import
     sinklist.append('fitssink')
 except Exception:
     try:
-        import pyfits  # pylint: disable=unused-import, import-error
+        import pyfits  # pylint: disable=unused-import,import-error
         sinklist.append('fitssink')
     except Exception:
         pass
 
 try:
-    import quickyaml  # pylint: disable=unused-import, import-error
+    import quickyaml  # pylint: disable=unused-import
     sinklist.append('yamlsink')
 except Exception:
     pass
@@ -94,7 +94,7 @@ devices = dict(
     # note: these four will only be created if their prerequisite modules
     # are installed (and they are present in *sinklist*) because device auto
     # creation is off for test sessions
-    fitssink = device('nicos.devices.datasinks.FITSImageSink'),
+    fitssink = device('nicos.devices.datasinks.FITSImageSink', filemode=0o444),
     tiffsink = device('nicos.devices.datasinks.TIFFImageSink'),
     yamlsink = device('nicos_mlz.dns.devices.yamlformat.YAMLFileSink',
         filenametemplate = ['%(pointcounter)08d.yaml'],

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,16 +24,14 @@
 
 """Device to receive and interpret barcode input at instruments."""
 
-from __future__ import absolute_import, division, print_function
-
 import re
 import time
+import urllib
 
 from nicos import session
 from nicos.core import SIMULATION, Param, dictof
 from nicos.core.utils import USER, User
 from nicos.devices.tango import StringIO
-from nicos.pycompat import urllib
 from nicos.services.daemon.script import RequestError, ScriptRequest
 from nicos.utils import createThread
 

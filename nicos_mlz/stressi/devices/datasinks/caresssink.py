@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 """The STRESSI specific CARESS data writing module."""
 
-from __future__ import absolute_import, division, print_function
-
 import numbers
 import time
 from collections import OrderedDict, namedtuple
@@ -36,9 +34,7 @@ from nicos import get_custom_version, nicos_version, session
 from nicos.core import Override, Param, dictof
 from nicos.core.constants import FINAL, POINT, SCAN, SUBSCAN
 from nicos.core.data import DataSinkHandler
-from nicos.core.errors import ConfigurationError
 from nicos.devices.datasinks import FileSink
-from nicos.pycompat import iteritems, string_types, to_utf8
 
 __version__ = '0.0.1'
 
@@ -90,7 +86,7 @@ class CaressScanfileSinkHandler(DataSinkHandler):
         self._buffer = b''
 
     def _string(self, value):
-        value = to_utf8(value)
+        value = value.encode()
         buf = pack('B', CHARTYPE) + self._len(len(value)) + value.upper()
         self._file_write(buf)
 
@@ -113,7 +109,7 @@ class CaressScanfileSinkHandler(DataSinkHandler):
     def _write_string(self, key, data):
         self._defcmd(key)
         self._string(key)
-        data = to_utf8(data)
+        data = data.encode()
         buf = pack('BBB', 0x80, CHARTYPE, 0x81) + self._len(len(data)) + data
         self._file_write(buf)
 
@@ -150,7 +146,7 @@ class CaressScanfileSinkHandler(DataSinkHandler):
         buf = b'\x80'
         sbuf = b''
         for item in l:
-            item = to_utf8(item)
+            item = item.encode()
             buf += pack('BBBB', 0x80, CHARTYPE, 0x81, len(item))
             sbuf += item
         buf += b'\x81\x01'
@@ -167,7 +163,7 @@ class CaressScanfileSinkHandler(DataSinkHandler):
 
     def _remove_none_values(self, d):
         nonelist = []
-        for k, v in iteritems(d):
+        for k, v in d.items():
             if v is None:
                 self.log.warning('Found %r value for %r', v, k)
                 nonelist += [k]
@@ -200,7 +196,7 @@ class CaressScanfileSinkHandler(DataSinkHandler):
         for k, v in d.items():
             if isinstance(v, numbers.Number):
                 self._write_float(v)
-            elif isinstance(v, string_types) and (v in self.sink.mapping):
+            elif isinstance(v, str) and (v in self.sink.mapping):
                 self.log.debug('%s = %r -> %r', k, v, self.sink.mapping[v])
                 self._write_float(self.sink.mapping[v])
             else:  # some values are not convertable into a number: lists, ...
@@ -384,6 +380,8 @@ class CaressScanfileSinkHandler(DataSinkHandler):
                 elif device == 'slite':
                     d1['SLITM_E'] = value
                 elif device == 'transm':
+                    # The position of the moveable is needed, which is normally
+                    # lowlevel and therefore not added to the metadata
                     d1[device] = session.getDevice(device). \
                         _attached_moveable.read()
                     self.log.debug('TRANSM value %f', d1[device])
@@ -419,8 +417,7 @@ class CaressScanfileSinkHandler(DataSinkHandler):
             mastervalues = 'SL1(TTHS ADET '
             if ('chis', 'value') in self.dataset.metainfo:
                 self.log.debug('%r', self.dataset.metainfo[('chis', 'value')])
-                v, _, _, _ = self.dataset.metainfo[('chis', 'value')]
-                if v is not None:
+                if self.dataset.metainfo[('chis', 'value')][0] is not None:
                     mastervalues += 'CHIS '
             mastervalues += '%s TIM1 MON)' % ' '.join(devnames)
         else:
@@ -490,12 +487,11 @@ class CaressScanfileSinkHandler(DataSinkHandler):
         for dev, key in metainfo:
             self.log.debug('put meta info: %s.%s = %r',
                            dev, key, metainfo[dev, key][0])
-        return
 
     def _write_header(self, point):
         self.log.debug('_write_header: %r', point.settype)
         bycategory = {}
-        for (dev, key), (v, _, _, cat) in iteritems(point.metainfo):
+        for (dev, key), (v, _, _, cat) in point.metainfo.items():
             if dev == 'adet':
                 pass
             if cat:
@@ -577,15 +573,16 @@ class CaressScanfileSinkHandler(DataSinkHandler):
             self._write_defdata('TIM', master)
         self._flush()
 
-    def putValues(self, value):
+    def putValues(self, values):
         if self.dataset.settype == POINT:
             return
 
-    def addSubset(self, point):
-        self.log.debug('add subset: %s, #%d', point.settype, point.number)
-        if point.settype != POINT:
+    def addSubset(self, subset):
+        self.log.debug('add subset: %s, #%d', subset.settype, subset.number)
+        if subset.settype != POINT:
             return
 
+        point = subset
         if point.number == 1:
             self._write_header(point)
 
@@ -594,13 +591,13 @@ class CaressScanfileSinkHandler(DataSinkHandler):
         # the image data are hopefully always at this place
         try:
             if not self.sink.detectors:
-                det = session.experiment.detectors[0]
+                det = session.experiment.detectors[0].name
             else:
-                det = session.getDevice(self.sink.detectors[0])
-            self._detvalues = point.results[det.name][1][0]
+                det = self.sink.detectors[0]
+            self._detvalues = point.results[det][1][0]
         except (IndexError, KeyError):
             # create empty data set
-            self.log.error('Could not get the image data from %s', det.name)
+            self.log.error('Could not get the image data from %s', det)
             self._detvalues = np.zeros((256, 256))
 
         self.log.debug('storing results %r', self._detvalues)
@@ -619,15 +616,11 @@ class CaressScanfileSinkHandler(DataSinkHandler):
                     self._write_integer(val)
                 else:
                     tim1 = 100 * val
-        tths = session.getDevice('tths').read()
-        try:
-            chis = session.getDevice('chis').read()
-        except ConfigurationError:
-            chis = 0
+        tths = point.metainfo['tths', 'value'][0]
         self._write_float(tths)
         for (info, val) in zip(point.detvalueinfo, point.detvaluelist):
             self.log.debug('%s: %r', info.type, val)
-            if info.type == 'counter':
+            if info.type == 'counter' and info.name.endswith('.sum'):
                 addvalues = (tths, )
                 buf = b'\x80'
                 if addvalues:
@@ -647,6 +640,7 @@ class CaressScanfileSinkHandler(DataSinkHandler):
                         buf += pack('<i', i)
                 self._file_write(buf)
         if self._scan_type == 'SGEN2':
+            chis = point.metainfo.get(('chis', 'value'), [None])[0]
             if chis is None:
                 self.log.debug('CHIS value is None, ignore it')
             else:
@@ -658,6 +652,8 @@ class CaressScanfileSinkHandler(DataSinkHandler):
             self._write_integer(tim1)
         for (info, val) in zip(point.detvalueinfo, point.detvaluelist):
             if info.type == 'monitor':
+                self._write_integer(val)
+            elif info.type == 'counter' and not info.name.endswith('.sum'):
                 self._write_integer(val)
         if self._scan_type != 'SGEN2':
             for (info, val) in zip(point.envvalueinfo, point.envvaluelist):

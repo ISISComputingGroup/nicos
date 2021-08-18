@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,81 +23,17 @@
 # *****************************************************************************
 """Utilities for function fitting."""
 
-from __future__ import absolute_import, division, print_function
-
-from numpy import array, asarray, cos, diagonal, exp, full_like, inf, isinf, \
-    isscalar, linspace, log, mean, pi, piecewise, power, sqrt
+from numpy import array, cos, diagonal, exp, full_like, isinf, linspace, log, \
+    mean, pi, piecewise, power, sqrt
+from scipy.optimize import curve_fit
+from scipy.signal import argrelmax
 
 from nicos.core import ProgrammingError
-from nicos.pycompat import add_metaclass
-from nicos.utils import FitterRegistry, getNumArgs
+from nicos.utils import FitterRegistry
 from nicos.utils.analyze import estimateFWHM
 
-try:
-    from scipy.optimize.minpack import leastsq
-    from scipy.signal import argrelmax
-except ImportError:
-    leastsq = None
 
-
-def _general_function(params, xdata, ydata, function):
-    return function(xdata, *params) - ydata
-
-
-def _weighted_general_function(params, xdata, ydata, function, weights):
-    return weights * (function(xdata, *params) - ydata)
-
-
-def curve_fit(f, xdata, ydata, p0=None, sigma=None, **kw):
-    """This is scipy.optimize.curve_fit, which is only available in very recent
-    scipy.  It is overwritten below by the version from scipy if it exists
-    there.
-    """
-    if p0 is None or isscalar(p0):
-        # determine number of parameters by inspecting the function
-        nargs = getNumArgs(f)
-        if nargs < 2:
-            msg = "Unable to determine number of fit parameters."
-            raise ValueError(msg)
-        if p0 is None:
-            p0 = 1.0
-        p0 = [p0]*(nargs - 1)
-
-    args = (xdata, ydata, f)
-    if sigma is None:
-        func = _general_function
-    else:
-        func = _weighted_general_function
-        args += (1.0/asarray(sigma),)
-
-    # Remove full_output from kw, otherwise we're passing it in twice.
-    return_full = kw.pop('full_output', False)
-    res = leastsq(func, p0, args=args, full_output=1, **kw)
-    (popt, pcov, infodict, errmsg, ier) = res  # pylint: disable=unbalanced-tuple-unpacking
-
-    if ier not in [1, 2, 3, 4]:
-        msg = "Optimal parameters not found: " + errmsg
-        raise RuntimeError(msg)
-
-    if (len(ydata) > len(p0)) and pcov is not None:
-        s_sq = (func(popt, *args)**2).sum()/(len(ydata)-len(p0))
-        pcov = pcov * s_sq
-    else:
-        pcov = inf
-
-    if return_full:
-        return popt, pcov, infodict, errmsg, ier
-    else:
-        return popt, pcov
-
-
-try:
-    from scipy.optimize.minpack import curve_fit
-except ImportError:
-    pass
-
-
-class FitResult(object):
+class FitResult:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
@@ -108,11 +44,8 @@ class FitResult(object):
             self.chi2,
             ', '.join('%s = %8.3g' % v[:2] for v in zip(*self._pars)))
 
-    # pylint: disable=nonzero-method
-    def __nonzero__(self):
+    def __bool__(self):
         return not self._failed
-
-    __bool__ = __nonzero__
 
 
 class FitError(Exception):
@@ -133,8 +66,7 @@ class FitterMeta(type):
         return new_class
 
 
-@add_metaclass(FitterMeta)
-class Fit(object):
+class Fit(metaclass=FitterMeta):
     """Fit base class
 
     Derived classes may set the following class properties:
@@ -197,9 +129,6 @@ class Fit(object):
         return array(xn), array(yn), array(dyn)
 
     def run(self, x, y, dy):
-        if leastsq is None:
-            return self.result(x, y, dy, None, None,
-                               msg='scipy leastsq function not available')
         if len(x) < 2:
             return self.result(x, y, dy, None, None,
                                msg='need at least two data points to fit')
@@ -218,7 +147,6 @@ class Fit(object):
                                    msg='while guessing parameters: %s' % e)
 
         try:
-            # pylint: disable=unbalanced-tuple-unpacking
             popt, pcov = curve_fit(self.model, xn, yn, self.parstart, dyn,
                                    # default of 1000 can be too restrictive,
                                    # especially with automatic initial guess
@@ -283,7 +211,6 @@ class PredefinedFit(Fit):
 
     def process_result(self, res):
         """Can set res.label_{x,y} as well as a res.label_contents list."""
-        pass
 
 
 class LinearFit(PredefinedFit):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,9 +25,7 @@
 
 """NICOS GUI electronic logbook window."""
 
-from __future__ import absolute_import, division, print_function
-
-from cgi import escape
+import html
 from os import path
 
 from nicos.clients.gui.panels import Panel
@@ -174,14 +172,14 @@ class ELogPanel(Panel):
                 '<p><b>The logbook HTML file does not seem to exist.</b></p>'
                 '<p>Please check that the file is created and accessible on '
                 '<b>your local computer</b> at %s.  Then click '
-                '"refresh" above.' % escape(path.normpath(logfile)))
+                '"refresh" above.' % html.escape(path.normpath(logfile)))
 
     def on_page_unsupportedContent(self, reply):
         if reply.url().scheme() != 'file':
             return
         filename = reply.url().path()
         if filename.endswith('.dat'):
-            content = open(filename).read()
+            content = open(filename, encoding='utf-8', errors='replace').read()
             window = QMainWindow(self)
             window.resize(600, 800)
             window.setWindowTitle(filename)
@@ -246,7 +244,7 @@ class ELogPanel(Panel):
     def on_actionAddComment_triggered(self):
         dlg = dialogFromUi(self, 'panels/elog_comment.ui')
         dlg.helpFrame.setVisible(False)
-        dlg.creoleLabel.linkActivated.connect(
+        dlg.mdLabel.linkActivated.connect(
             lambda link: dlg.helpFrame.setVisible(True))
         if dlg.exec_() != QDialog.Accepted:
             return

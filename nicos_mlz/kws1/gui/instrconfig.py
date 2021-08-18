@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,8 @@
 
 """'Instrument reconfiguration' tool for KWS instruments."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.clients.gui.utils import DlgUtils, loadUi
 from nicos.guisupport.qt import QButtonGroup, QLabel, QMainWindow, QRadioButton
-from nicos.pycompat import exec_
 from nicos.utils import findResource
 
 TEMPLATE = '''\
@@ -92,7 +89,7 @@ class InstrumentConfigTool(DlgUtils, QMainWindow):
             configcode = self.client.eval(
                 '__import__("nicos_mlz").kws1._get_instr_config()')
             config = {'__builtins__': None}
-            exec_(configcode, config)
+            exec(configcode, config)
         except Exception:
             self.showError('Could not determine current config.')
             self.frame.setDisabled(True)

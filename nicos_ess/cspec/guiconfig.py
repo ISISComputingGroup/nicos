@@ -6,7 +6,7 @@ main_window = docked(
               stopcounting=True),
         # panel('nicos.clients.gui.panels.watch.WatchPanel'),
         panel('nicos.clients.gui.panels.console.ConsolePanel',
-              watermark='nicos_ess/cspec/gui/logo-watermark.png'),
+              watermark='nicos_ess/gui/logo-watermark.png'),
     ),
     ('NICOS devices',
      panel('nicos.clients.gui.panels.devices.DevicesPanel', icons=True,
@@ -56,11 +56,6 @@ windows = [
 ]
 
 tools = [
-    # tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
-    #      receiver='f.carsughi@fz-juelich.de',
-    #      mailserver='smtp.frm2.tum.de',
-    #      sender='toftof@frm2.tum.de',
-    #     ),
     tool('Calculator', 'nicos.clients.gui.tools.calculator.CalculatorTool'),
     tool('Neutron cross-sections',
          'nicos.clients.gui.tools.website.WebsiteTool',

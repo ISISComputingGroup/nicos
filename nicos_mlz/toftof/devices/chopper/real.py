@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,14 +25,11 @@
 
 """TOFTOF chopper calculations and chopper control (MACCON)."""
 
-from __future__ import absolute_import, division, print_function
-
 from time import time as currenttime
 
 from nicos import session
 from nicos.core import ADMIN, SIMULATION, Attach, NicosError, requires, status
 from nicos.devices.tango import StringIO
-from nicos.pycompat import xrange as range  # pylint: disable=redefined-builtin
 
 from nicos_mlz.toftof.devices import calculations as calc
 from nicos_mlz.toftof.devices.chopper.base import BaseChopperController

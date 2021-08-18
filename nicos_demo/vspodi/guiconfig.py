@@ -29,16 +29,12 @@ windows = [
     window('Errors', 'errors',
            panel('nicos.clients.gui.panels.errors.ErrorPanel')),
     window('Live data', 'live',
-           panel('nicos_mlz.spodi.gui.panels.live.LiveDataPanel')),
+           panel('nicos_mlz.spodi.gui.panels.live.LiveDataPanel',
+                 filetypes=['ctxt'])),
 ]
 
 tools = [
     tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
-# If not at the FRM II facility you have to change this reporting address
-         receiver='f.carsughi@fz-juelich.de',
-# If you are not at the FRM II facility you have to change your mail server
-         mailserver='smtp.frm2.tum.de',
-# Please change the sender address to a valid, instrument specific address
          sender='spodi@frm2.tum.de',
         ),
     tool('Calculator', 'nicos.clients.gui.tools.calculator.CalculatorTool'),
@@ -55,3 +51,7 @@ tools = [
          'nicos.clients.gui.tools.estop.EmergencyStopTool',
          runatstartup=False),
 ]
+
+options = {
+    'reader_classes': ['nicos_mlz.spodi.devices.datasinks.CaressHistogramReader'],
+}

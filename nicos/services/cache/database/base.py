@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,8 +21,6 @@
 #   Georg Brandl <georg.brandl@frm2.tum.de>
 #
 # *****************************************************************************
-
-from __future__ import absolute_import, division, print_function
 
 import threading
 from time import time as currenttime
@@ -47,7 +45,6 @@ class CacheDatabase(Device):
 
     def initDatabase(self):
         """Initialize the database from persistent store, if present."""
-        pass
 
     def clearDatabase(self):
         """Clear the database also from persistent store, if present."""

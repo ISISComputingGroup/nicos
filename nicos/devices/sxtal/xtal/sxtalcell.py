@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,8 +33,6 @@ at the goniostat zero-position (kappa=0, omega=0, phi=0).
 Relation to the TAS UB matrix:
   rmat = UB^T / 2* pi
 """
-
-from __future__ import absolute_import, division, print_function
 
 from collections import namedtuple
 
@@ -153,7 +151,7 @@ def SXTalCellType(val=None):
     raise ValueError('wrong cell specification')
 
 
-class SXTalCell(object):
+class SXTalCell:
 
     @classmethod
     def fromabc(cls, a, b=None, c=None, alpha=90.0, beta=90.0, gamma=90.0,
@@ -244,7 +242,6 @@ class SXTalCell(object):
         sintheta = invd * wavelength / 2.0
         return np.rad2deg(np.arcsin(sintheta))
 
-    # pylint: disable=too-many-locals
     def dataset(self, invdmin, invdmax, uhmin=-512, uhmax=512, ukmin=-512,
                 ukmax=512, ulmin=-512, ulmax=512, uniq=False):
         """Calculate a set of reflections for the given bravais lattice.
@@ -257,8 +254,8 @@ class SXTalCell(object):
         """
 
         celmatrix = np.linalg.inv(self.rmat)
-        avec, bvec, cvec = celmatrix.T
-        astar, bstar, cstar = self.rmat
+        avec, bvec, cvec = celmatrix.T  # pylint: disable=unpacking-non-sequence
+        astar, bstar, cstar = self.rmat  # pylint: disable=unpacking-non-sequence
         aaangle = vecangle(avec, astar)
         bbangle = vecangle(bvec, bstar)
         ccangle = vecangle(cvec, cstar)
@@ -307,7 +304,6 @@ class SXTalCell(object):
             numzone = numk * numl
             if numzone > 0:
                 h = np.ones(numzone, dtype='i4') * curh
-                # pylint: disable=range-builtin-not-iterating
                 k = np.repeat(range(lmink, lmaxk + 1), np.ones(numk, dtype='i4') * numl)
                 if lminl == lmaxl == 0:
                     l = np.zeros([numzone], dtype='i4')

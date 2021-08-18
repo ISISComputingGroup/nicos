@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,45 +24,29 @@
 
 """TOFTOF special Live view sink for NICOS."""
 
-from __future__ import absolute_import, division, print_function
+import numpy
 
-from time import time as currenttime
-
-from nicos import session
-from nicos.core import Override
-from nicos.pycompat import memory_buffer
-
-from nicos_mlz.toftof.devices.datasinks.base import TofSink, TofSinkHandler
+from nicos.devices.datasinks.special import LiveViewSink, LiveViewSinkHandler
 
 
-class ToftofLiveViewSinkHandler(TofSinkHandler):
+class ToftofLiveViewSinkHandler(LiveViewSinkHandler):
 
-    def __init__(self, sink, dataset, detector):
-        TofSinkHandler.__init__(self, sink, dataset, detector)
+    def processArrays(self, result):
+        data = result[1][0]
+        if data is not None:
+            if len(data.shape) == 2:
+                treated = numpy.transpose(data)[
+                    self.detector._anglemap, :].astype('<u4')
+                return [treated]
 
-    def putResults(self, quality, results):
-        if self.detector.name in results:
-            data = results[self.detector.name][1][0]
-            if data is not None:
-                if len(data.shape) == 2:
-                    treated = data[self.detector._anglemap, :].astype('<u4',
-                                                                      order='C')
-                    (resY, resX), resZ = treated.shape, 1
-                    session.updateLiveData('Live', self.dataset.uid,
-                                           self.detector.name, [''],
-                                           '<u4', [resX], [resY], [resZ],
-                                           currenttime() - self.dataset.started,
-                                           [memory_buffer(treated)])
+    def getLabelDescs(self, result):
+        return {
+            'x': {'define': 'classic', 'title': 'time channels'},
+            'y': {'define': 'classic', 'title': 'detectors'},
+        }
 
 
-class ToftofLiveViewSink(TofSink):
+class ToftofLiveViewSink(LiveViewSink):
     """A data sink that sends images to attached clients for live preview."""
-
-    parameter_overrides = {
-        # this is not really used, so we give it a default that would
-        # raise if used as a template filename
-        'filenametemplate': Override(mandatory=False, userparam=False,
-                                     default=['']),
-    }
 
     handlerclass = ToftofLiveViewSinkHandler

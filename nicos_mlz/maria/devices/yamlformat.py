@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,14 +26,11 @@
 
 """MARIA file format saver for the new YAML based format."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos import session
 from nicos.core import NicosError, Override
 from nicos.core.data.dataset import ScanDataset
 from nicos.core.device import Readable
 from nicos.devices.datasinks.image import ImageSink
-from nicos.pycompat import iteritems
 
 from nicos_mlz.devices.yamlbase import YAMLBaseFileSinkHandler
 
@@ -41,6 +38,11 @@ from nicos_mlz.devices.yamlbase import YAMLBaseFileSinkHandler
 class YAMLFileSinkHandler(YAMLBaseFileSinkHandler):
 
     filetype = "MLZ.MARIA.2.0-beta1"
+
+    def _processArrayInfo(self, arrayinfo):
+        # images are not handled by this sink
+        # don't add _arraydesc setting
+        return
 
     def _write_instr_data(self, meas, image):
         # get corresponding scan dataset with scan info if available
@@ -76,7 +78,7 @@ class YAMLFileSinkHandler(YAMLBaseFileSinkHandler):
             devices.pop(info.name, None)
 
         # log all remaining nicos devices
-        for name, dev in iteritems(devices):
+        for name, dev in devices.items():
             if isinstance(dev, Readable):
                 entry = self._dict()
                 try:

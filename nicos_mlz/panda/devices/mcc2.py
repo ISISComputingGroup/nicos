@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,14 +25,11 @@
 
 """PANDA MCC2 Interface for foci control and support for mono-changer"""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.core import SIMULATION, Attach, CommunicationError, Device, \
     HardwareError, MoveError, Param, Readable, floatrange, intrange, oneof, \
     oneofdict, status, usermethod
 from nicos.devices.abstract import Coder as NicosCoder, Motor as NicosMotor
 from nicos.devices.tango import PyTangoDevice
-from nicos.pycompat import iteritems
 
 
 class TangoSerial(PyTangoDevice, Device):
@@ -88,7 +85,7 @@ class MCC2core(Device):
         """Pushes configured params from the setup files to the hardware"""
         self.log.warning('Sending configured parameters to HW')
         t = self._config
-        for k, v in iteritems(t):
+        for k, v in t.items():
             m = getattr(self, 'doWrite' + k.title(), None)
             if m:
                 self.log.debug('Setting %r to %r', k, v)

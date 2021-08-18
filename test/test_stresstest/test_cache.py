@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """NICOS cache tests."""
 
-from __future__ import absolute_import, division, print_function
-
 import os
 from time import sleep
 
@@ -40,8 +38,7 @@ session_setup = 'cachestress'
 
 
 def all_setups():
-    for setup in ['cache_db', 'cache_mem', 'cache_mem_hist']:
-        yield setup
+    yield from ['cache_db', 'cache_mem', 'cache_mem_hist']
 
     if os.environ.get('KAFKA_URI', None):
         yield 'cache_kafka'

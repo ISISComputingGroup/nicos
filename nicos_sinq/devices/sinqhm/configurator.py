@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,13 +22,10 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 from lxml import etree
 
 from nicos.core import Attach, Device, Override, Param, listof, oneof
-from nicos.pycompat import iteritems
 
 from nicos_sinq.devices.sinqhm.connector import HttpConnector
 
@@ -84,7 +81,7 @@ class HistogramConfArray(HistogramConfElement):
                            'dims %s and data length %s', dim, len(data))
             return
         self.dim = dim
-        self.data = data
+        self.data = list(data)
 
     def dataText(self):
         """ The string that is used to write the data list in XML file.
@@ -202,7 +199,7 @@ class HistogramConfAxis(HistogramConfElement):
     def doReadLength(self):
         # In case an array is attached the length of the axis is automatically
         # deduced from the length of the array
-        if self._attached_array:
+        if self._attached_array and self.mapping != 'lookuptable':
             arraylen = len(self._attached_array.data)
             if arraylen == 0:
                 self.log.warning('Data not configured in the array: %s!',
@@ -242,7 +239,7 @@ class HistogramConfAxis(HistogramConfElement):
 
     def getXml(self):
         elem = etree.Element('axis')
-        for attr, val in iteritems(self.getXmlAttrs()):
+        for attr, val in self.getXmlAttrs().items():
             elem.set(attr, str(val))
         return elem
 

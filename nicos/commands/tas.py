@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """TAS commands for NICOS."""
 
-from __future__ import absolute_import, division, print_function
-
 from numpy import ndarray
 
 from nicos import session
@@ -44,9 +42,7 @@ from nicos.devices.tas.rescalc import resmat
 from nicos.devices.tas.spectro import TAS, THZ2MEV
 from nicos.devices.tas.spurions import alu_hkl, check_acc_bragg, \
     check_ho_spurions, check_powderrays, copper_hkl
-# pylint: disable=redefined-builtin
-from nicos.pycompat import iteritems, number_types, string_types, \
-    xrange as range
+from nicos.utils import number_types
 
 __all__ = [
     'qscan', 'qcscan', 'Q', 'calpos', 'pos', 'rp',
@@ -65,17 +61,19 @@ def _getQ(v, name):
             raise TypeError
     except TypeError:
         raise UsageError('%s must be a sequence of (h, k, l) or (h, k, l, E)'
-                         % name)
+                         % name) from None
 
 
 def _handleQScanArgs(args, kwargs, Q, dQ, scaninfo):
-    preset, detlist, envlist, move, multistep = {}, [], None, [], []
+    preset, detlist, envlist, move, multistep = {}, None, None, [], []
     for arg in args:
-        if isinstance(arg, string_types):
+        if isinstance(arg, str):
             scaninfo = arg + ' - ' + scaninfo
         elif isinstance(arg, number_types):
             preset['t'] = arg
         elif isinstance(arg, Measurable):
+            if detlist is None:
+                detlist = []
             detlist.append(arg)
         elif isinstance(arg, Readable):
             if envlist is None:
@@ -83,7 +81,7 @@ def _handleQScanArgs(args, kwargs, Q, dQ, scaninfo):
             envlist.append(arg)
         else:
             raise UsageError('unsupported qscan argument: %r' % arg)
-    for key, value in iteritems(kwargs):
+    for key, value in kwargs.items():
         if key == 'h' or key == 'H':
             Q[0] = value
         elif key == 'k' or key == 'K':
@@ -212,7 +210,7 @@ class _Q(ndarray):
 @usercommand
 @helparglist('[h, k, l, E]')
 @parallel_safe
-def Q(*args, **kwds):  # pylint: disable=E0102
+def Q(*args, **kwds):
     """A Q-E vector object that can be used for calculations.
 
     Use as follows:

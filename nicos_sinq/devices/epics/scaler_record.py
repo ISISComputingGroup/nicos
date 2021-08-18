@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,8 +21,6 @@
 #   Nikhil Biyani <nikhil.biyani@psi.ch>
 #
 # *****************************************************************************
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import Override, Param, pvname, status
 
@@ -57,8 +55,13 @@ class EpicsScalerRecord(EpicsDetector):
                             type=pvname, userparam=False),
         'thresholdpv': Param('Optional PV that sets the no beam threshold',
                              type=pvname, userparam=False),
+        'thresholdcounterpv': Param('Optional PV that sets threshold counter',
+                                    type=pvname, userparam=False),
         'threshold': Param('Threshold for no beam detection', type=float,
-                           userparam=False, settable=True)
+                           userparam=False, settable=True),
+        'thresholdcounter': Param('Threshold counter for no beam detection',
+                                  type=float,
+                                  userparam=False, settable=True)
     }
 
     parameter_overrides = {
@@ -81,6 +84,9 @@ class EpicsScalerRecord(EpicsDetector):
         if self.thresholdpv:
             pvs.add('thresholdpv')
 
+        if self.thresholdcounterpv:
+            pvs.add('thresholdcounterpv')
+
         return pvs
 
     def doReadThreshold(self):
@@ -94,23 +100,34 @@ class EpicsScalerRecord(EpicsDetector):
             self.log.warning('Threshold PV not set, cannot write it!')
         self._put_pv('thresholdpv', newValue)
 
+    def doReadThresholdcounter(self):
+        if not self.thresholdcounterpv:
+            self.log.warning('Threshold counter PV not set, cannot read it!')
+            return 0.0
+        return self._get_pv('thresholdcounterpv')
+
+    def doWriteThresholdcounter(self, newValue):
+        if not self.thresholdcounterpv:
+            self.log.warning('Threshold counterPV not set, cannot write it!')
+        self._put_pv('thresholdcounterpv', newValue)
+
     def doStatus(self, maxage=0):
         if self.errormsgpv:
             message_text = self._get_pv('errormsgpv').strip()
             if message_text and message_text != 'OK':
                 return status.ERROR, message_text
 
-        if self.statuspv:
-            status_code = int(self._get_pv('statuspv'))
-
-            if status_code == 0:
-                return status.OK, 'Idle'
-            elif status_code == 1:
-                return status.BUSY, 'Counting'
-            elif status_code == 2:
-                return status.ERROR, 'No Beam present'
-            elif status_code == 3:
-                return status.OK, 'Paused'
+        cnt = int(self._get_pv('startpv'))
+        if cnt == 1:
+            if self.statuspv:
+                status_code = int(self._get_pv('statuspv'))
+                if status_code == 2:
+                    return status.BUSY, 'No Beam present'
+                elif status_code == 3:
+                    return status.BUSY, 'Paused'
+            return status.BUSY, 'Counting'
+        elif cnt == 0:
+            return status.OK, 'Idle'
 
         return EpicsDetector.doStatus(self, maxage)
 

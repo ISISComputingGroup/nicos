@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,12 +23,11 @@
 # *****************************************************************************
 """Astrium chopper devices via EPICS."""
 
-from __future__ import absolute_import, division, print_function
-
 from collections import OrderedDict
 
 from nicos.core import ADMIN, Attach, ConfigurationError, HasPrecision, \
     Override, Param, Readable, UsageError, pvname, requires, status
+from nicos.core.constants import SIMULATION
 
 from nicos_ess.devices.epics.base import EpicsDeviceEss, \
     EpicsDigitalMoveableEss, EpicsWindowTimeoutDeviceEss
@@ -225,6 +224,9 @@ class EpicsAstriumChopper(HasPrecision, Readable):
     def doInit(self, mode):
         if len(self._attached_choppers) == 1:
             self._master = self._attached_choppers[0]
+            return
+
+        if mode == SIMULATION:
             return
 
         for ch in self._attached_choppers:

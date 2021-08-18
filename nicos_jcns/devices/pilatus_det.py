@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,8 +21,6 @@
 #   Alexander Steffens <a.steffens@fz-juelich.de>
 #
 # *****************************************************************************
-
-from __future__ import absolute_import, division, print_function
 
 from os import path
 from time import time
@@ -241,9 +239,10 @@ class Configuration(PyTangoDevice, PassiveChannel):
         self._poll_all_channels()
 
     def doUpdateEnergy(self, value):
-        # only necessary for transmitting setup values to the hardware
-        if self.doStatus()[0] == status.OK:
-            self._write_energy(value)
+        if not self._sim_intercept:
+            # only necessary for transmitting setup values to the hardware
+            if self.doStatus()[0] == status.OK:
+                self._write_energy(value)
 
     def doReadExposures(self):
         return self._dev.exposures
@@ -272,16 +271,17 @@ class Configuration(PyTangoDevice, PassiveChannel):
 
     def doWriteMxsettings(self, value):
         start_time = time()
-        # energy update must be completed after maximum 15 seconds
-        while time() < start_time + 15:
-            if self.doStatus()[0] == status.OK:
-                break
-            self.log.info('waiting until the detector is ready')
-            session.delay(1.5)
-        else:
-            self.log.error('mxsettings update could not be performed: '
-                           'pilatus detector is still busy')
-            return
+        if not self._sim_intercept:
+            # energy update must be completed after maximum 15 seconds
+            while time() < start_time + 15:
+                if self.doStatus()[0] == status.OK:
+                    break
+                self.log.info('waiting until the detector is ready')
+                session.delay(1.5)
+            else:
+                self.log.error('mxsettings update could not be performed: '
+                               'pilatus detector is still busy')
+                return
         # flatten dict {k1: v1, k2: v2, ...} to [k1, v1, k2, v2, ...]
         self._dev.mxSettings = [str(v) for v in list(sum(value.items(), ()))]
 

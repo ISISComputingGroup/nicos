@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,10 @@
 import copy
 
 from nicos import session
-
-from nicos_sinq.nexus.elements import ConstDataset, DetectorDataset, \
+from nicos.nexus.elements import ConstDataset, DetectorDataset, \
     DeviceAttribute, DeviceDataset, ImageDataset, NexusSampleEnv, \
     NXAttribute, NXLink, NXScanLink, NXTime
-from nicos_sinq.nexus.nexussink import NexusTemplateProvider
+from nicos.nexus.nexussink import NexusTemplateProvider
 
 
 class BOATemplateProvider(NexusTemplateProvider):
@@ -79,7 +78,9 @@ class BOATemplateProvider(NexusTemplateProvider):
                                                                  'string'))},
                                       }, }
     _tables = ['Table2', 'Table3', 'Table4', 'Table5', 'Table6']
-    _detectors = ['embl', 'andor', 'single_el737']
+    _detectors = ['embl', 'andor', 'single_el737', 'ccdwww', 'andorccd']
+    _excluded_devices = ['slit1', 'slit2', 'dslit', 'ccdwww_connector',
+                         'ccd_cooler']
     _detector = None
 
     def containsDetector(self, table):
@@ -97,6 +98,8 @@ class BOATemplateProvider(NexusTemplateProvider):
         devices = table.getTableDevices()
         content = dict()
         for d in devices:
+            if d in self._excluded_devices:
+                continue
             try:
                 dev = session.getDevice(d)
                 content[dev.name] = DeviceDataset(dev.name,
@@ -125,6 +128,12 @@ class BOATemplateProvider(NexusTemplateProvider):
         elif name == 'andor':
             content['data'] = ImageDataset(0, 0,
                                            signal=NXAttribute(1, 'int32'))
+        elif name == 'ccdwww':
+            content['data'] = ImageDataset(0, 0,
+                                           signal=NXAttribute(1, 'int32'))
+        elif name == 'andorccd':
+            content['data'] = ImageDataset(0, 0,
+                                           signal=NXAttribute(1, 'int32'))
         elif name == 'embl':
             content['data'] = ImageDataset(0, 0,
                                            signal=NXAttribute(1, 'int32'))
@@ -147,5 +156,5 @@ class BOATemplateProvider(NexusTemplateProvider):
             entry[name + ':NXdetector'] = content
             entry['data:Nxdata'] = self.makeData(name)
         else:
-            session.log.info('No detector FOUND! May be: check setup???')
+            session.log.info('No  ! May be: check setup???')
         return boa_template

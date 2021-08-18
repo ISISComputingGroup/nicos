@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,15 +24,12 @@
 
 """Module for MIEZE operation."""
 
-from __future__ import absolute_import, division, print_function
-
 import copy
 from itertools import chain
 
 from nicos import session
 from nicos.core import Moveable, NicosError, Override, Param, Value, anytype, \
     dictof, listof, usermethod
-from nicos.pycompat import integer_types
 from nicos.utils import printTable
 
 
@@ -68,7 +65,7 @@ class MiezeMaster(Moveable):
         if not self.tuning:
             raise NicosError(self, 'no tuning selected, use %s.usetuning(name)'
                              ' to select a tuning table' % self)
-        if not isinstance(target, integer_types):
+        if not isinstance(target, int):
             for idx, setting in enumerate(self.curtable):
                 if setting['_name_'] == target:
                     target = idx

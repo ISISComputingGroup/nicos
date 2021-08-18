@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,14 +24,12 @@
 
 """Condition objects for the NICOS watchdog."""
 
-from __future__ import absolute_import, division, print_function
-
 import ast
 
 from nicos.utils import checkSetupSpec
 
 
-class Condition(object):
+class Condition:
     """Represents the current state of a watchdog condition.
 
     An Entry has a single condition that is triggered or not.  Whenever its
@@ -111,7 +109,7 @@ class Expression(Condition):
         try:
             value = eval(self.expr, keydict)
         except NameError:
-            if self.setup_enabled and self.enabled:
+            if self.setup_enabled and self.enabled and not self.expires_at:
                 self.expires_at = time + 6
         except Exception:
             self.log.warning('error evaluating %r warning '

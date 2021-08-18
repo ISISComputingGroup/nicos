@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Devices for Janitza power quality monitors"""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import Attach, Override, Param, Readable, listof, status
 from nicos.devices.tango import AnalogInput
@@ -137,7 +135,7 @@ class OnlineMonitor(Readable):
     def doStatus(self, maxage=None):
         state = status.OK
         text = []
-        for devlist in self._adevs.itervalues():
+        for devlist in self._adevs.values():
             if not isinstance(devlist, (list, tuple)):
                 devlist = [devlist]
             for dev in devlist:

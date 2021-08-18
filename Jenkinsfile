@@ -21,10 +21,10 @@ change-merged''',
         [$class: 'ScannerJobProperty', doNotScan: false],
         [$class: 'RebuildSettings', autoRebuild: false, rebuildDisabled: false],
         [$class: 'ThrottleJobProperty', categories: [],
-            limitOneJobWithMatchingParams: false,
-            maxConcurrentPerNode: 0,
-            maxConcurrentTotal: 10,
-            paramsToUseForLimit: '',
+            limitOneJobWithMatchingParams: true,
+            maxConcurrentPerNode: 30,
+            maxConcurrentTotal: 70,
+            paramsToUseForLimit: 'GERRIT_REFSPEC',
             throttleEnabled: true,
             throttleOption: 'project'],
         pipelineTriggers([gerrit(silent:true,
@@ -62,49 +62,17 @@ this.pipissues = []
 def checkoutSource() {
     echo(GERRIT_PROJECT)
     deleteDir()
-    checkout(
-        changelog: true, poll: false,
-        scm: [$class: 'GitSCM',
-              branches: [[name: "$GERRIT_BRANCH"]],
-              doGenerateSubmoduleConfigurations: false, submoduleCfg: [],
-              userRemoteConfigs: [
-                  [refspec: GERRIT_REFSPEC,
-                   // use local mirror via git
-                   url: 'file:///home/git/' + GERRIT_PROJECT
-                   // use gerrit directly
-                   //credentialsId: 'jenkinsforge',
-                   //url: 'ssh://forge.frm2.tum.de:29418/' + GERRIT_PROJECT,
-                  ]
-              ],
-              extensions: [
-                  [$class: 'CleanCheckout'],
-                  [$class: 'LocalBranch', localBranch: 'check'],
-                  [$class: 'hudson.plugins.git.extensions.impl.BuildChooserSetting',
-                   buildChooser: [$class: "com.sonyericsson.hudson.plugins.gerrit.trigger.hudsontrigger.GerritTriggerBuildChooser"]],
-              ]
-            ]
-        )
+    gerrit_checkout()
     sh '''git describe'''
-    sh '''#!/bin/bash
-if [[ ! -d ciscripts ]] ;  then
-    echo "Rebasing change to get ciscripts: If this fails, rebase manually!"
-    git rebase -f -v origin/$GERRIT_BRANCH
-fi'''
 }
 
 def publishGerrit(name, value) {
-    gerritverificationpublisher([
-        verifyStatusValue: value,
-        verifyStatusName: name,
-        verifyStatusCategory: 'test',
-        verifyStatusReporter: 'jenkins',
-        verifyStatusRerun: '@recheck'
-    ])
-
+    def map = [(-1) :"FAILED", 0:"RUNNING", 1:"SUCCESSFUL"]	
+    gerritPostCheck(["jenkins:${name}":map[value]])
 }
 
 
-def refreshVenv(info="" , venv='$NICOSVENV', checkupdates=false) {
+def refreshVenv(info="" , venv='$NICOS3VENV', checkupdates=false) {
     sh("./ciscripts/run_venvupdate.sh $venv $info")
 
     if (info?.trim()) {
@@ -127,9 +95,10 @@ def refreshVenv(info="" , venv='$NICOSVENV', checkupdates=false) {
     }
 }
 
-def runPylint(info='', venv='$NICOSVENV') {
+def runPylint(info='', venv='$NICOS3VENV') {
     def idtag = "pylint-$info".toString()
     verifyresult.put(idtag, 0)
+    publishGerrit(idtag,verifyresult[idtag])
     try {
         withCredentials([string(credentialsId: 'GERRITHTTP', variable: 'GERRITHTTP')]) {
             try {
@@ -177,6 +146,7 @@ fi"""
 
 def runIsort() {
     verifyresult.put('isort',0)
+    publishGerrit('isort', verifyresult['isort'])
     try {
         withCredentials([string(credentialsId: 'GERRITHTTP', variable: 'GERRITHTTP')]) {
             refreshVenv()
@@ -213,6 +183,7 @@ def runIsort() {
 
 def runSetupcheck() {
     verifyresult.put('sc', 0)
+    publishGerrit('setupcheck',verifyresult['sc'])
     try {
         withCredentials([string(credentialsId: 'GERRITHTTP',
                                 variable: 'GERRITHTTP')]) {
@@ -270,6 +241,7 @@ addopts = --junit-xml=pytest-${pyver}.xml
 
 
     verifyresult.put(pyver, 0)
+    publishGerrit('pytest-'+pyver, verifyresult[pyver])
     try {
          timeout(10) {
 
@@ -306,8 +278,9 @@ addopts = --junit-xml=pytest-${pyver}.xml
 
 def runDocTest() {
     verifyresult.put('doc', 0)
+    publishGerrit('doc', verifyresult['doc'])
     try {
-        refreshVenv()
+        refreshVenv('','$NICOS3VENV')
         sh './ciscripts/run_doctest.sh'
         archiveArtifacts([allowEmptyArchive: true,
                           artifacts: 'doc/build/latex/NICOS.*'])
@@ -339,11 +312,18 @@ node('dockerhost') {
     stage(name: 'checkout code: ' + GERRIT_PROJECT) {
         checkoutSource()
     }
-
+def u18 = null;
+def c8 = null;
+   stage('docker setup') {
+   u18 = docker.image('docker.ictrl.frm2.tum.de:5443/jenkins/nicos-jenkins:bionic')
+   u18.pull()
+//c8 = docker.image('docker.ictrl.frm2.tum.de:5443/jenkins/nicos-jenkins:centos8')
+//c8.pull()
+}
     stage(name: 'prepare') {
         withCredentials([string(credentialsId: 'RMAPIKEY', variable: 'RMAPIKEY'),
                          string(credentialsId: 'RMSYSKEY', variable: 'RMSYSKEY')]) {
-            docker.image('jenkinsng.admin.frm2:5000/nicos-jenkins:xenial').inside(){
+           u18.inside(){
                 sh  '''\
 #!/bin/bash
 export PYTHONIOENCODING=utf-8
@@ -353,86 +333,72 @@ export PYTHONIOENCODING=utf-8
         } // credentials
     } // stage
 
-u16 = docker.image('jenkinsng.admin.frm2:5000/nicos-jenkins:xenial')
-u16tango9 = docker.image('jenkinsng.admin.frm2:5000/nicos-jenkins:xenialtango9')
-u14 = docker.image('jenkinsng.admin.frm2:5000/nicos-jenkins:trusty')
 
 try {
     parallel pylint: {
-        stage(name: 'pylint-py2') {
-            u16.inside('-v /home/git:/home/git') {
-                    runPylint('py2', '$NICOSVENV')
-            }
-        } // stage
-    }, pylint3: {
-        stage(name: 'pylint-py3') {
-        when ( false ) {
-                ws {
-                    checkoutSource()
-                    u16tango9.inside('-v /home/git:/home/git') {
-                        runPylint('py3', '$NICOS3VENV')
-                    }
-                } //ws
-            }
+        stage(name: 'pylint') {
+            ws {
+                checkoutSource()
+                u18.inside('-v /home/git:/home/git') {
+                    runPylint('py3')
+                }
+            } //ws
         } // stage
     }, isort: {
         stage(name: 'isort') {
-            u16.inside('-v /home/git:/home/git') {
-                    runIsort()
+            u18.inside('-v /home/git:/home/git') {
+                runIsort()
             }
         } //stage
     }, setup_check: {
         stage(name: 'Nicos Setup check') {
-            u16.inside('-v /home/git:/home/git') {
-                    timeout(5) {
-                        runSetupcheck()
-                    }
+            u18.inside('-v /home/git:/home/git') {
+                timeout(5) {
+                    runSetupcheck()
+                }
             }
         } //stage
-    }, test_python2: {
-        stage(name: 'Python2 tests')  {
+    }, /*test_python3centos: {
+        stage(name: 'Python3 CentOS tests') {
             ws {
                 checkoutSource()
-                def kafkaversion="2.12-2.3.0"
-                docker.image("jenkinsng.admin.frm2:5000/kafka:${kafkaversion}").withRun() { kafka ->
-                    sleep(time:10, unit: 'SECONDS')  // needed to allow kafka to start
-                    sh "docker exec ${kafka.id} /opt/kafka_${kafkaversion}/bin/kafka-topics.sh --create --topic test-flatbuffers --zookeeper localhost --partitions 1 --replication-factor 1"
-                    sh "docker exec ${kafka.id} /opt/kafka_${kafkaversion}/bin/kafka-topics.sh --create --topic test-flatbuffers-history --zookeeper localhost --partitions 1 --replication-factor 1"
-                    u14.inside("-v /home/git:/home/git -e KAFKA_URI=kafka:9092  --link ${kafka.id}:kafka") {
-                        runTests( '$NICOSVENV', 'python2', GERRIT_EVENT_TYPE == 'change-merged')
-                    } // image.inside
-                } // image.WithRun
+                c8.inside('-v /home/git:/home/git') {
+                    runTests('$NICOS3VENV', 'python3-centos', false, true)
+                } // image.inside
             } // ws
         } // stage
-    }, test_python2centos: {
-        stage(name: 'Python2(centos) tests') {
-            if (GERRIT_EVENT_TYPE == 'change-merged') {
-                ws {
-                    checkoutSource()
-                    docker.image('jenkinsng.admin.frm2:5000/nicos-jenkins:centos6').inside('-v /home/git:/home/git') {
-                        runTests('$NICOSVENV', 'python2-centos', false, true)
-                    } // image.inside
-                } // ws
-            } // if
-        } // stage
-    }, test_python3: {
+    },*/ test_python3: {
         stage(name: 'Python3 tests') {
             ws {
                 checkoutSource()
-                def kafkaversion="2.12-2.3.0"
-                docker.image("jenkinsng.admin.frm2:5000/kafka:${kafkaversion}").withRun() { kafka ->
-                    sleep(time:10, unit: 'SECONDS')  // needed to allow kafka to start
-                    sh "docker exec ${kafka.id} /opt/kafka_${kafkaversion}/bin/kafka-topics.sh --create --topic test-flatbuffers --zookeeper localhost --partitions 1 --replication-factor 1"
-                    sh "docker exec ${kafka.id} /opt/kafka_${kafkaversion}/bin/kafka-topics.sh --create --topic test-flatbuffers-history --zookeeper localhost --partitions 1 --replication-factor 1"
-                        u16tango9.inside("-v /home/git:/home/git -e KAFKA_URI=kafka:9092 --link ${kafka.id}:kafka") {
-                        runTests('$NICOS3VENV', 'python3', GERRIT_EVENT_TYPE == 'change-merged')
+                def kafkaversion="2.12-2.7.0"
+                docker.image("docker.ictrl.frm2.tum.de:5443/jenkins/kafka:${kafkaversion}").withRun() { kafka ->
+                    def kafkasuccess=false;
+                    def tries = 0;
+                    while (kafkasuccess==false){
+                        sleep(time:5, unit: 'SECONDS')  // needed to allow kafka to start
+                        try {
+                        sh """
+                            docker exec ${kafka.id} /opt/kafka_${kafkaversion}/bin/kafka-topics.sh --create --topic test-flatbuffers --zookeeper localhost --partitions 1 --replication-factor 1
+                            docker exec ${kafka.id} /opt/kafka_${kafkaversion}/bin/kafka-topics.sh --create --topic test-flatbuffers-history --zookeeper localhost --partitions 1 --replication-factor 1
+                        """
+                        kafkasuccess=true;
+                        } catch(e) {
+                            tries++;
+                            if (tries> 5) { error('could not start kafka') }
+                        }
+                    }
+                    u18.inside("-v /home/git:/home/git -e KAFKA_URI=kafka:9092 --link ${kafka.id}:kafka") {
+                    runTests('$NICOS3VENV', 'python3', GERRIT_EVENT_TYPE == 'change-merged')
                     } // image.inside
                 } // image.WithRun
             } // ws
         } //stage
     }, test_docs: {
         stage(name: 'Test docs') {
-            docker.image('jenkinsng.admin.frm2:5000/nicos-jenkins:nicosdocs').inside(){
+            docimage = docker.image('docker.ictrl.frm2.tum.de:5443/jenkins/nicos-jenkins:nicosdocs')
+            docimage.pull()
+            docimage.inside(){
                 runDocTest()
             }  // image.inside
         } // stage

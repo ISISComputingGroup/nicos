@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,21 +24,18 @@
 
 """NICOS daemon package."""
 
-from __future__ import absolute_import, division, print_function
-
 import sys
 import threading
 import time
-import traceback
 
 from nicos import config, nicos_version
 from nicos.core import Attach, ConfigurationError, Device, Param, host, listof
 from nicos.core.utils import system_user
 from nicos.protocols.daemon.classic import DEFAULT_PORT
-from nicos.pycompat import listitems
 from nicos.services.daemon.auth import Authenticator
 from nicos.services.daemon.script import ExecutionController
-from nicos.utils import createThread, importString, parseHostPort
+from nicos.utils import createThread, formatExtendedStack, importString, \
+    parseHostPort
 
 
 class NicosDaemon(Device):
@@ -126,26 +123,25 @@ class NicosDaemon(Device):
                 emit('watch', watch)
                 lastwatch = watch
 
-    def emit_event(self, event, data):
+    def emit_event(self, event, data, blobs=None):
         """Emit an event to all handlers."""
-        self._server.emit(event, data)
+        self._server.emit(event, data, blobs or [])
 
-    def emit_event_private(self, event, data):
+    def emit_event_private(self, event, data, blobs=None):
         """Emit an event to only the calling handler."""
         handler = self._controller.get_current_handler()
         if handler:
-            self._server.emit(event, data, handler)
+            self._server.emit(event, data, blobs or [], handler=handler)
 
     def statusinfo(self):
         self.log.info('got SIGUSR2 - current stacktraces for each thread:')
         active = threading._active
-        for tid, frame in listitems(sys._current_frames()):
+        for tid, frame in list(sys._current_frames().items()):
             if tid in active:
                 name = active[tid].getName()
             else:
                 name = str(tid)
-            self.log.info('%s: %s', name,
-                          ''.join(traceback.format_stack(frame)))
+            self.log.info('%s: %s', name, formatExtendedStack(frame))
 
     def start(self):
         """Start the daemon's server."""

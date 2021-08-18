@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,28 +24,15 @@
 
 """NICOS GUI utilities."""
 
-from __future__ import absolute_import, division, print_function
-
 import logging
-import os
-import socket
+from contextlib import contextmanager
 from os import path
 
 from nicos.core import MAINTENANCE, MASTER, SIMULATION, SLAVE
-from nicos.guisupport.qt import PYQT_VERSION, QApplication, QByteArray, \
-    QColor, QDateTime, QDialog, QFileDialog, QFont, QLabel, QMessageBox, \
+from nicos.guisupport.qt import QApplication, QByteArray, QColor, QCursor, \
+    QDateTime, QDialog, QFileDialog, QFont, QLabel, QMessageBox, \
     QProgressDialog, QPushButton, QSettings, QSize, QStyle, Qt, QTextEdit, \
     QToolButton, QVBoxLayout, QWidget, uic
-from nicos.pycompat import string_types
-
-
-def getXDisplay():
-    try:
-        lhost = socket.getfqdn(socket.gethostbyaddr(socket.gethostname())[0])
-    except socket.error:
-        return ''
-    else:
-        return lhost + os.environ.get('DISPLAY', ':0')
 
 
 def splitTunnelString(tunnel):
@@ -64,7 +51,7 @@ uipath = path.dirname(__file__)
 
 
 def loadUi(widget, uiname):
-    uic.loadUi(path.join(uipath, uiname), widget)
+    return uic.loadUi(path.join(uipath, uiname), widget)
 
 
 def dialogFromUi(parent, uiname):
@@ -124,7 +111,7 @@ def modePrompt(mode):
             MASTER:      '>>'}[mode]
 
 
-class DlgUtils(object):
+class DlgUtils:
     def __init__(self, title):
         self._dlgutils_title = title
 
@@ -168,7 +155,7 @@ class DlgUtils(object):
             ctl.setText(fname)
 
     def viewTextFile(self, fname):
-        with open(fname) as f:
+        with open(fname, encoding='utf-8', erorrs='replace') as f:
             contents = f.read()
         qd = QDialog(self, 'PreviewDlg', True)
         qd.setCaption('File preview')
@@ -193,29 +180,12 @@ class DlgUtils(object):
         qd.show()
 
 
-# for compatibility with PyQt < 4.8.3
-if PYQT_VERSION < 0x040803:
-    class CompatSettings(QSettings):
-        def value(self, name, default, type=None):  # pylint: disable=redefined-builtin
-            value = QSettings.value(self, name, default)
-            if type is bool:
-                value = value not in (False, 'false')
-            elif type is QByteArray:
-                if isinstance(value, string_types):
-                    value = QByteArray(value)
-            elif type is not None:
-                value = type(value)
-            return value
-else:
-    CompatSettings = QSettings
-
-
-class SettingGroup(object):
+class SettingGroup:
     global_group = ''
 
     def __init__(self, name):
         self.name = name
-        self.settings = CompatSettings()
+        self.settings = QSettings()
 
     def __enter__(self):
         if self.global_group:
@@ -257,13 +227,13 @@ class ScriptExecQuestion(QMessageBox):
         return QMessageBox.Cancel     # Cancel
 
 
-class DlgPresets(object):
+class DlgPresets:
     """Save dialog presets for Qt dialogs."""
 
     def __init__(self, group, ctls):
         self.group = group
         self.ctls = ctls
-        self.settings = CompatSettings()
+        self.settings = QSettings()
 
     def load(self):
         self.settings.beginGroup(self.group)
@@ -365,3 +335,12 @@ class DebugHandler(logging.Handler):
             msg = self.format(record)
             self.mainwindow.debugConsole.addLogMsg('#' * 80)
             self.mainwindow.debugConsole.addLogMsg(msg)
+
+
+@contextmanager
+def waitCursor():
+    try:
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        yield
+    finally:
+        QApplication.restoreOverrideCursor()

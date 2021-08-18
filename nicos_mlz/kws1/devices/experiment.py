@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,13 +24,10 @@
 
 """NICOS experiment class for KWS1/2."""
 
-from __future__ import absolute_import, division, print_function
-
 import os
 import time
 from os import path
 
-from nicos.pycompat import to_utf8
 from nicos.utils import printTable
 
 from nicos_mlz.devices.experiment import Experiment
@@ -52,8 +49,8 @@ class KWSExperiment(Experiment):
         proto_path = path.join(self.proposalpath, 'protocol.txt')
         try:
             text = self._generate_protocol(with_ts=True)
-            with open(proto_path, 'wb') as fp:
-                fp.write(to_utf8(text))
+            with open(proto_path, 'w', encoding='utf-8') as fp:
+                fp.write(text)
         except Exception:
             self.log.warning('Error during protocol generation', exc=1)
         else:
@@ -111,7 +108,7 @@ class KWSExperiment(Experiment):
 
 def read_dat_file(runno, senv, fname):
     data = {'#': runno, 'Run': str(runno), 'TOF': 'no'}
-    it = iter(open(fname))
+    it = iter(open(fname, encoding='utf-8'))
     for line in it:
         if line.startswith('Standard_Sample '):
             parts = line.split()

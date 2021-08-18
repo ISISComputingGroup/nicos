@@ -26,9 +26,9 @@ devices = dict(
         nok_end = 11064.50,
         nok_gap = 1.0,
         masks = {
-            'slit':   0.0,
-            'point':  0.0,
-            'gisans': 0.0, #  -218.645,
+            'slit': 0.225,  # 2021-03-17 16:13:48 TheoMH 0.0
+            'point': 0.225,  # 2021-03-17 16:13:48 TheoMH 0.0
+            'gisans': 0.225,  # 2021-03-17 16:13:48 TheoMH 0.0
         },
         lowlevel = True,
         unit = 'mm',
@@ -41,9 +41,9 @@ devices = dict(
         nok_end = 11064.50,
         nok_gap = 1.0,
         masks = {
-            'slit':   0.0,
-            'point':  0.0,
-            'gisans': -85 * optic_values['gisans_scale'], #  206.4,
+            'slit': -1.225,  # 2021-03-17 16:13:48 TheoMH 0.0
+            'point': -1.225,  # 2021-03-17 16:13:48 TheoMH 0.0
+            'gisans': -85 * optic_values['gisans_scale'],
         },
         unit = 'mm',
         lowlevel = True,
@@ -65,15 +65,15 @@ devices = dict(
     #     lowlevel = True,
     # ),
     b2r_motor = device('nicos.devices.tango.Motor',
-        description = 'Device test/smccorvus/b2mr of Server smccorvusserver b2',
+        description = 'b2 reactor side, screw access at 72mm',
         tangodevice = tango_base + 'test/smccorvus/b2mr',
-        abslimits = (-1294, 1222),
+        userlimits = (-288, 227),
         lowlevel = True,
     ),
     b2s_motor = device('nicos.devices.tango.Motor',
-        description = 'Device test/smccorvus/b2ms of Server smccorvusserver b2',
+        description = 'b2 sample side',
         tangodevice = tango_base + 'test/smccorvus/b2ms',
-        abslimits = (-2960, 2130),
+        userlimits = (-291, 224),
         lowlevel = True,
     ),
 )

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,15 +22,12 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import threading
 from collections import deque
 from time import time as currenttime
 
 from nicos.core import Param, intrange
 from nicos.protocols.cache import FLAG_NO_STORE, OP_TELL, OP_TELLOLD
-from nicos.pycompat import iteritems
 from nicos.services.cache.database.base import CacheDatabase
 from nicos.services.cache.entry import CacheEntry
 
@@ -71,7 +68,7 @@ class MemoryCacheDatabase(CacheDatabase):
         ret = set()
         with self._db_lock:
             # look for matching keys
-            for dbkey, entries in iteritems(self._db):
+            for dbkey, entries in self._db.items():
                 if key not in dbkey:
                     continue
                 lastent = entries[-1]
@@ -158,7 +155,7 @@ class MemoryCacheDatabaseWithHistory(MemoryCacheDatabase):
                 if fromtime <= entry.time <= totime:
                     ret.append('%r@%s=%s\n' % (entry.time, key, entry.value))
                     inrange = True
-                elif not inrange and entry.value:
+                elif not inrange and entry.value and entry.time < fromtime:
                     ret = ['%r@%s=%s\n' % (entry.time, key, entry.value)]
         except Exception:
             self.log.exception('error reading store for history query')

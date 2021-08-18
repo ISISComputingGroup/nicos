@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,7 @@
 
 """KWS sample configuration dialog."""
 
-from __future__ import absolute_import, division, print_function
-
+import builtins
 import math
 import time
 
@@ -35,9 +34,8 @@ from nicos.clients.gui.utils import dialogFromUi, loadUi
 from nicos.guisupport import typedvalue
 from nicos.guisupport.qt import QDialog, QDialogButtonBox, QFileDialog, \
     QFrame, QLineEdit, QListWidgetItem, QMenu, QMessageBox, QRadioButton, \
-    QTableWidgetItem, QVBoxLayout, pyqtSlot
+    QRegExp, QRegExpValidator, QTableWidgetItem, QVBoxLayout, pyqtSlot
 from nicos.guisupport.utils import DoubleValidator
-from nicos.pycompat import builtins, exec_, iteritems
 from nicos.utils import findResource
 
 SAMPLE_KEYS = ['aperture', 'position', 'timefactor',
@@ -55,7 +53,7 @@ def configToFrame(frame, config):
     frame.apYBox.setText(str(config['aperture'][1]))
     frame.apWBox.setText(str(config['aperture'][2]))
     frame.apHBox.setText(str(config['aperture'][3]))
-    for i, (devname, position) in enumerate(iteritems(config['position'])):
+    for i, (devname, position) in enumerate(config['position'].items()):
         frame.posTbl.setItem(i, 0, QTableWidgetItem(devname))
         frame.posTbl.setItem(i, 1, QTableWidgetItem(str(position)))
     frame.posTbl.resizeRowsToContents()
@@ -97,6 +95,8 @@ class ConfigEditDialog(QDialog):
         self.frm.delDevBtn.clicked.connect(self.on_delDevBtn_clicked)
         self.frm.readDevsBtn.clicked.connect(self.on_readDevsBtn_clicked)
         self.frm.readApBtn.clicked.connect(self.on_readApBtn_clicked)
+        self.frm.nameBox.setValidator(
+            QRegExpValidator(QRegExp(r'[A-Za-z0-9.,=+-]{1,20}'), self))
         box = QDialogButtonBox(self)
         box.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         box.accepted.connect(self.maybeAccept)
@@ -549,12 +549,12 @@ class KWSSamplePanel(Panel):
             del script[-1]  # remove last comma
             script.append(')\n')
         if filename is not None:
-            with open(filename, 'w') as fp:
+            with open(filename, 'w', encoding='utf-8') as fp:
                 fp.writelines(script)
         return ''.join(script)
 
 
-class MockSample(object):
+class MockSample:
     def __init__(self):
         self.reset_called = False
         self.configs = []
@@ -579,8 +579,8 @@ def parse_sampleconf(filename):
     ns = {'__builtins__': builtin_ns,
           'ClearSamples': mocksample.reset,
           'SetSample': mocksample.define}
-    with open(filename, 'r') as fp:
-        exec_(fp, ns)
+    with open(filename, 'r', encoding='utf-8') as fp:
+        exec(fp.read(), ns)
     # The script needs to call this, if it doesn't it is not a sample file.
     if not mocksample.reset_called:
         raise ValueError('the script never calls ClearSamples()')

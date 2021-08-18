@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """Base classes for YAML based datasinks."""
 
-from __future__ import absolute_import, division, print_function
-
 from datetime import datetime
 from time import time as currenttime
 
@@ -34,7 +32,6 @@ import quickyaml
 from nicos import session
 from nicos.core import NicosError
 from nicos.devices.datasinks.image import SingleFileSinkHandler
-from nicos.pycompat import from_maybe_utf8
 from nicos.utils import AutoDefaultODict
 
 
@@ -96,21 +93,22 @@ class YAMLBaseFileSinkHandler(SingleFileSinkHandler):
             o['format']['units'][obj] = unit
 
         exp = o['experiment']
-        # TODO: use experiment number when we have it in NICOS
-        exp['number'] = expdev.proposal
+        exp['number'] = expdev.propinfo.get('session', expdev.proposal)
         exp['proposal'] = expdev.proposal
-        exp['title'] = from_maybe_utf8(expdev.title)
+        exp['title'] = expdev.title
+
         exp['authors'] = []
-        authors = [
-            {'name': from_maybe_utf8(expdev.users),
-             'roles': ['principal_investigator']},
-            {'name':  from_maybe_utf8(expdev.localcontact),
-             'roles': ['local_contact']},
-        ]
-        for author in authors:
+        for user in expdev.propinfo.get('users', []):
             a = AutoDefaultODict()
-            a['name'] = author['name']
-            a['roles'] = self._flowlist(author['roles'])
+            a['name'] = user['name']
+            a['affiliation'] = user.get('affiliation')
+            a['roles'] = self._flowlist(['principal_investigator'])
+            exp['authors'].append(a)
+        for user in expdev.propinfo.get('localcontacts', []):
+            a = AutoDefaultODict()
+            a['name'] = user['name']
+            a['affiliation'] = user.get('affiliation')
+            a['roles'] = self._flowlist(['local_contact'])
             exp['authors'].append(a)
 
         meas = o['measurement']
@@ -123,7 +121,7 @@ class YAMLBaseFileSinkHandler(SingleFileSinkHandler):
         hist['stopped'] = nice_datetime(currenttime())
 
         sample = meas['sample']['description']
-        sample['name'] = from_maybe_utf8(expdev.sample.samplename)
+        sample['name'] = expdev.sample.samplename
 
         env = meas['sample']['environment'] = []
         stats = self.dataset.valuestats

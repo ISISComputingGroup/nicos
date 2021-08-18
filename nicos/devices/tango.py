@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,11 +29,9 @@ All NICOS - TANGO devices only support devices which fulfill the official
 MLZ TANGO interface for the respective device classes.
 """
 
-from __future__ import absolute_import, division, print_function
-
+import ast
 import os
 import re
-import socket
 
 import numpy
 import PyTango
@@ -43,7 +41,9 @@ from nicos.core import SIMULATION, ArrayDesc, CanDisable, CommunicationError, \
     ConfigurationError, Device, HardwareError, HasCommunication, HasLimits, \
     HasPrecision, HasTimeout, InvalidValueError, Moveable, NicosError, \
     Override, Param, ProgrammingError, Readable, Value, dictof, floatrange, \
-    intrange, listof, nonemptylistof, oneof, oneofdict, status, tangodev
+    intrange, listof, nonemptylistof, oneof, oneofdict, status, tangodev, \
+    waitForCompletion
+from nicos.core.constants import FINAL, SLAVE
 from nicos.core.mixins import HasOffset, HasWindowTimeout
 from nicos.devices.abstract import CanReference, Coder, Motor as NicosMotor
 from nicos.devices.generic.detector import ActiveChannel, \
@@ -167,8 +167,8 @@ def check_tango_host_connection(address, timeout=3.0):
     try:
         with tcpSocketContext(tango_host, 10000, timeout=timeout):
             pass
-    except socket.error as e:
-        raise CommunicationError(str(e))
+    except OSError as e:
+        raise CommunicationError(str(e)) from None
 
 
 class PyTangoDevice(HasCommunication):
@@ -239,7 +239,7 @@ class PyTangoDevice(HasCommunication):
             session.delay(self._base_loop_delay)
 
     def _setMode(self, mode):
-        super(PyTangoDevice, self)._setMode(mode)
+        super()._setMode(mode)
         # remove the Tango device on entering simulation mode, to prevent
         # accidental access to the hardware
         if mode == SIMULATION:
@@ -265,7 +265,7 @@ class PyTangoDevice(HasCommunication):
             return self._config.get('unit', '')
         return attrInfo.unit
 
-    def _createPyTangoDevice(self, address):  # pylint: disable=E0202
+    def _createPyTangoDevice(self, address):  # pylint: disable=method-hidden
         """
         Creates the PyTango DeviceProxy and wraps command execution and
         attribute operations with logging and exception mapping.
@@ -282,7 +282,7 @@ class PyTangoDevice(HasCommunication):
             device.State
         except AttributeError:
             raise NicosError(self, 'connection to Tango server failed, '
-                             'is the server running?')
+                             'is the server running?') from None
         return self._applyGuardsToPyTangoDevice(device)
 
     def _applyGuardsToPyTangoDevice(self, dev):
@@ -290,6 +290,10 @@ class PyTangoDevice(HasCommunication):
         Wraps command execution and attribute operations of the given
         device with logging and exception mapping.
         """
+        # if the device is in the proxy cache, and has already been
+        # successfully created once, skip it
+        if getattr(dev, '_nicos_proxies_applied', False):
+            return dev
         dev.command_inout = self._applyGuardToFunc(dev.command_inout)
         dev.write_attribute = self._applyGuardToFunc(dev.write_attribute,
                                                      'attr_write')
@@ -297,6 +301,7 @@ class PyTangoDevice(HasCommunication):
                                                     'attr_read')
         dev.attribute_query = self._applyGuardToFunc(dev.attribute_query,
                                                      'attr_query')
+        dev._nicos_proxies_applied = True
         return dev
 
     def _applyGuardToFunc(self, func, category='cmd'):
@@ -458,7 +463,6 @@ class WindowTimeoutAO(HasWindowTimeout, AnalogOutput):
     """
     AnalogOutput with window timeout.
     """
-    pass
 
 
 class Actuator(AnalogOutput, NicosMotor):
@@ -669,6 +673,26 @@ class PowerSupply(HasTimeout, RampActuator):
             self._pollParam('current', 1)
 
 
+def parse_mapping(mapping):
+    """Parse the "mapping" property of digital devices."""
+    reverse = {}
+    forward = {}
+    mapping = ast.literal_eval(mapping or '[]')
+    for entry in mapping:
+        parts = entry.split(':')
+        if len(parts) < 2:
+            continue
+        try:
+            val = int(parts[0].strip())
+        except ValueError:
+            continue
+        label = parts[1].strip()
+        reverse[val] = label
+        if len(parts) == 2 or 'ro' not in parts[2]:
+            forward[label] = val
+    return reverse, forward
+
+
 class DigitalInput(PyTangoDevice, Readable):
     """
     A device reading a bitfield.
@@ -690,12 +714,21 @@ class NamedDigitalInput(DigitalInput):
     """
 
     parameters = {
-        'mapping': Param('A dictionary mapping state names to integers',
-                         type=dictof(str, int)),
+        'mapping': Param('A dictionary mapping state names to integers - '
+                         'if not given, read the mapping from the Tango '
+                         'device if possible',
+                         type=dictof(str, int), mandatory=False),
     }
 
     def doInit(self, mode):
-        self._reverse = {v: k for (k, v) in self.mapping.items()}
+        if self.mapping:
+            self._reverse = {v: k for (k, v) in self.mapping.items()}
+            return
+        try:
+            self._reverse = parse_mapping(self._getProperty('mapping'))[0]
+        except Exception:
+            self.log.warning('could not parse value mapping from Tango', exc=1)
+            self._reverse = {}
 
     def doRead(self, maxage=0):
         value = self._dev.value
@@ -748,18 +781,33 @@ class NamedDigitalOutput(DigitalOutput):
     """
 
     parameters = {
-        'mapping': Param('A dictionary mapping state names to integer values',
-                         type=dictof(str, int), mandatory=True),
+        'mapping': Param('A dictionary mapping state names to integers - '
+                         'if not given, read the mapping from the Tango '
+                         'device if possible',
+                         type=dictof(str, int), mandatory=False),
     }
 
     def doInit(self, mode):
-        self._reverse = {v: k for (k, v) in self.mapping.items()}
-        # oneofdict: allows both types of values (string/int), but normalizes
-        # them into the string form
-        self.valuetype = oneofdict(self._reverse)
+        if self.mapping:
+            self._reverse = {v: k for (k, v) in self.mapping.items()}
+            # oneofdict: allows both types of values (string/int), but
+            # normalizes them into the string form
+            self.valuetype = oneofdict(self._reverse)
+            self._forward = self.mapping
+            return
+        try:
+            self._reverse, self._forward = \
+                parse_mapping(self._getProperty('mapping'))
+            # we don't build the valuetype from self._reverse since it should
+            # only contain the write-able values
+            self.valuetype = oneofdict({v: k for (k, v)
+                                        in self._forward.items()})
+        except Exception:
+            self.log.warning('could not parse value mapping from Tango', exc=1)
+            self._reverse = self._forward = {}
 
     def doStart(self, target):
-        value = self.mapping.get(target, target)
+        value = self._forward.get(target, target)
         self._dev.value = value
 
     def doRead(self, maxage=0):
@@ -922,7 +970,7 @@ class CounterChannel(CounterChannelMixin, DetectorChannel):
         return self._dev.value
 
 
-class ImageChannel(ImageChannelMixin, DetectorChannel):
+class BaseImageChannel(ImageChannelMixin, DetectorChannel):
     """
     Detector channel for delivering images.
     """
@@ -981,7 +1029,28 @@ class ImageChannel(ImageChannelMixin, DetectorChannel):
         return self._dev.value.reshape(self.arraydesc.shape)
 
 
-class TOFChannel(ImageChannel):
+class ImageChannel(BaseImageChannel):
+    """Image channel that automatically returns the sum of all counts."""
+
+    def doInit(self, mode):
+        BaseImageChannel.doInit(self, mode)
+        if mode != SLAVE:
+            self.readArray(FINAL)  # update readresult at startup
+
+    def doReadArray(self, quality):
+        # on quality FINAL wait for tango ImageChannel finishing readout
+        if quality == FINAL:
+            waitForCompletion(self)
+        narray = BaseImageChannel.doReadArray(self, quality)
+        self.readresult = [narray.sum() if narray is not None else 0]
+        return narray
+
+    def valueInfo(self):
+        return Value(name=self.name, type='counter', fmtstr='%d',
+                     errors='sqrt', unit='cts'),
+
+
+class TOFChannel(BaseImageChannel):
     """
     Image channel with Time-of-flight related attributes.
     """

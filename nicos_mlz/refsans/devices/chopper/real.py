@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,9 @@
 # *****************************************************************************
 """Chopper related devices."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos import session
-from nicos.core import ADMIN, Moveable, Override, Param, intrange, requires, \
-    status
+from nicos.core import ADMIN, Moveable, Override, Param, Readable, intrange, \
+    requires, status
 from nicos.core.errors import ConfigurationError
 from nicos.core.mixins import DeviceMixinBase, HasOffset
 from nicos.core.params import Attach
@@ -84,7 +82,6 @@ class ChopperMaster(ChopperBase, ChopperMasterBase):
     }
 
     parameter_overrides = {
-        'delay': Override(volatile=True),
         'resolution': Override(type=intrange(0, 6)),
     }
 
@@ -152,6 +149,9 @@ class ChopperMaster(ChopperBase, ChopperMasterBase):
         self.log.info('commute: see in speed history: burst for 3min, '
                       'a break of 20sec, an a peak, final break of 2min '
                       'total ca 6min')
+        # self.log.info('no disk 6!')
+        # self._attached_comm.writeLine('m5000=31') #0b011111 63
+        # session.delay(0.5)
         self._attached_comm.writeLine('m4070=5')
         session.delay(0.5)
         self.log.debug('DEVELOPING just wait!')
@@ -433,7 +433,7 @@ class ChopperDisc(ChopperBase, ChopperDiscBase, Moveable):
             self.log.debug('doStatus chopperdisc %d', self.chopper)
         else:
             self.log.debug('doStatus chopperdisc no number')
-        if self.doIsAtTarget(self.doRead(0)) or self.chopper != 1:
+        if self.doIsAtTarget(self.doRead(0), self.target) or self.chopper != 1:
             mode = self.mode
             if mode == 0:
                 return status.ERROR, 'inactive'
@@ -469,7 +469,7 @@ class ChopperDisc(ChopperBase, ChopperDiscBase, Moveable):
                 raise self.errorstates[st[0]](self, st[1])
             return True
 
-        return self.mode == 5 or self.doIsAtTarget(self.doRead(0))
+        return self.mode == 5 or self.doIsAtTarget(self.doRead(0), self.target)
 
     def doFinish(self):
         if self.chopper == 1:
@@ -558,3 +558,20 @@ class ChopperDiscTranslation(ChopperDiscTranslationBase, ChopperBase,
 
     def doStatus(self, maxage=0):
         return self._status(self._read_pos())
+
+
+class ChopperDiscTranslationEncoder(ChopperBase, Readable):
+
+    parameters = {
+        'addr': Param('addr of encodervalue',
+                      type=int, settable=False,
+                      mandatory=False, default=7),
+    }
+
+    def doRead(self, maxage=0):
+        res = self._attached_comm.communicate('#%dp' % self.addr)
+        res = round(float(res.replace('\x06', '')))
+        return res
+
+    def doStatus(self, maxage=0):
+        return status.OK, ''

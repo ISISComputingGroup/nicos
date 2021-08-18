@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """A line editor control with history stepping."""
 
-from __future__ import absolute_import, division, print_function
-
 import re
 
 from nicos.clients.gui.utils import ScriptExecQuestion
@@ -33,7 +31,6 @@ from nicos.guisupport.qt import QApplication, QColor, QCompleter, QEvent, \
     QKeyEvent, QLineEdit, QMessageBox, QPalette, QRegExp, QRegExpValidator, \
     QStringListModel, Qt, pyqtSignal
 from nicos.guisupport.utils import setBackgroundColor, setForegroundColor
-from nicos.pycompat import xrange as range  # pylint: disable=redefined-builtin
 
 wordsplit_re = re.compile(r'[ \t\n\"\\\'`@$><=;|&{(\[]')
 
@@ -67,7 +64,7 @@ class HistoryLineEdit(QLineEdit):
         if event.type() == QEvent.KeyPress and event.key() == Qt.Key_Tab:
             fullstring = self.text()
             lastword = wordsplit_re.split(fullstring)[-1]
-            # pylint: disable=E1121
+            # pylint: disable=too-many-function-args
             matches = self.completion_callback(fullstring, lastword)
             if matches is None:
                 return True

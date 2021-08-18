@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """NICOS live 2D data plot window/panel."""
 
-from __future__ import absolute_import, division, print_function
-
 import os
 from os import path
 
@@ -34,11 +32,10 @@ from nicos.clients.gui.utils import loadUi
 from nicos.guisupport.qt import QByteArray, QDialog, QDoubleSpinBox, \
     QFileDialog, QLabel, QListWidgetItem, QMenu, QPrintDialog, QPrinter, \
     QSizePolicy, QStatusBar, Qt, QToolBar, pyqtSlot
-from nicos.pycompat import string_types
 from nicos.utils import findResource
 
 try:
-    from nicoscascadewidget import CascadeWidget, TmpImage  # pylint: disable=import-error
+    from nicoscascadewidget import CascadeWidget, TmpImage
 except ImportError:
     CascadeWidget = TmpImage = None
 
@@ -87,7 +84,6 @@ class LiveDataPanel(Panel):
         self.splitter.restoreState(self.splitterstate)
 
         client.livedata.connect(self.on_client_livedata)
-        client.liveparams.connect(self.on_client_liveparams)
         if client.isconnected:
             self.on_client_connected()
         client.connected.connect(self.on_client_connected)
@@ -145,7 +141,7 @@ class LiveDataPanel(Panel):
         self.menu.popup(self.mapToGlobal(point))
 
     def on_client_connected(self):
-        self.client.tell('eventunmask', ['livedata', 'liveparams'])
+        self.client.tell('eventunmask', ['livedata'])
         datapath = self.client.eval('session.experiment.datapath', '')
         if not datapath:
             return
@@ -157,10 +153,10 @@ class LiveDataPanel(Panel):
                 elif fn.endswith('tof'):
                     self.add_to_flist(path.join(caspath, fn), 'tof', False)
 
-    def on_client_liveparams(self, params):
+    def on_client_livedata(self, params, blobs):
         tag, _uid, _det, filename, dtype, nx, ny, nt, runtime = params
         # TODO: remove compatibility code
-        if not isinstance(filename, string_types):
+        if not isinstance(filename, str):
             filename, nx, ny, nt = filename[0], nx[0], ny[0], nt[0]
 
         if dtype == '<u4' and nx == 128 and ny == 128 and tag != 'MiraXML':
@@ -178,7 +174,10 @@ class LiveDataPanel(Panel):
                 # print 'Unsupported live data format:', params
                 self._format = None
 
-    def on_client_livedata(self, data):
+        for blob in blobs:
+            self._process_livedata(blob)
+
+    def _process_livedata(self, data):
         if self._format not in ('pad', 'tof'):
             return
         if data:

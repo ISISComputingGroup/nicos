@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 # *****************************************************************************
 
 """NICOS triple-axis instrument devices."""
-
-from __future__ import absolute_import, division, print_function
 
 from math import cos, pi, radians, sqrt
 
@@ -66,7 +64,7 @@ class TAS(Instrument, Moveable):
         'scanconstant': Param('Constant of the operation mode', type=float,
                               default=0, settable=True, category='instrument'),
         'axiscoupling': Param('Whether the sample th/tt axes are coupled',
-                              type=bool, default=True, settable=True,
+                              type=bool, default=False, settable=True,
                               category='instrument'),
         'psi360':       Param('Whether the range of psi is 0-360 deg '
                               '(otherwise -180-180 deg is assumed)',

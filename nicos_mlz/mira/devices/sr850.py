@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Class for Stanford Research SR850 lock-in amplifier."""
-
-from __future__ import absolute_import, division, print_function
 
 from math import atan2, degrees, hypot
 from time import time
@@ -69,6 +67,8 @@ class Amplifier(PyTangoDevice, Measurable):
         'fmtstr':    Override(default='%.6g'),
     }
 
+    _started = 0
+
     def doInit(self, mode):
         if mode == SIMULATION:
             return
@@ -89,7 +89,7 @@ class Amplifier(PyTangoDevice, Measurable):
         self._started = time()
 
     def doIsCompleted(self):
-        return (time() > self._started + self._delay)
+        return time() > self._started + self._delay
 
     def doInfo(self):
         # it is important that these values are correct in the metainfo!

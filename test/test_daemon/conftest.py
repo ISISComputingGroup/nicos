@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,9 +22,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
-import socket
 import time
 
 import pytest
@@ -44,7 +41,7 @@ def daemon_wait_cb():
 
         try:
             s = tcpSocket(daemon_addr, 0)
-        except socket.error:
+        except OSError:
             time.sleep(0.02)
         else:
             s.close()
@@ -72,21 +69,20 @@ class TestClient(NicosClient):
         self._disconnecting = False
         NicosClient.__init__(self, print)
 
-    def signal(self, name, data=None, exc=None):  # pylint: disable=W0221
+    def signal(self, name, data=None, data2=None):  # pylint: disable=W0221
         if name == 'error':
-            raise AssertionError('client error: %s (%s)' % (data, exc))
+            raise AssertionError('client error: %s (%s)' % (data, data2))
         if name == 'disconnected' and not self._disconnecting:
             raise AssertionError('client disconnected')
         if name == 'status':
             self._estatus = data[0]
-        self._signals.append((name, data, exc))
+        self._signals.append((name, data, data2))
 
     def iter_signals(self, startindex, timeout):
         starttime = time.time()
         while True:
             endindex = len(self._signals)
-            for sig in self._signals[startindex:endindex]:
-                yield sig
+            yield from self._signals[startindex:endindex]
             startindex = endindex
             time.sleep(0.05)
             if time.time() > starttime + timeout:

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,9 +25,6 @@
 
 """Basic data acquisition, new API."""
 
-from __future__ import absolute_import, division, print_function
-
-import sys
 from time import time as currenttime
 
 from nicos import session
@@ -35,7 +32,6 @@ from nicos.core.constants import FINAL, INTERRUPTED, SIMULATION
 from nicos.core.errors import NicosError
 from nicos.core.params import Value
 from nicos.core.utils import waitForCompletion
-from nicos.pycompat import reraise
 
 
 def _wait_for_continuation(delay, only_pause=False):
@@ -46,11 +42,11 @@ def _wait_for_continuation(delay, only_pause=False):
     stopped.
     """
     while session.countloop_request:
-        req, current_msg = session.countloop_request  # pylint: disable=E0633
+        req, current_msg = session.countloop_request  # pylint: disable=unpacking-non-sequence
         session.countloop_request = None
         if only_pause and req != 'pause':
-            # for 'finish' requests, we don't want to finish *before* starting the
-            # measurement, because then we don't have any results to return
+            # for 'finish' requests, we don't want to finish *before* starting
+            # the measurement, because then we don't have any results to return
             session.log.info('request for early finish ignored, not counting')
             return True
         exp = session.experiment
@@ -118,7 +114,7 @@ def acquire(point, preset, iscompletefunc=None):
     try:
         for det in point.detectors:
             det.start()
-    except:
+    except BaseException:
         session.endActionScope()
         raise
     session.delay(delay)
@@ -160,10 +156,9 @@ def acquire(point, preset, iscompletefunc=None):
                 for det in detset:
                     det.stop()
             session.delay(delay)
-    except BaseException as e:
-        exc_info = sys.exc_info()
+    except BaseException as err:
         point.finished = currenttime()
-        if e.__class__.__name__ != 'ControlStop':
+        if err.__class__.__name__ != 'ControlStop':
             session.log.warning('Exception during count, trying to save data',
                                 exc=True)
         for det in detset:
@@ -182,7 +177,7 @@ def acquire(point, preset, iscompletefunc=None):
                 dataman.putResults(INTERRUPTED, {det.name: res})
             except Exception:
                 det.log.exception('error saving measurement data')
-        reraise(*exc_info)
+        raise err
     finally:
         point.finished = currenttime()
         session.endActionScope()
@@ -221,7 +216,7 @@ def stop_acquire_thread():
         session.log.debug("acquire thread terminated.")
 
 
-class DevStatistics(object):
+class DevStatistics:
     """Object to use in the environment list to get not only a single device
     value, but statistics such as average, minimum or maximum over the time of
     counting during a scan point.

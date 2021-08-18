@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,14 +27,11 @@ Created on 06.06.2011
 
 @author: pedersen
 """
-from __future__ import absolute_import, division, print_function
-
 from nicos import session
 from nicos.commands import usercommand
 #from nicos.core.scan import Scan, TimeScan, ContinuousScan, ManualScan
 #from nicos.core import Device, Measurable, Moveable, Readable
 from nicos.core import UsageError
-from nicos.pycompat import string_types
 
 from nicos_mlz.resi.devices import residevice
 
@@ -121,7 +118,7 @@ def Center(axis, *args, **kw):
         raise UsageError('This command only works with the resi device')
     if isinstance(axis, residevice.ResiVAxis):
         axis = axis.name
-    elif not isinstance(axis, string_types):
+    elif not isinstance(axis, str):
         raise UsageError('This command works only with RESI axes')
     dev._hardware.Center(axis=axis, *args, **kw)
 

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """The global data manager class."""
 
-from __future__ import absolute_import, division, print_function
-
 import logging
 import os
 from os import path
@@ -38,12 +36,11 @@ from nicos.core.data.dataset import BlockDataset, PointDataset, ScanDataset, \
 from nicos.core.data.sink import DataFile
 from nicos.core.errors import ProgrammingError
 from nicos.core.utils import DeviceValueDict
-from nicos.pycompat import iteritems, string_types
 from nicos.utils import DEFAULT_FILE_MODE, lazy_property, readFileCounter, \
     updateFileCounter
 
 
-class DataManager(object):
+class DataManager:
     """Singleton device class that manages incoming data.
 
     It takes all data that is produced by detectors, as well as device values
@@ -261,7 +258,7 @@ class DataManager(object):
         Relevant devices are (currently) those that are not lowlevel.
         """
         devices = [dev for (_, dev) in
-                   sorted(iteritems(session.devices),
+                   sorted(session.devices.items(),
                           key=lambda name_dev: name_dev[0].lower())]
         newinfo = {}
         for device in devices:
@@ -369,7 +366,7 @@ class DataManager(object):
         A dictionary of supplementary template values can be provided using
         the `additionalinfo` keyword argument.
         """
-        if isinstance(nametemplates, string_types):
+        if isinstance(nametemplates, str):
             nametemplates = [nametemplates]
         exc = None  # stores first exception if any
         # translate entries
@@ -397,7 +394,6 @@ class DataManager(object):
                 continue
             filenames.append(filename)
         if exc and not filenames:
-            # pylint: disable=raising-bad-type
             raise exc
         return filenames
 
@@ -439,9 +435,9 @@ class DataManager(object):
 
     def linkFiles(self, filepath, linkpaths):
         """Creates hardlinks in *linkpaths*, pointing to *filepath*."""
-        linkfunc = os.link if hasattr(os,  'link') else \
+        linkfunc = os.link if hasattr(os, 'link') else \
             os.symlink if hasattr(os, 'symlink') else None
-        if linkfunc:
+        if linkfunc:  # pylint: disable=using-constant-test
             for linkpath in linkpaths:
                 self.log.debug('linking %r to %r', linkpath, filepath)
                 try:
@@ -485,7 +481,12 @@ class DataManager(object):
 
         self.log.debug('creating file %r using fileclass %r', filename,
                        fileclass)
-        datafile = fileclass(shortpath, filepath)
+        if fileclass == DataFile:
+            datafile = fileclass(
+                shortpath, filepath, kwargs.pop('filemode', None),
+                kwargs.pop('logger', None))
+        else:
+            datafile = fileclass(shortpath, filepath)
         exp = session.experiment
         if exp.managerights:
             os.chmod(filepath,

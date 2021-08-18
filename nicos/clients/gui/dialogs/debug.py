@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,22 +24,18 @@
 
 """NICOS GUI debug console window."""
 
-from __future__ import absolute_import, division, print_function
-
 import codeop
 import sys
 
 from nicos.guisupport.qt import QCoreApplication, QFont, QMainWindow, \
     QPlainTextEdit, QSplitter, Qt, QTextCursor, QTextOption, pyqtSignal
 from nicos.protocols.daemon import DAEMON_EVENTS
-# pylint: disable=redefined-builtin
-from nicos.pycompat import exec_, xrange as range
 
 # prevent importing the traceback.py from this package
 traceback = __import__('traceback')
 
 
-class StdoutProxy(object):
+class StdoutProxy:
     def __init__(self, write_func):
         self.write_func = write_func
         self.skip = False
@@ -101,12 +97,12 @@ class ConsoleBox(QPlainTextEdit):
         self.moveCursor(QTextCursor.End)
 
     def getConstruct(self, command):
-        res = self.compiler('\n'.join(self.construct + [command]),
+        self.construct.append(command)
+        res = self.compiler('\n'.join(self.construct),
                             '<interactive>', 'single')
         if res is not None:
+            # construct is complete and parsed successfully
             self.construct = []
-        else:
-            self.construct.append(command)
         return res
 
     def addToHistory(self, command):
@@ -145,16 +141,12 @@ class ConsoleBox(QPlainTextEdit):
         try:
             command = self.getConstruct(command)
             if not command:
-                return
-            exec_(command, self.namespace)
+                return self.newPrompt()
+            exec(command, self.namespace)
         except SystemExit:
             self.closeConsole.emit()
-        except:  # pylint: disable=W0702
-            traceback_lines = traceback.format_exc().split('\n')
-            # Remove traceback mentioning this file, and a linebreak
-            for i in (2, 1, -1):
-                traceback_lines.pop(i)
-            self.appendPlainText('\n'.join(traceback_lines))
+        except BaseException:
+            self.appendPlainText(traceback.format_exc())
         finally:
             sys.stdout = tmp_stdout
         self.newPrompt()
@@ -179,7 +171,7 @@ class ConsoleBox(QPlainTextEdit):
             return
         elif event.key() == Qt.Key_D and event.modifiers() == Qt.ControlModifier:
             self.closeConsole.emit()
-        super(ConsoleBox, self).keyPressEvent(event)
+        return QPlainTextEdit.keyPressEvent(self, event)
 
 
 class DebugConsole(QMainWindow):
@@ -221,7 +213,7 @@ Helper functions:
                 self.on_client_signal(event, args)
             return handler
         if not events:
-            events = DAEMON_EVENTS.keys()
+            events = DAEMON_EVENTS
         for event in events:
             getattr(self.parent().client, event).connect(make_handler(event))
 

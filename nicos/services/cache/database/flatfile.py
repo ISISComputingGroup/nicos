@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import os
 import shutil
 import threading
@@ -34,7 +32,6 @@ from time import localtime, mktime, sleep, time as currenttime
 from nicos import config
 from nicos.core import Param, oneof
 from nicos.protocols.cache import FLAG_NO_STORE, OP_TELL, OP_TELLOLD
-from nicos.pycompat import iteritems, listitems
 from nicos.services.cache.database.base import CacheDatabase
 from nicos.services.cache.entry import CacheEntry
 from nicos.utils import allDays, createThread, ensureDirectory
@@ -117,7 +114,7 @@ class FlatfileCacheDatabase(CacheDatabase):
         self._cleaner.join()
 
     def _read_one_storefile(self, filename):
-        with open(filename, 'r+') as fd:
+        with open(filename, 'r+', encoding='utf-8') as fd:
             # read file format identification
             firstline = fd.readline()
             if firstline.startswith('# NICOS cache store file v2'):
@@ -207,12 +204,12 @@ class FlatfileCacheDatabase(CacheDatabase):
         self._midnight = mktime(ltime[:3] + (0,) * (8-3) + (ltime[8],))
         self._nextmidnight = self._midnight + 86400
         # roll over all file descriptors
-        for category, (fd, _, db) in iteritems(self._cat):
+        for category, (fd, _, db) in self._cat.items():
             if fd:
                 fd.close()
                 self._cat[category][0] = None
             fd = self._create_fd(category)
-            for subkey, entry in iteritems(db):
+            for subkey, entry in db.items():
                 if entry.value:
                     fd.write('%s\t%s\t%s\t%s\n' % (
                         subkey, entry.time,
@@ -244,7 +241,8 @@ class FlatfileCacheDatabase(CacheDatabase):
         bydate = path.join(self._basepath, self._year, self._currday)
         ensureDirectory(bydate)
         filename = path.join(bydate, category)
-        fd = open(filename, 'a+')
+        # pylint: disable=consider-using-with
+        fd = open(filename, 'a+', encoding='utf-8')
         fd.seek(0, os.SEEK_END)
         # write version identification, but only for empty files
         if fd.tell() == 0:
@@ -292,10 +290,10 @@ class FlatfileCacheDatabase(CacheDatabase):
     def ask_wc(self, key, ts, time, ttl):
         ret = set()
         # look for matching keys
-        for cat, (_, lock, db) in listitems(self._cat):
+        for cat, (_, lock, db) in list(self._cat.items()):
             prefix = cat + '/' if cat != 'nocat' else ''
             with lock:
-                for subkey, entry in iteritems(db):
+                for subkey, entry in db.items():
                     if key not in prefix+subkey:
                         continue
                     # check for removed keys
@@ -321,7 +319,7 @@ class FlatfileCacheDatabase(CacheDatabase):
         fn = path.join(self._basepath, year, monthday, category)
         if not path.isfile(fn):
             return
-        with open(fn, 'U') as fd:
+        with open(fn, 'U', encoding='utf-8') as fd:
             firstline = fd.readline()
             nsplit = 2
             if firstline.startswith('# NICOS cache store file v2'):
@@ -370,7 +368,7 @@ class FlatfileCacheDatabase(CacheDatabase):
                             # bunch up 100 entries at a time
                             yield ''.join(temp)
                             temp = []
-                    elif not inrange and value:
+                    elif not inrange and value and time < fromtime:
                         lastvalue = '%r@%s=%s\n' % (time, key, value)
             except Exception:
                 self.log.exception('error reading store file for history query')
@@ -382,9 +380,9 @@ class FlatfileCacheDatabase(CacheDatabase):
     def _clean(self):
         def cleanonce():
             with self._cat_lock:
-                for cat, (fd, lock, db) in iteritems(self._cat):
+                for cat, (fd, lock, db) in self._cat.items():
                     with lock:
-                        for subkey, entry in iteritems(db):
+                        for subkey, entry in db.items():
                             if not entry.value or entry.expired:
                                 continue
                             time = currenttime()

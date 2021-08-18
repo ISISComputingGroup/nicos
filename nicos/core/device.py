@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,8 @@
 
 """Base device classes for usage in NICOS."""
 
-from __future__ import absolute_import, division, print_function
-
 import inspect
 import re
-import sys
 from time import time as currenttime
 
 import numpy
@@ -48,9 +45,7 @@ from nicos.core.params import INFO_CATEGORIES, Attach, Override, Param, \
 from nicos.core.utils import formatStatus, multiStatus, multiStop, multiWait, \
     statusString, usermethod
 from nicos.protocols.cache import FLAG_NO_STORE
-from nicos.pycompat import add_metaclass, integer_types, iteritems, \
-    listitems, number_types, reraise, string_types
-from nicos.utils import getVersions, loggers, parseDateString
+from nicos.utils import getVersions, loggers, number_types, parseDateString
 
 ALLOWED_CATEGORIES = {v[0] for v in INFO_CATEGORIES}
 
@@ -84,8 +79,8 @@ def requires(**access):
                 if 'helpmsg' in access:
                     msg += ' (%s)' % access['helpmsg']
                 if args and isinstance(args[0], Device):
-                    raise AccessError(args[0], msg)
-                raise AccessError(msg)
+                    raise AccessError(args[0], msg) from None
+                raise AccessError(msg) from None
             return func(*args, **kwds)
         new_func.__name__ = func.__name__
         new_func.__doc__ = func.__doc__
@@ -113,10 +108,10 @@ class DeviceMeta(DeviceMixinMeta):
         seen_nonmixin = False
         for base in bases:
             if not isinstance(base, DeviceMeta) and seen_nonmixin:
-                raise ProgrammingError('%s.%s device: mixin class %s must come '
-                                       'before all non-mixins in the base '
-                                       'class list' % (attrs['__module__'],
-                                                       name, base.__name__))
+                raise ProgrammingError('%s.%s device: mixin class %s must come'
+                                       ' before all non-mixins in the base'
+                                       ' class list' % (attrs['__module__'],
+                                                        name, base.__name__))
             if isinstance(base, DeviceMeta):
                 seen_nonmixin = True
         newtype = DeviceMixinMeta.__new__(mcs, name, bases, attrs)
@@ -126,7 +121,7 @@ class DeviceMeta(DeviceMixinMeta):
 
         # to debug MRO problems you could use this line
         # print 'MRO:', newtype, newtype.mro()
-        for adevname, entry in listitems(newtype.attached_devices):
+        for adevname, entry in list(newtype.attached_devices.items()):
             # adev names are always lowercased
             if adevname != adevname.lower():
                 raise ProgrammingError('%r device: attached device name %r is '
@@ -141,7 +136,7 @@ class DeviceMeta(DeviceMixinMeta):
                     Attach(entry[1], _devclass, multiple=_multiple)
 
         # create parameter properties
-        for param, info in iteritems(newtype.parameters):
+        for param, info in newtype.parameters.items():
             # parameter names are always lowercased (enforce this)
             if param != param.lower():
                 raise ProgrammingError('%r device: parameter name %r is not '
@@ -207,7 +202,7 @@ class DeviceMeta(DeviceMixinMeta):
                             session.checkAccess(self.requires)
                         except AccessError as err:
                             raise AccessError(self, 'cannot set parameter: %s'
-                                              % err)
+                                              % err) from None
                     if self._mode == SLAVE:
                         raise ModeError('setting parameter %s not possible in '
                                         'slave mode' % param)
@@ -254,7 +249,8 @@ class DeviceMeta(DeviceMixinMeta):
         if 'valuetype' in attrs:
             newtype.valuetype = staticmethod(attrs['valuetype'])
 
-        # check attribute names for the attached devices (created by Device.__init__)
+        # check attribute names for the attached devices (created by
+        # Device.__init__)
         for adevname, entry in newtype.attached_devices.items():
             pname = '_attached_%s' % adevname
             if newtype.parameters and (pname in newtype.parameters):
@@ -269,11 +265,10 @@ class DeviceMeta(DeviceMixinMeta):
         return newtype
 
 
-@add_metaclass(DeviceMeta)
-class Device(object):
+class Device(metaclass=DeviceMeta):
     """
-    An object that has a list of parameters that are read from the configuration
-    and have default values.
+    An object that has a list of parameters that are read from the
+    configuration and have default values.
 
     Subclasses *can* implement:
 
@@ -294,8 +289,8 @@ class Device(object):
     # A dictionary mapping parameter names to parameter descriptions, given as
     # Param objects.
     parameters = {
-        'name':        Param('The name of the device', type=str, settable=False,
-                             userparam=False),
+        'name':        Param('The name of the device',
+                             type=str, settable=False, userparam=False),
         'classes':     Param('Names of device class and all its base classes',
                              type=listof(str), settable=False, userparam=False),
         'description': Param('A description of the device', type=str,
@@ -339,7 +334,8 @@ class Device(object):
         # register self in device registry
         if not self.temporary:
             if name in session.devices:
-                raise ProgrammingError('device with name %s already exists' % name)
+                raise ProgrammingError('device with name %s already exists' %
+                                       name)
             session.devices[name] = self
             session.device_case_map[name.lower()] = name
 
@@ -365,14 +361,13 @@ class Device(object):
         try:
             # initialize device
             self.init()
-        except:  # really *all* exceptions # pylint: disable=W0702
-            t, v, tb = sys.exc_info()
+        except BaseException as err:
             try:
                 self.shutdown()
             except Exception:
                 self.log.warning('could not shutdown after creation failed',
                                  exc=1)
-            reraise(t, v, tb)
+            raise err
 
     attribute_whitelist = {
         'valuetype',  # for all devices
@@ -430,7 +425,7 @@ class Device(object):
 
     def _attachDevices(self):
         """Validate and create attached devices."""
-        for aname, entry in sorted(iteritems(self.attached_devices)):
+        for aname, entry in sorted(self.attached_devices.items()):
             if not isinstance(entry, Attach):
                 raise ProgrammingError(self, 'attached device entry for %r is '
                                        'invalid; the value should be a '
@@ -454,7 +449,7 @@ class Device(object):
                 except UsageError:
                     raise ConfigurationError(
                         self, 'device %r item %d has wrong type (should be %s)' %
-                        (aname, i + 1, entry.devclass.__name__))
+                        (aname, i + 1, entry.devclass.__name__)) from None
                 devlist.append(dev)
 
             for dev in devlist:
@@ -481,19 +476,19 @@ class Device(object):
            true).
 
            This allows to initialize a hardware connection if it is necessary
-           for the various ``doRead...()`` methods of other parameters that read
-           the current parameter value from the hardware.
+           for the various ``doRead...()`` methods of other parameters that
+           read the current parameter value from the hardware.
 
         .. method:: doInit(mode)
 
            This method, if present, is called after all parameters have been
            initialized.  It is the correct place to set up additional
-           attributes, or to perform initial (read-only!) communication with the
-           hardware.
+           attributes, or to perform initial (read-only!) communication with
+           the hardware.
 
         .. note:: ``doPreinit()`` and ``doInit()`` are called regardless of the
-           current execution mode.  This means that if one of these methods does
-           hardware access, it must be done only if ``mode != SIMULATION``.
+           current execution mode.  This means that if one of these methods
+           does hardware access, it must be done only if ``mode != SIMULATION``.
         """
         self._cache = None
         self._subscriptions = []
@@ -528,9 +523,9 @@ class Device(object):
                     try:
                         value = self._validateType(value, param, paraminfo)
                     except ConfigurationError as e:
-                        self.log.warning('value of %s from cache (%r) is invalid: %r'
-                                         ' using default handling instead.',
-                                         param, value, e)
+                        self.log.warning('value of %s from cache (%r) is '
+                                         'invalid: %r using default handling '
+                                         'instead.', param, value, e)
                         value = Ellipsis
             if value is not Ellipsis:
                 if param in self._ownparams:
@@ -608,7 +603,7 @@ class Device(object):
         notfromcache = []
         later = []
 
-        for param, paraminfo in iteritems(self.parameters):
+        for param, paraminfo in self.parameters.items():
             if paraminfo.preinit:
                 _init_param(param, paraminfo)
             else:
@@ -657,8 +652,9 @@ class Device(object):
         try:
             value = paraminfo.type(value)
         except (ValueError, TypeError) as err:
-            raise ConfigurationError(self, '%r is an invalid value for '
-                                     'parameter %s: %s' % (value, param, err))
+            raise ConfigurationError(
+                self, '%r is an invalid value for parameter %s: %s' % (
+                    value, param, err)) from err
         return value
 
     def _initParam(self, param, paraminfo=None):
@@ -779,13 +775,13 @@ class Device(object):
         else:
             if fromtime is None:
                 fromtime = -1
-            if isinstance(fromtime, string_types):
+            if isinstance(fromtime, str):
                 fromtime = parseDateString(fromtime)
             elif fromtime < 0:
                 fromtime = currenttime() + fromtime * 3600
             if totime is None:
                 totime = currenttime()
-            elif isinstance(totime, string_types):
+            elif isinstance(totime, str):
                 totime = parseDateString(totime, enddate=True)
             elif totime < 0:
                 totime = currenttime() + totime * 3600
@@ -835,7 +831,7 @@ class Device(object):
            should perform cleanup, for example closing connections to hardware.
         """
         self.log.debug('shutting down device')
-        caughtExc = None
+        caught_exc = None
         if self._mode != SIMULATION:
             # do not execute shutdown actions when simulating
 
@@ -848,8 +844,8 @@ class Device(object):
             if hasattr(self, 'doShutdown'):
                 try:
                     self.doShutdown()
-                except Exception:
-                    caughtExc = sys.exc_info()
+                except Exception as err:
+                    caught_exc = err
 
         for adev in self._adevs.values():
             if isinstance(adev, list):
@@ -863,15 +859,16 @@ class Device(object):
         session.device_case_map.pop(self._name.lower(), None)
         session.explicit_devices.discard(self._name)
         # re-raise the doShutdown error
-        if caughtExc is not None:
-            reraise(*caughtExc)
+        if caught_exc is not None:
+            raise caught_exc
 
     @usermethod
     def version(self):
         """Return a list of versions for this device.
 
         These are tuples (component, version) where a "component" can be the
-        name of a Python module, or an external dependency (like a TACO server).
+        name of a Python module, or an external dependency (like a TACO
+        server).
 
         The base implementation already collects VCS revision information
         available from all Python modules involved in the class inheritance
@@ -901,7 +898,8 @@ class Device(object):
                 self._cache.lock(self._name)
             except CacheLockError:
                 if currenttime() > start + timeout:
-                    raise CommunicationError(self, 'device locked in cache')
+                    raise CommunicationError(
+                        self, 'device locked in cache') from None
                 session.delay(self._base_loop_delay * 3)
             else:
                 break
@@ -922,7 +920,39 @@ class Device(object):
         try:
             self._cache.unlock(self._name)
         except CacheLockError:
-            raise CommunicationError(self, 'device locked by other instance')
+            raise CommunicationError(
+                self, 'device locked by other instance') from None
+
+    def _pollParam(self, name, with_ttl=0):
+        """Read a parameter from the hardware and put its value into the cache.
+
+        This is intended to be used from :meth:`doPoll` methods, so that they
+        don't have to implement parameter polling themselves.  For readable
+        devices, if *with_ttl* is > 0, the cached value gets the TTL of the
+        device value, determined by :attr:`maxage`, multiplied by *with_ttl*.
+        """
+        value = getattr(self, 'doRead' + name.title())()
+        if with_ttl:
+            self._cache.put(self, name, value, currenttime(),
+                            getattr(self, 'maxage', 0) * with_ttl)
+        else:
+            self._cache.put(self, name, value)
+
+    def pollParams(self, volatile_only=True, blocking=False, with_ttl=0,
+                   param_list=None):
+        """Poll all parameters (normally only volatile ones)."""
+        if param_list is None:
+            param_list = list(self.parameters)
+        param_list = [param for param in param_list if
+                      self.parameters[param].volatile or
+                      (not volatile_only and
+                       hasattr(self, 'doRead' + param.title()))]
+        if blocking:
+            for param in param_list:
+                self._pollParam(param, with_ttl)
+        else:
+            self._cache.put_raw('poller/%s/pollparams' % self.name, param_list,
+                                flag=FLAG_NO_STORE)
 
 
 class Readable(Device):
@@ -949,9 +979,9 @@ class Readable(Device):
                               default='%.3f', settable=True),
         'unit':         Param('Unit of the device main value', type=str,
                               mandatory=True, settable=True),
-        'maxage':       Param('Maximum age of cached value and status (zero to '
-                              'never use cached values, or None to cache them '
-                              'indefinitely)', unit='s', fmtstr='%.1f',
+        'maxage':       Param('Maximum age of cached value and status (zero '
+                              'to never use cached values, or None to cache '
+                              'them indefinitely)', unit='s', fmtstr='%.1f',
                               default=12, settable=True,
                               type=none_or(floatrange(0, 24 * 3600))),
         'pollinterval': Param('Polling interval for value and status (or None '
@@ -1024,8 +1054,8 @@ class Readable(Device):
     def valueInfo(self):
         """Describe the values read by this device.
 
-        Return a tuple of :class:`~nicos.core.params.Value` instances describing
-        the values that :meth:`read` returns.
+        Return a tuple of :class:`~nicos.core.params.Value` instances
+        describing the values that :meth:`read` returns.
 
         This must be overridden by every Readable that returns more than one
         value in a list.  For example, a slit that returns a width and height
@@ -1073,8 +1103,8 @@ class Readable(Device):
            date, or no cache is available.
 
            If no ``doStatus()`` is implemented, ``status()`` tries to determine
-           the status via `nicos.core.utils.multiStatus` of the attached devices.
-           If that is not possible, it returns
+           the status via `nicos.core.utils.multiStatus` of the attached
+           devices.  If that is not possible, it returns
            ``status.UNKNOWN, 'doStatus not implemented'``.
 
            The *maxage* parameter should be given to status() calls of
@@ -1088,9 +1118,9 @@ class Readable(Device):
         """Return the status of the device combined from hardware status and
         movement status determined by NICOS such as timeouts.
 
-        The default implementation just returns the hardware status, except that
-        the warnlimits of the device are checked, and the status is changed to
-        WARN if they are exceeded.
+        The default implementation just returns the hardware status, except
+        that the warnlimits of the device are checked, and the status is
+        changed to WARN if they are exceeded.
         """
         try:
             stvalue = self.doStatus(maxage)
@@ -1141,15 +1171,15 @@ class Readable(Device):
 
     def poll(self, n=0, maxage=0):
         """Get status and value directly from the device and put both values
-        into the cache.  For continuous polling, *n* should increase by one with
-        every call to *poll*.
+        into the cache.  For continuous polling, *n* should increase by one
+        with every call to *poll*.
 
         .. method:: doPoll(n, maxage)
 
            If present, this method is called to perform additional polling,
-           e.g. on parameters that can be changed from outside the NICOS system.
-           The *n* parameter can be used to perform the polling less frequently
-           than the polling of value and status.
+           e.g. on parameters that can be changed from outside the NICOS
+           system.  The *n* parameter can be used to perform the polling less
+           frequently than the polling of value and status.
 
            If doPoll returns a (status, value) tuple, they are used instead of
            calling doStatus and doRead again.
@@ -1173,36 +1203,6 @@ class Readable(Device):
         # self._cache.invalidate(self, 'value')
         # self._cache.invalidate(self, 'status')
         return self.status(maxage), self.read(maxage)
-
-    def _pollParam(self, name, with_ttl=0):
-        """Read a parameter value from the hardware and put its value into the
-        cache.  This is intendend to be used from :meth:`doPoll` methods, so
-        that they don't have to implement parameter polling themselves.  If
-        *with_ttl* is > 0, the cached value gets the TTL of the device value,
-        determined by :attr:`maxage`, multiplied by *with_ttl*.
-        """
-        value = getattr(self, 'doRead' + name.title())()
-        if with_ttl:
-            self._cache.put(self, name, value, currenttime(),
-                            (self.maxage or 0) * with_ttl)
-        else:
-            self._cache.put(self, name, value)
-
-    def pollParams(self, volatile_only=True, blocking=False, with_ttl=0,
-                   param_list=None):
-        """Poll all parameters (normally only volatile ones)."""
-        if param_list is None:
-            param_list = list(self.parameters)
-        param_list = [param for param in param_list if
-                      self.parameters[param].volatile or
-                      (not volatile_only and
-                       hasattr(self, 'doRead' + param.title()))]
-        if blocking:
-            for param in param_list:
-                self._pollParam(param, with_ttl)
-        else:
-            self._cache.put_raw('poller/%s/pollparams' % self.name, param_list,
-                                flag=FLAG_NO_STORE)
 
     @usermethod
     def reset(self):
@@ -1249,7 +1249,7 @@ class Readable(Device):
         return ret
 
     def info(self):
-        """Automatically add device main value and status (if not OK)."""
+        """Automatically add device main value and status."""
         ret = []
         try:
             val = self.read()
@@ -1299,8 +1299,8 @@ class Waitable(Readable):
     def wait(self):
         """Wait until movement of device is completed.
 
-        Return current device value after waiting.  This is a no-op for hardware
-        devices in simulation mode.
+        Return current device value after waiting.  This is a no-op for
+        hardware devices in simulation mode.
         """
         return multiWait([self])[self]
 
@@ -1486,9 +1486,9 @@ class Moveable(Waitable):
                                      'maximum (%s), please check and re-set '
                                      'limits', umax, amax)
             if self._mode == SIMULATION:
-                # special case: in simulation mode, doReadUserlimits is not called,
-                # so the limits are not set from the absolute limits, and are always
-                # (0, 0) except when set in the setup file
+                # special case: in simulation mode, doReadUserlimits is not
+                # called, so the limits are not set from the absolute limits,
+                # and are always (0, 0) except when set in the setup file
                 # Set them directly (bypassing pos check, as this may work at
                 # this point for simulation)
                 if self.userlimits == (0.0, 0.0):
@@ -1499,17 +1499,17 @@ class Moveable(Waitable):
         """Check if the given position can be moved to.
 
         The return value is a tuple ``(valid, why)``.  The first item is a
-        boolean indicating if the position is valid, the second item is a string
-        with the reason if it is invalid.
+        boolean indicating if the position is valid, the second item is a
+        string with the reason if it is invalid.
 
         .. method:: doIsAllowed(pos)
 
            This method must be implemented to check the validity.  If it does
            not exist, all positions are valid.
 
-           Note: to implement ordinary (min, max) limits, do not use this method
-           but inherit your device from :class:`HasLimits`.  This takes care of
-           all limit processing.
+           Note: to implement ordinary (min, max) limits, do not use this
+           method but inherit your device from :class:`HasLimits`.  This takes
+           care of all limit processing.
 
            For complex state-dependent limit use a controller device
            with :class:`IsController` implementing :meth:`isADevTargetAllowed`.
@@ -1577,12 +1577,13 @@ class Moveable(Waitable):
             try:
                 session.checkAccess(self.requires)
             except AccessError as err:
-                raise AccessError(self, 'cannot start device: %s' % err)
+                raise AccessError(
+                    self, 'cannot start device: %s' % err) from None
         try:
             pos = self.valuetype(pos)
         except (ValueError, TypeError) as err:
             raise InvalidValueError(self, '%r is an invalid value for this '
-                                    'device: %s' % (pos, err))
+                                    'device: %s' % (pos, err)) from None
         ok, why = self.isAllowed(pos)
         if not ok:
             raise LimitError(self, 'moving to %s is not allowed: %s' %
@@ -1636,9 +1637,9 @@ class Moveable(Waitable):
     def finish(self):
         """Finish up movement of the device.
 
-        This is the final step of waiting for a device, it is called by the wait
-        loop.  Devices must not rely on this method being called, since it is
-        not triggered when the movement is not waited upon.
+        This is the final step of waiting for a device, it is called by the
+        wait loop.  Devices must not rely on this method being called, since
+        it is not triggered when the movement is not waited upon.
 
         Default implementation is to check if the target has been reached, and
         to call :meth:`doFinish` if present.
@@ -1673,8 +1674,10 @@ class Moveable(Waitable):
                              self.format(self.target, unit=True),
                              self.format(pos, unit=True))
 
-    def isAtTarget(self, pos):
-        """Check if the device has arrived at its target.
+    def isAtTarget(self, pos=None, target=None):
+        """Check if the device has arrived at the given target.
+        If target is omitted it defaults to the device's currently set target.
+        If pos is omitted the device checks against its current read value.
 
         The method calls :meth:`doIsAtTarget` if present.  Otherwise, it checks
         for equality if the value is of string or integer type, and returns
@@ -1695,11 +1698,16 @@ class Moveable(Waitable):
         For devices with float values, inherit from :class:`HasPrecision`,
         which already comes with an implementation of :meth:`doIsAtTarget`.
         """
+        if target is None:
+            target = self.target
+        if pos is None:
+            pos = self.read(0)
+
         if hasattr(self, 'doIsAtTarget'):
-            return self.doIsAtTarget(pos)
-        elif (isinstance(pos, (string_types, integer_types)) and
-              self.target is not None):
-            return self.target == pos
+            return self.doIsAtTarget(pos, target)
+        elif (isinstance(pos, (str, int)) and
+              target is not None):
+            return target == pos
         return True
 
     def _hw_wait(self):
@@ -1742,7 +1750,8 @@ class Moveable(Waitable):
             try:
                 session.checkAccess(self.requires)
             except AccessError as err:
-                raise AccessError(self, 'cannot stop device: %s' % err)
+                raise AccessError(
+                    self, 'cannot stop device: %s' % err) from None
         if isinstance(self, HasTimeout):
             self._setROParam('_timesout', None)
         if hasattr(self, 'doStop'):
@@ -1838,7 +1847,7 @@ class Measurable(Waitable):
     """
 
     parameter_overrides = {
-        'unit':  Override(description='(not used)', mandatory=False),
+        'unit': Override(description='(not used)', mandatory=False),
     }
 
     errorstates = {status.ERROR: NicosError}
@@ -1898,7 +1907,7 @@ class Measurable(Waitable):
             self.doSetPreset(**preset)
         self.doStart()
 
-    def __call__(self, pos=None):  # pylint: disable=W0221
+    def __call__(self, pos=None):
         """Allow dev(), but not dev(pos)."""
         if pos is None:
             return self.read()
@@ -1914,8 +1923,8 @@ class Measurable(Waitable):
 
         If the hook returns a data quality value from ``nicos.core.data``,
         either LIVE or INTERMEDIATE, the detector is read out and the data is
-        sent to the data sinks.  The detector is responsible for determining how
-        often this should be done.
+        sent to the data sinks.  The detector is responsible for determining
+        how often this should be done.
         """
 
     @usermethod
@@ -2088,8 +2097,8 @@ class Measurable(Waitable):
     def valueInfo(self):
         """Describe the scalar values measured by this device.
 
-        Return a tuple of :class:`~nicos.core.params.Value` instances describing
-        the values that :meth:`read` returns.
+        Return a tuple of :class:`~nicos.core.params.Value` instances
+        describing the values that :meth:`read` returns.
 
         This must be overridden by every Measurable that returns more than one
         value in a list.  The default indicates a single return value with no
@@ -2155,8 +2164,7 @@ class SubscanMeasurable(Measurable):
 
 # Use the DeviceMixinMeta metaclass here to provide the instancecheck
 # Not derived from DeviceMixinBase as this class is not a mixin.
-@add_metaclass(DeviceMixinMeta)
-class NoDevice(object):
+class NoDevice(metaclass=DeviceMixinMeta):
     """A class that represents "no device" attached to a :class:`DeviceAlias`."""
 
     __mergedattrs__ = []  # needed by the metaclass
@@ -2171,11 +2179,13 @@ class NoDevice(object):
         return (str, (self.name,))
 
     def __getattr__(self, name):
-        raise AttributeError('alias %r does not point to any device' % self.name)
+        raise AttributeError('alias %r does not point to any device' %
+                             self.name)
 
     def __setattr__(self, name, value):
         if name != 'name':
-            raise ConfigurationError('alias %r does not point to any device' % self.name)
+            raise ConfigurationError('alias %r does not point to any device' %
+                                     self.name)
         object.__setattr__(self, name, value)
 
 
@@ -2183,9 +2193,9 @@ class DeviceAlias(Device):
     """
     Generic "alias" device that can point all access to any other NICOS device.
 
-    The device that should be accessed is set using the "alias" parameter, which
-    can be configured and changed at runtime.  For example, with a DeviceAlias
-    instance *T*::
+    The device that should be accessed is set using the "alias" parameter,
+    which can be configured and changed at runtime.  For example, with a
+    DeviceAlias instance *T*::
 
         T.alias = Tcryo
         read(T)   # will read Tcryo
@@ -2204,7 +2214,8 @@ class DeviceAlias(Device):
         'alias':    Param('Device to alias', type=none_or(nicosdev),
                           settable=True, chatty=True),
         'devclass': Param('Class name that the aliased device must be an '
-                          'instance of', type=str, default='nicos.core.device.Device'),
+                          'instance of',
+                          type=str, default='nicos.core.device.Device'),
     }
 
     _ownattrs = ['_obj', '_mode', '_cache', 'alias']
@@ -2325,7 +2336,7 @@ class DeviceAlias(Device):
     # Device methods that would not be alias-aware
 
     def _setROParam(self, param, value):
-        raise NicosError(self, 'please don\'t use _setROParam on a DeviceAlias')
+        raise NicosError(self, "please don't use _setROParam on a DeviceAlias")
 
     def _getParamConfig(self, param):
         if param in self.parameters:
@@ -2417,20 +2428,20 @@ def make_method(name):
 
 
 for name in [
-        '__abs__', '__add__', '__and__', '__call__', '__cmp__', '__coerce__',
-        '__contains__', '__delitem__', '__delslice__', '__div__', '__divmod__',
-        '__float__', '__floordiv__', '__ge__', '__getitem__',
-        '__getslice__', '__gt__', '__hash__', '__hex__', '__iadd__', '__iand__',
-        '__idiv__', '__idivmod__', '__ifloordiv__', '__ilshift__', '__imod__',
-        '__imul__', '__int__', '__invert__', '__ior__', '__ipow__', '__irshift__',
-        '__isub__', '__iter__', '__itruediv__', '__ixor__', '__le__', '__len__',
-        '__long__', '__lshift__', '__lt__', '__mod__', '__mul__',
-        '__neg__', '__oct__', '__or__', '__pos__', '__pow__', '__radd__',
-        '__rand__', '__rdiv__', '__rdivmod__', '__reduce__', '__reduce_ex__',
-        '__reversed__', '__rfloorfiv__', '__rlshift__', '__rmod__',
-        '__rmul__', '__ror__', '__rpow__', '__rrshift__', '__rshift__', '__rsub__',
-        '__rtruediv__', '__rxor__', '__setitem__', '__setslice__', '__sub__',
-        '__truediv__', '__xor__', 'next',
+        '__abs__', '__add__', '__and__', '__bool__', '__call__',
+        '__contains__', '__delitem__', '__divmod__', '__float__',
+        '__floordiv__', '__ge__', '__getitem__', '__gt__', '__hash__',
+        '__iadd__', '__iand__', '__idivmod__', '__ifloordiv__', '__ilshift__',
+        '__imatmul__', '__imod__', '__imul__', '__index__', '__int__',
+        '__invert__', '__ior__', '__ipow__', '__irshift__', '__isub__',
+        '__iter__', '__itruediv__', '__ixor__', '__le__', '__len__',
+        '__lshift__', '__lt__', '__matmul__', '__mod__', '__mul__', '__neg__',
+        '__next__', '__or__', '__pos__', '__pow__', '__radd__', '__rand__',
+        '__rdivmod__', '__reduce__', '__reduce_ex__', '__reversed__',
+        '__rfloorfiv__', '__rlshift__', '__rmatmul__', '__rmod__', '__rmul__',
+        '__ror__', '__rpow__', '__rrshift__', '__rshift__', '__rsub__',
+        '__rtruediv__', '__rxor__', '__setitem__', '__sub__', '__truediv__',
+        '__xor__',
 ]:
     if hasattr(Device, name):
         setattr(DeviceAlias, name, make_method(name))

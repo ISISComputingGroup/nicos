@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """NICOS commands tests."""
-
-from __future__ import absolute_import, division, print_function
 
 import os
 import shutil
@@ -62,7 +60,7 @@ from test.utils import ErrorLogged, raises
 session_setup = 'test_commands'
 
 
-class TestBasic(object):
+class TestBasic:
 
     def test_output_commands(self, session, log):
         with log.assert_msg_matches(r'printdebugtest1 printdebugtest2'):
@@ -167,14 +165,13 @@ def test_experiment_commands(session, log):
     exp = session.experiment
 
     with log.assert_msg_matches([r'Exp : experiment directory is now .*',
-                                 r'Exp : User "F. X. User <user@example.com>" '
-                                 'added']):
+                                 r'Exp : User "F. X. User" added']):
         NewExperiment(1234, 'Test experiment',
                       'L. Contact <l.contact@frm2.tum.de>', '1. User')
         assert exp.proposal == 'p1234'
         assert exp.title == 'Test experiment'
         AddUser('F. X. User', 'user@example.com')
-        assert 'F. X. User <user@example.com>' in exp.users
+        assert 'F. X. User' in exp.users
 
     NewSample('MnSi', lattice=[4.58] * 3, angles=[90] * 3)
 
@@ -220,7 +217,7 @@ def test_sample_commands(session, log):
     assert exp.sample.samples == {}
 
 
-class TestDevice(object):
+class TestDevice:
 
     @pytest.fixture(scope='function', autouse=True)
     def prepare(self, session):
@@ -638,7 +635,8 @@ def test_notifiers(session, log):
     SetDataReceivers(receiver)
     # restore previous state
     exp.mailserver, exp.mailsender = msrv, msend
-    assert exp.propinfo['user_email'] == [receiver]
+    assert exp.propinfo['notif_emails'] == [receiver]
+    assert exp.propinfo['data_emails'] == [receiver]
     with log.assert_msg_matches([r'Email addresses',
                                  r'copy@example.com',
                                  r'receiver@example.com']):

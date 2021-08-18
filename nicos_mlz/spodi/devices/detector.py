@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """SPODI detector."""
-
-from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
@@ -149,7 +147,11 @@ class Detector(MeasureSequencer):
                                                                      order='F')
         # self.log.info('%r', imgret)
         if self._mode != SIMULATION:
-            self._array_data[self._step::self.resosteps] = imgret
+            if imgret.shape[0] == self._array_data.shape[1]:
+                self._array_data[self._step::self.resosteps] = np.transpose(
+                    imgret)
+            else:
+                self._array_data[self._step::self.resosteps] = imgret
 
     def _incStep(self):
         if self._step < self.resosteps - 1:
@@ -173,7 +175,12 @@ class Detector(MeasureSequencer):
         if quality == LIVE:
             imgret = self._attached_detector.readArrays(FINAL)[0].astype(
                 '<u4', order='F')
-            self._array_data[self._step::self.resosteps] = imgret
+            self.log.debug('Shapes:%r %r', imgret.shape, self._array_data.shape)
+            if imgret.shape[0] == self._array_data.shape[1]:
+                self._array_data[self._step::self.resosteps] = np.transpose(
+                    imgret)
+            else:
+                self._array_data[self._step::self.resosteps] = imgret
         return [self._array_data]
 
     def _generateSequence(self):
@@ -241,7 +248,15 @@ class Detector(MeasureSequencer):
 
     def _set_resosteps(self, value):
         # TODO: shape should be (y, x) not (x, y)
-        shape = (value * self.numinputs, 256)
+        image = self._attached_detector._attached_images[0]
+        if hasattr(image, 'size'):
+            height = image.size[1]
+        elif hasattr(image, 'sizes'):
+            height = image.sizes[1]
+        else:
+            height = 256
+        shape = (value * self.numinputs, height)
+
         self._step_size = self.range / value
         if not self._arraydesc:
             self._arraydesc = ArrayDesc('data', shape=shape, dtype='<u4')

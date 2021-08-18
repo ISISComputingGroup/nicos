@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import argparse
 import atexit
 import os
@@ -35,7 +33,6 @@ from os import path
 from time import sleep
 
 import psutil
-from six.moves import input
 
 thisfile = path.realpath(__file__)
 bin_path = path.normpath(path.dirname(thisfile))
@@ -43,11 +40,7 @@ bin_path = path.normpath(path.dirname(thisfile))
 dev_null = open(os.devnull, 'wb')
 background_processes = []
 
-try:
-    from configparser import NoOptionError, NoSectionError, ConfigParser
-except ImportError:
-    from ConfigParser import NoOptionError, NoSectionError, \
-        SafeConfigParser as ConfigParser
+from configparser import NoOptionError, NoSectionError, ConfigParser
 
 
 def echo(s):

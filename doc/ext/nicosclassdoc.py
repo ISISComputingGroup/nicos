@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -32,13 +32,11 @@
 * build an index of all devices
 """
 
-from __future__ import absolute_import, division, print_function
-
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from sphinx import addnodes
 from sphinx.domains import ObjType
-from sphinx.domains.python import PyClassmember, PyModulelevel, PythonDomain
+from sphinx.domains.python import PyAttribute, PyFunction, PythonDomain
 from sphinx.ext.autodoc import ClassDocumenter
 from sphinx.util import logging
 from sphinx.util.docstrings import prepare_docstring
@@ -46,28 +44,27 @@ from sphinx.util.docstrings import prepare_docstring
 from nicos.core import Device
 from nicos.core.mixins import DeviceMixinBase
 from nicos.guisupport.widget import NicosWidget, PropDef
-from nicos.pycompat import iteritems, itervalues
 from nicos.utils import formatArgs
 
 logger = logging.getLogger(__name__)
 
 
-class PyParameter(PyClassmember):
+class PyParameter(PyAttribute):
     def handle_signature(self, sig, signode):
         if ':' not in sig:
-            return PyClassmember.handle_signature(self, sig, signode)
+            return PyAttribute.handle_signature(self, sig, signode)
         name, descr = sig.split(':')
         name = name.strip()
-        fullname, prefix = PyClassmember.handle_signature(self, name, signode)
+        fullname, prefix = PyAttribute.handle_signature(self, name, signode)
         descr = ' (' + descr.strip() + ')'
         signode += addnodes.desc_annotation(descr, descr)
         return fullname, prefix
 
 
-class PyDerivedParameter(PyClassmember):
+class PyDerivedParameter(PyAttribute):
     def handle_signature(self, sig, signode):
         if ':' not in sig:
-            return PyClassmember.handle_signature(self, sig, signode)
+            return PyAttribute.handle_signature(self, sig, signode)
         fullname, descr = sig.split(':')
         fullname = fullname.strip()
         clsname, name = fullname.rsplit('.', 1)
@@ -86,7 +83,7 @@ class PyDerivedParameter(PyClassmember):
         pass
 
 
-orig_handle_signature = PyModulelevel.handle_signature
+orig_handle_signature = PyFunction.handle_signature
 
 
 def new_handle_signature(self, sig, signode):
@@ -98,7 +95,7 @@ def new_handle_signature(self, sig, signode):
     return ret
 
 
-PyModulelevel.handle_signature = new_handle_signature
+PyFunction.handle_signature = new_handle_signature
 
 
 class NicosClassDocumenter(ClassDocumenter):
@@ -109,11 +106,11 @@ class NicosClassDocumenter(ClassDocumenter):
 
         # add inheritance info, if wanted
         if not self.doc_as_attr:
-            self.add_line(u'', '<autodoc>')
+            self.add_line('', '<autodoc>')
             if self.object.__bases__:
                 bases = [b.__module__ == '__builtin__' and
-                         u':class:`%s`' % b.__name__ or
-                         u':class:`~%s.%s`' % (b.__module__, b.__name__)
+                         ':class:`%s`' % b.__name__ or
+                         ':class:`~%s.%s`' % (b.__module__, b.__name__)
                          for b in self.object.__bases__ if b is not object]
                 if bases:
                     self.add_line('   Bases: %s' % ', '.join(bases),
@@ -220,8 +217,6 @@ class NicosClassDocumenter(ClassDocumenter):
 
         myclsname = self.object.__module__ + '.' + self.object.__name__
         for param, info in sorted(self.object.parameters.items()):
-            if not info.userparam:
-                continue
             if info.classname is not None and info.classname != myclsname:
                 baseparaminfo.append((param, info))
                 info.derived = True
@@ -304,8 +299,6 @@ class NicosClassDocumenter(ClassDocumenter):
             descr = info.description or ''
             if descr and not descr.endswith(('.', '!', '?')):
                 descr += '.'
-            if hasattr(descr, 'decode'):
-                descr = descr.decode('utf-8')
             if not info.mandatory:
                 descr += ' Default value: ``%r``.' % (info.default,)
             if info.unit:
@@ -371,7 +364,7 @@ def resolve_devindex(app, doctree, fromdocname):
         body = nodes.tbody('')
         group.append(body)
 
-        for entry in sorted(itervalues(env.nicos_all_devices),
+        for entry in sorted(env.nicos_all_devices.values(),
                             key=lambda v: v['name']):
             if not entry['module'].startswith('nicos.devices.'):
                 continue
@@ -398,7 +391,7 @@ def purge_devindex(app, env, docname):
     if not hasattr(env, 'nicos_all_devices'):
         return
     env.nicos_all_devices = dict(
-        (k, e) for (k, e) in iteritems(env.nicos_all_devices)
+        (k, e) for (k, e) in env.nicos_all_devices.items()
         if e['docname'] != docname)
 
 

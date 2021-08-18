@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Graphical interface to send an instrument downtime report."""
-
-from __future__ import absolute_import, division, print_function
 
 import collections
 
@@ -57,7 +55,7 @@ class DownTimeTool(DlgUtils, QDialog):
         self.sgroup = SettingGroup(self.toolName)
 
         self._sender = configs.get('sender', 'anonymous@frm2.tum.de')
-        self._receiver = configs.get('receiver', 'f.carsughi@fz-juelich.de')
+        self._receiver = configs.get('receiver', 'useroffice@mlz-garching.de')
         self._mailserver = configs.get('mailserver', '') or \
             self._getDeviceComponent('experiment', 'mailserver', 'smtp.frm2.tum.de')
         self._instrument = configs.get('instrument', '') or \

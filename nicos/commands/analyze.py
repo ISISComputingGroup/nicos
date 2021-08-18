@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """Module for data analyzing user commands."""
 
-from __future__ import absolute_import, division, print_function
-
 from math import sqrt
 
 import numpy as np
@@ -35,8 +33,6 @@ from nicos.commands import helparglist, usercommand
 from nicos.commands.device import maw
 from nicos.commands.scan import cscan
 from nicos.core import NicosError, UsageError
-# pylint: disable=redefined-builtin
-from nicos.pycompat import string_types, xrange as range
 from nicos.utils import FitterRegistry, printTable
 from nicos.utils.analyze import estimateFWHM
 from nicos.utils.fitting import Fit, GaussFit, PolyFit, SigmoidFit
@@ -57,11 +53,17 @@ def _getData(columns=None, dataset=None):
     # append data from previous scans if this is a continuation
     i = -1
     xresults = dataset.devvaluelists
+    if not dataset.devices:
+        # Can happen with manualscan
+        xresults = dataset.envvaluelists
     yresults = dataset.detvaluelists
     while dataset.continuation:
         i -= 1
         dataset = dslist[i]
-        xresults = dataset.devvaluelists + xresults
+        if dataset.devices:
+            xresults = dataset.devvaluelists + xresults
+        else:
+            xresults = dataset.envvaluelists + xresults
         yresults = dataset.detvaluelists + yresults
 
     # xcol/ycol are 1-indexed here
@@ -76,38 +78,44 @@ def _getData(columns=None, dataset=None):
         raise UsageError('you can give none, one or two columns names or '
                          'numbers')
 
-    if isinstance(xcol, string_types):
+    if isinstance(xcol, str):
         try:
             xcol = [v.name for v in dataset.devvalueinfo].index(xcol) + 1
         except ValueError:
-            raise NicosError('no such X column name: %r' % xcol)
+            raise NicosError('no such X column name: %r' % xcol) from None
 
-    if isinstance(ycol, string_types):
+    if isinstance(ycol, str):
         try:
             ycol = [v.name for v in dataset.detvalueinfo].index(ycol) + 1
         except ValueError:
-            raise NicosError('no such Y column name: %r' % ycol)
+            raise NicosError('no such Y column name: %r' % ycol) from None
     elif ycol < 0:
         try:
             ycol = [j for (j, info) in enumerate(dataset.detvalueinfo)
                     if info.type == 'counter'][0] + 1
         except IndexError:
-            raise NicosError('no Y column of type "counter"')
+            raise NicosError('no Y column of type "counter"') from None
 
     # now make them 0-indexed
     xcol -= 1
     ycol -= 1
 
-    names = [dataset.devvalueinfo[xcol].name, dataset.detvalueinfo[ycol].name]
+    # Another fix to account for manualscan
+    if dataset.devvalueinfo:
+        names = [dataset.devvalueinfo[xcol].name,
+                 dataset.detvalueinfo[ycol].name]
+    else:
+        names = [dataset.envvalueinfo[xcol].name,
+                 dataset.detvalueinfo[ycol].name]
 
     try:
         xs = np.array([p[xcol] for p in xresults])
     except IndexError:
-        raise NicosError('no such X column: %r' % xcol)
+        raise NicosError('no such X column: %r' % xcol) from None
     try:
         ys = np.array([p[ycol] for p in yresults])
     except IndexError:
-        raise NicosError('no such Y column: %r' % ycol)
+        raise NicosError('no such Y column: %r' % ycol) from None
 
     if dataset.detvalueinfo[ycol].errors == 'sqrt':
         dys = np.sqrt(ys)
@@ -200,7 +208,8 @@ def fit(fitclass, *columns, **kwargs):
     for par, err, descr in zip(res._pars[1], res._pars[2], descrs):
         vals.append((descr, '%.5g' % par, '+/- %.5g' % err,
                      '+/- {:.1%}'.format(err / par) if par else '-'))
-    printTable(('parameter', 'value', 'error', 'rel. error'), vals, session.log.info)
+    printTable(('parameter', 'value', 'error', 'rel. error'),
+               vals, session.log.info)
     return CommandLineFitResult((tuple(res._pars[1]), tuple(res._pars[2])))
 
 
@@ -376,8 +385,9 @@ def checkoffset(dev, center, step, numpoints, *args, **kwargs):
     Examples:
 
     >>> checkoffset(omega, 5, 0.1, 10)  # scan and use a Gauss fit
-    >>> checkoffset(omega, 5, 0.1, 10, fit='sigmoid')  # use different fit function
-    """
+    # scan and use different fit function
+     >>> checkoffset(omega, 5, 0.1, 10, fit='sigmoid')
+   """
     minvalue, newcenter, maxvalue = _scanFC(dev, center, step, numpoints,
                                             'offset check',
                                             *args, **kwargs)

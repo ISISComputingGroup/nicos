@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,9 +24,6 @@
 
 """NICOS GUI virtual console panel component."""
 
-from __future__ import absolute_import, division, print_function
-
-import io
 import sys
 from os import path
 
@@ -216,7 +213,7 @@ class ConsolePanel(Panel):
             return
         try:
             fn = fn.encode(sys.getfilesystemencoding())
-            with io.open(fn, 'w', encoding='utf-8') as f:
+            with open(fn, 'w') as f:
                 f.write(self.outView.getOutputString())
         except Exception as err:
             QMessageBox.warning(self, 'Error', 'Writing file failed: %s' % err)

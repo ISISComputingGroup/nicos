@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """PANDA rotary axis for NICOS."""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos import session
 from nicos.core import MAINTENANCE, MASTER, SIMULATION, ConfigurationError, \
@@ -63,7 +61,7 @@ class RefAxis(Axis):
 
         return Axis.doStart(self, target)  # handles offset as well
 
-    def doReference(self, gotopos=None):  # pylint: disable=W0221
+    def doReference(self, gotopos=None):
         """references this axis by finding the reference switch and then
         setting current position to refpos.
         1) Finding the refswitch by going backwards until the refswitch
@@ -153,7 +151,7 @@ class RefAxis(Axis):
             while not(refsw(m)) and tries > 0:
                 self.log.debug('Another %d slots left to try', tries)
                 try:
-                    m.doStart(m.doRead() - stepsize / 3.)  # pylint: disable=W0631
+                    m.doStart(m.doRead() - stepsize / 3.)
                 except NicosError:
                     # if refswitch is already active, doStart gives an
                     # exception
@@ -235,17 +233,19 @@ class RotAxis(RefAxis):
         if self._wrapped:
             session.delay(self.wrapwaittime)
 
-    def doReference(self, gotopos=None):  # pylint: disable=W0221
-        """references this axis by finding the reference switch and then
+    def doReference(self, gotopos=None):
+        """References this axis by finding the reference switch and then
         setting current position to refpos.
-        1) Finding the refswitch by going backwards until the refswitch
-           (=negative limit switch) fires,
-        2) then go forward a little until the switch is not active,
-        3) then crawl SLOWLY backwards to hit it again.
-        4) current position is set to self.refpos (e.g. the reference is
+
+        1) Finding the refswitch by going forwards until the refswitch
+           (=negative limit switch) fires
+        2) then go SLOWLY forward until the switch is not active
+        3) current position is set to self.refpo (e.g. the reference is
            stored, the referencing done)
-        If an axis can't go reliably backwards (e.g. blocking) in step 1)
-        then this fails!!!
+
+        Previous strategy was to backwards for referencing, which was changed
+        in order to NEVER change the movement direction, which was checked
+        to be better for accuracy.
         """
 
         # Check initial conditions

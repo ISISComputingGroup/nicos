@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """The NICOS watchdog daemon."""
 
-from __future__ import absolute_import, division, print_function
-
 import hashlib
 import os
 import sys
@@ -39,14 +37,13 @@ from nicos.devices.cacheclient import BaseCacheClient
 from nicos.devices.notifiers import Mailer, Notifier
 from nicos.protocols.cache import OP_SUBSCRIBE, OP_TELL, OP_TELLOLD, \
     cache_dump, cache_load
-from nicos.pycompat import iteritems, itervalues, listvalues, to_utf8
 from nicos.services.watchdog.conditions import DelayedTrigger, Expression, \
     Precondition
 from nicos.utils import LCDict, createSubprocess, createThread, \
     watchFileContent
 
 
-class Entry(object):
+class Entry:
     """Represents a single watchdog configuration entry."""
 
     id = None
@@ -62,14 +59,15 @@ class Entry(object):
     precondtime = 5
     okmessage = ''
     okaction = ''
+    actiontimeout = 60
 
     from_setup = None
     cond_obj = None
 
     def __init__(self, values):
         self.__dict__.update(values)
-        self.id = hashlib.md5(to_utf8(self.setup + self.condition +
-                                      self.precondition)).hexdigest()
+        self.id = hashlib.md5((self.setup + self.condition +
+                               self.precondition).encode()).hexdigest()
 
     def __repr__(self):
         return repr(self.condition)
@@ -78,7 +76,7 @@ class Entry(object):
         res = {attr: getattr(self, attr) for attr in
                ('id', 'setup', 'condition', 'gracetime', 'message',
                 'scriptaction', 'action', 'type', 'precondition',
-                'precondtime', 'okmessage', 'okaction')}
+                'precondtime', 'okmessage', 'okaction', 'actiontimeout')}
         res['enabled'] = self.cond_obj.enabled
         return res
 
@@ -129,7 +127,7 @@ class Watchdog(BaseCacheClient):
         # create all notifier devices
         self._all_notifiers = []
         self._notifiers = {'': []}
-        for key, devnames in iteritems(self.notifiers):
+        for key, devnames in self.notifiers.items():
             self._notifiers[key] = notiflist = []
             for devname in devnames:
                 dev = session.getDevice(devname, Notifier)
@@ -240,7 +238,7 @@ class Watchdog(BaseCacheClient):
 
     def _wait_data(self):
         t = currenttime()
-        for entry in itervalues(self._entries):
+        for entry in self._entries.values():
             if entry.cond_obj.tick(t) or entry.cond_obj.is_expired(t):
                 self._check_state(entry, t)
 
@@ -281,7 +279,7 @@ class Watchdog(BaseCacheClient):
         elif key == 'watchdog/reset':
             # reset all condition enables to their initial state
             # (e.g. due to NewExperiment)
-            for entry in itervalues(self._entries):
+            for entry in self._entries.values():
                 if entry.enabled != entry.cond_obj.enabled:
                     entry.cond_obj.enabled = entry.enabled
                     entry.cond_obj.update(time, self._keydict)
@@ -292,7 +290,7 @@ class Watchdog(BaseCacheClient):
     def _publish_config(self):
         # publish current condition info in the cache
         self._put_message('configured', None,
-                          [c.serialize() for c in itervalues(self._entries)])
+                          [c.serialize() for c in self._entries.values()])
 
     def _process_key(self, time, key, value):
         # check setups?
@@ -310,7 +308,7 @@ class Watchdog(BaseCacheClient):
     def _setups_updated(self, time, new_setups):
         prev_setups, self._setups = self._setups, new_setups
         # check if we need to remove some conditions
-        for entry in listvalues(self._entries):
+        for entry in list(self._entries.values()):
             if entry.from_setup != 'watchdog':
                 if entry.from_setup not in self._setups:
                     self._remove_entry(entry.id)
@@ -323,7 +321,7 @@ class Watchdog(BaseCacheClient):
                 for entry_dict in info['watch_conditions']:
                     self._add_entry(entry_dict, new_setup)
         # trigger an update of all conditions
-        for entry in itervalues(self._entries):
+        for entry in self._entries.values():
             entry.cond_obj.new_setups(self._setups)
             entry.cond_obj.update(time, self._keydict)
             self._check_state(entry, time)
@@ -351,6 +349,8 @@ class Watchdog(BaseCacheClient):
         """Emit a warning that this condition is now triggered."""
         self.log.info('got a new warning for %r', entry)
         warning_desc = strftime('%Y-%m-%d %H:%M') + ' -- ' + entry.message
+        # if only the type changed, do not send out notifications
+        type_change = entry.id in self._warnings
         if entry.action:
             warning_desc += ' -- executing %r' % entry.action
         if entry.scriptaction == 'pausecount':
@@ -360,15 +360,16 @@ class Watchdog(BaseCacheClient):
         elif entry.scriptaction:
             self._put_message('scriptaction', entry, (entry.scriptaction,
                                                       entry.message))
-        if entry.type:
+        if entry.type and not type_change:
             for notifier in self._notifiers[entry.type]:
                 notifier.send('New warning from NICOS', warning_desc)
-        self._put_message('warning', entry, entry.message)
+        if not type_change:
+            self._put_message('warning', entry, entry.message)
         self._warnings[entry.id] = (True, warning_desc)
         self._update_warnings_str()
         if entry.action:
             self._put_message('action', entry, entry.action)
-            self._spawn_action(entry.action)
+            self._spawn_action(entry.action, entry.actiontimeout)
 
     def _emit_expired_warning(self, entry):
         """Emit a warning that this condition has missing information."""
@@ -376,11 +377,14 @@ class Watchdog(BaseCacheClient):
         warning_desc = (strftime('%Y-%m-%d %H:%M') +
                         ' -- current value(s) missing, '
                         'cannot check condition %r' % entry.condition)
+        # if only the type changed, do not send out notifications
+        type_change = entry.id in self._warnings
         # warn that we cannot check the condition anymore
-        if entry.type:
+        if entry.type and not type_change:
             for notifier in self._notifiers[entry.type]:
                 notifier.send('New warning from NICOS', warning_desc)
-        self._put_message('warning', entry, warning_desc)
+        if not type_change:
+            self._put_message('warning', entry, warning_desc)
         self._warnings[entry.id] = (False, warning_desc)
         self._update_warnings_str()
 
@@ -403,7 +407,7 @@ class Watchdog(BaseCacheClient):
                     notifier.send('NICOS warning resolved', msg)
             if entry.okaction:
                 self._put_message('action', entry, entry.okaction)
-                self._spawn_action(entry.okaction)
+                self._spawn_action(entry.okaction, entry.actiontimeout)
 
     # internal helper methods
 
@@ -428,13 +432,14 @@ class Watchdog(BaseCacheClient):
         self._put_message('pausecount', None,
                           ', '.join(self._pausecount.values()))
 
-    def _spawn_action(self, action):
+    def _spawn_action(self, action, timeout=60):
         self.log.warning('will execute action %r', action)
         script = path.join(config.nicos_root, 'bin', 'nicos-script')
         createSubprocess([sys.executable,
                           script,
                           '-M',                     # start in maintenance mode
-                          '-S', '60',               # abort after 60 seconds
+                          '-S', '%d' % timeout,     # abort after actiontimeout
+                                                    # seconds (default=60)
                           '-A', 'watchdog-action',  # appname for the logfiles
                           ','.join(self._setups),   # setups to load
                           action])                  # code to execute

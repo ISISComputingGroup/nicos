@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,12 +23,14 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
+from time import time as currenttime
 
-from nicos.core import Override, Param, pvname, status
+from nicos.core import ADMIN, Override, Param, oneof, pvname, status
+from nicos.core.device import requires
 from nicos.core.errors import ConfigurationError
 from nicos.core.mixins import CanDisable, HasOffset
 from nicos.devices.abstract import CanReference, Motor
+from nicos.devices.epics import PVMonitor
 
 from nicos_ess.devices.epics.base import EpicsAnalogMoveableEss
 
@@ -51,18 +53,19 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
     doStatus uses it for some of the status messages.
     """
     parameters = {
-        'motorpv': Param('Name of the motor record PV.',
-                         type=pvname, mandatory=True, settable=False,
-                         userparam=False),
-        'errormsgpv': Param('Optional PV with error message.',
-                            type=pvname, mandatory=False, settable=False,
-                            userparam=False),
-        'errorbitpv': Param('Optional PV with error bit.',
-                            type=pvname, mandatory=False, settable=False,
-                            userparam=False),
+        'motorpv': Param('Name of the motor record PV.', type=pvname,
+                         mandatory=True, settable=False, userparam=False),
+        'errormsgpv': Param('Optional PV with error message.', type=pvname,
+                            mandatory=False, settable=False, userparam=False),
+        'errorbitpv': Param('Optional PV with error bit.', type=pvname,
+                            mandatory=False, settable=False, userparam=False),
         'reseterrorpv': Param('Optional PV with error reset switch.',
                               type=pvname, mandatory=False, settable=False,
                               userparam=False),
+        'reference_direction': Param('Reference run direction',
+                                     type=oneof('forward', 'reverse'),
+                                     default='forward', settable=False,
+                                     userparam=False, mandatory=False),
     }
 
     parameter_overrides = {
@@ -78,25 +81,29 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
 
     # Fields of the motor record for which an interaction via Channel Access
     # is required.
-    motor_record_fields = {
-        'readpv': 'RBV',
-        'writepv': 'VAL',
-        'stop': 'STOP',
-        'donemoving': 'DMOV',
-        'moving': 'MOVN',
-        'miss': 'MISS',
-        'homeforward': 'HOMF',
-        'homereverse': 'HOMR',
-        'speed': 'VELO',
-        'offset': 'OFF',
-        'highlimit': 'HLM',
-        'lowlimit': 'LLM',
-        'softlimit': 'LVIO',
-        'lowlimitswitch': 'LLS',
-        'highlimitswitch': 'HLS',
-        'enable': 'CNEN',
-        'set': 'SET',
-    }
+    def _get_record_fields(self):
+        return {
+            'readpv': 'RBV',
+            'writepv': 'VAL',
+            'stop': 'STOP',
+            'donemoving': 'DMOV',
+            'moving': 'MOVN',
+            'miss': 'MISS',
+            'homeforward': 'HOMF',
+            'homereverse': 'HOMR',
+            'speed': 'VELO',
+            'offset': 'OFF',
+            'highlimit': 'HLM',
+            'lowlimit': 'LLM',
+            'softlimit': 'LVIO',
+            'lowlimitswitch': 'LLS',
+            'highlimitswitch': 'HLS',
+            'enable': 'CNEN',
+            'set': 'SET',
+            'foff': 'FOFF',
+            'alarm_status': 'STAT',
+            'alarm_severity': 'SEVR',
+        }
 
     def _get_pv_parameters(self):
         """
@@ -105,7 +112,7 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
 
         :return: List of PV aliases.
         """
-        pvs = set(self.motor_record_fields.keys())
+        pvs = set(self._record_fields)
 
         if self.errormsgpv:
             pvs.add('errormsgpv')
@@ -128,7 +135,7 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
         :return: Actual PV name.
         """
         motor_record_prefix = getattr(self, 'motorpv')
-        motor_field = self.motor_record_fields.get(pvparam)
+        motor_field = self._record_fields.get(pvparam)
 
         if motor_field is not None:
             return '.'.join((motor_record_prefix, motor_field))
@@ -164,8 +171,8 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
             self.abslimits  # pylint: disable=pointless-statement
 
             # Adjust user limits
-            self.userlimits = (self.userlimits[0] + diff,
-                               self.userlimits[1] + diff)
+            self.userlimits = (
+                self.userlimits[0] + diff, self.userlimits[1] + diff)
 
             self.log.info('The new user limits are: ' + str(self.userlimits))
 
@@ -191,8 +198,8 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
     def doRead(self, maxage=0):
         return self._get_pv('readpv')
 
-    def doStart(self, pos):
-        self._put_pv('writepv', pos)
+    def doStart(self, value):
+        self._put_pv('writepv', value)
 
     def doReadTarget(self):
         return self._get_pv('writepv')
@@ -211,8 +218,8 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
 
         miss = self._get_pv('miss')
         if miss != 0:
-            return (status.NOTREACHED, message
-                    or 'Did not reach target position.')
+            return (
+                status.NOTREACHED, message or 'Did not reach target position.')
 
         high_limitswitch = self._get_pv('highlimitswitch')
         if high_limitswitch != 0:
@@ -260,7 +267,7 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
         return absmin, absmax
 
     def doReference(self):
-        self._put_pv_blocking('homeforward', 1)
+        self._put_pv_blocking('home%s' % self.reference_direction, 1)
 
     def doReset(self):
         if self.errorbitpv and self.reseterrorpv:
@@ -277,5 +284,70 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
 
     def doSetPosition(self, pos):
         self._put_pv('set', 1)
+        self._put_pv('foff', 1)
         self._put_pv('writepv', pos)
         self._put_pv('set', 0)
+        self._put_pv('foff', 0)
+
+
+class HomingProtectedEpicsMotor(EpicsMotor):
+    """
+    The only thing that this class adds to EpicsMotor is that
+    the reference run can only happen with admin rights
+    """
+
+    @requires(level=ADMIN)
+    def doReference(self):
+        EpicsMotor.doReference(self)
+
+
+class AbsoluteEpicsMotor(EpicsMotor):
+    """
+    The instances of this class cannot be homed.
+    """
+    def doReference(self):
+        self.log.warning('This motor does not require '
+                         'homing - command ignored')
+
+
+class EpicsMonitorMotor(PVMonitor, EpicsMotor):
+    def doStart(self, value):
+        self._put_pv('writepv', value)
+        if value != self.doRead():
+            self._wait_for_start()
+
+    def _on_status_change_cb(self, pvparam, value=None, char_value='', **kws):
+        self._check_move_state_changed(pvparam, value)
+        PVMonitor._on_status_change_cb(self, pvparam, value, char_value, **kws)
+
+    def _check_move_state_changed(self, pvparam, value):
+        # If the fields indicating whether the device is moving change then
+        # the cache needs to be updated immediately.
+        if pvparam in ['donemoving', 'moving']:
+            self._cache.put(self._name, pvparam, value, currenttime())
+
+    def _get_status_parameters(self):
+        status_pars = {
+            'miss',
+            'donemoving',
+            'moving',
+            'lowlimitswitch',
+            'highlimitswitch',
+            'softlimit',
+        }
+
+        if self.errormsgpv:
+            status_pars.add('errormsgpv')
+            status_pars.add('alarm_status')
+            status_pars.add('alarm_severity')
+        return status_pars
+
+    def _get_status_message(self):
+        """
+        Get the status message from the motor if the PV exists.
+        :return: The status message if it exists, otherwise an empty string.
+        """
+        if not self.errormsgpv:
+            return ''
+        return self._pvs['errormsgpv'].get(timeout=self.epicstimeout,
+                                           as_string=True)

@@ -1,7 +1,7 @@
-#  -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,12 +24,10 @@
 
 """Module for RESEDA specific commands."""
 
-from __future__ import absolute_import, division, print_function
-
 import scipy.constants as co
 
 from nicos import session
-from nicos.commands import usercommand
+from nicos.commands import helparglist, usercommand
 from nicos.commands.device import maw, move, stop, wait
 from nicos.commands.measure import count
 from nicos.commands.scan import manualscan
@@ -37,6 +35,7 @@ from nicos.commands.scan import manualscan
 __all__ = ['zero', 'setecho', 'set_cascade', 'pol', 'miezescan', 'miezetau']
 
 
+@helparglist('wavelength, deltaFreq, distance')
 @usercommand
 def miezetau(wavelength, deltaFreq, distance):
     """Calculate MIEZE time.
@@ -53,12 +52,18 @@ def miezetau(wavelength, deltaFreq, distance):
 @usercommand
 def zero():
     """Shut down all (static) power supplies."""
-    ps = ['hrf_0a', 'hrf_0b', 'hrf_1a', 'hrf_1b', 'hsf_0a', 'hsf_0b', 'hsf_1', 'sf_0a',
-          'sf_0b', 'sf_1', 'gf0', 'gf1', 'gf2', 'gf4', 'gf5', 'gf6', 'gf7',
-          'gf8', 'gf9', 'gf10']
+    ps = ['hrf_0a', 'hrf_0b', 'hrf_1a', 'hrf_1b', 'hsf_0a', 'hsf_0b', 'hsf_1',
+          'sf_0a', 'sf_0b', 'sf_1', 'gf1', 'gf2', 'gf4', 'gf5', 'gf6', 'gf7',
+          'gf8', 'gf9', 'gf10', 'nse0', 'nse1']
     for powersupply in ps:
         powersupply = session.getDevice(powersupply)
         move(powersupply, 0.001)
+    wait()
+
+    # Stop regulation and turn fg_amp off
+    stop('cbox_0a_reg_amp', 'cbox_0b_reg_amp', 'cbox_1_reg_amp')
+    maw('cbox_0a_fg_amp', 0.001, 'cbox_0b_fg_amp', 0.001,
+        'cbox_1_fg_amp', 0.001)
 
 
 @usercommand
@@ -78,6 +83,7 @@ def set_flipper_off():
         stop(regulator)
 
 
+@helparglist('time')
 @usercommand
 def setecho(time):
     """Wrap setting of an echotime."""
@@ -101,8 +107,10 @@ def set_cascade():
     move(psd_timebin_freq, 32 * (f2 - f1))
     move(fg_burst, 'arm')
     move(fg_burst, 'trigger')
+    wait()
 
 
+@helparglist('echolist, counttime')
 @usercommand
 def miezescan(echolist, counttime):
     """Iterate over a list of echotimes -> measure one S(Q,t) curve
@@ -110,20 +118,22 @@ def miezescan(echolist, counttime):
     echolist: list of echotimes
     counttime: counting time (the **same** for all list entries)
     """
+    # psd_channel.mode = 'tof'
     echotime = session.getDevice('echotime')
     with manualscan(echotime, counttime):
         for etime in echolist:
-            move(echotime, etime)
-            set_cascade()
+            setecho(etime)
             count(counttime)
 
 
+@helparglist('up, down')
 @usercommand
 def pol(up, down):
     """Calculate contrast or polarisation."""
     return (up - down) / (up + down)
 
 
+@helparglist('device, start, step, numsteps')
 @usercommand
 def freqscan(device, start, step, numsteps):
     """Special scan for finding a resonance.
@@ -139,3 +149,17 @@ def freqscan(device, start, step, numsteps):
             maw(device, start + step*i)
             session.delay(0.2)
             count(1)
+
+
+@usercommand
+def img():
+    "Setting the Cascade Detector to image mode"
+
+    session.getDevice('psd_channel').mode = 'image'
+
+
+@usercommand
+def tof():
+    "Settting the Cascade Detector to tof mode"
+
+    session.getDevice('psd_channel').mode = 'tof'

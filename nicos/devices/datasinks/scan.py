@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,7 @@
 
 """Data sink classes (new API) for NICOS."""
 
-from __future__ import absolute_import, division, print_function
-
+from io import TextIOWrapper
 from time import localtime, strftime
 
 from nicos import session
@@ -33,7 +32,6 @@ from nicos.core import INFO_CATEGORIES, ConfigurationError, DataSink, \
     DataSinkHandler, Override, Param
 from nicos.core.constants import POINT, SCAN, SUBSCAN
 from nicos.devices.datasinks import FileSink
-from nicos.pycompat import TextIOWrapper, iteritems
 from nicos.utils import tabulated
 
 TIMEFMT = '%Y-%m-%d %H:%M:%S'
@@ -76,14 +74,15 @@ class ConsoleScanSinkHandler(DataSinkHandler):
         else:
             session.log.info()
             for filename in ds.filenames:
-                session.log.info(self._indent + 'Filename: ' + filename)
-        session.log.info(self._indent + tabulated(self._colwidths, names))
-        session.log.info(self._indent + tabulated(self._colwidths, units))
-        session.log.info(self._indent + '-' * self._rulerlen)
+                session.log.info('%sFilename: %s', self._indent, filename)
+        session.log.info('%s%s', self._indent, tabulated(self._colwidths, names))
+        session.log.info('%s%s', self._indent, tabulated(self._colwidths, units))
+        session.log.info('%s%s', self._indent, '-' * self._rulerlen)
 
-    def addSubset(self, point):
-        if point.settype != POINT:
+    def addSubset(self, subset):
+        if subset.settype != POINT:
             return
+        point = subset
         ds = self.dataset
         if ds.npoints:
             pointstr = '%s/%s' % (point.number, ds.npoints)
@@ -97,7 +96,7 @@ class ConsoleScanSinkHandler(DataSinkHandler):
                 [safe_format(info.fmtstr, val) for (info, val) in
                  zip(ds.detvalueinfo, point.detvaluelist)] +
                 point.filenames)
-        session.log.info(self._indent + tabulated(self._colwidths, cols))
+        session.log.info('%s%s', self._indent, tabulated(self._colwidths, cols))
 
     def end(self):
         if self.dataset.settype != SUBSCAN:
@@ -127,7 +126,6 @@ class AsciiScanfileSinkHandler(DataSinkHandler):
         DataSinkHandler.__init__(self, sink, dataset, detector)
         self._file = None
         self._fname = None
-        self._semicolon = sink.semicolon
         self._commentc = sink.commentchar
         self._template = sink.filenametemplate
 
@@ -137,7 +135,7 @@ class AsciiScanfileSinkHandler(DataSinkHandler):
                                          self.sink.subdir)
         self._fname = fp.shortpath
         self._filepath = fp.filepath
-        self._file = TextIOWrapper(fp)
+        self._file = TextIOWrapper(fp, encoding='utf-8')
 
     def _write_section(self, section):
         self._file.write('%s %s\n' % (self._commentc * 3, section))
@@ -153,7 +151,7 @@ class AsciiScanfileSinkHandler(DataSinkHandler):
                             ('info', ds.info)]:
             self._write_comment('%25s : %s' % (name, value))
         bycategory = {}
-        for (devname, key), (_, val, unit, category) in iteritems(ds.metainfo):
+        for (devname, key), (_, val, unit, category) in ds.metainfo.items():
             if category:
                 bycategory.setdefault(category, []).append(
                     ('%s_%s' % (devname, key), (val + ' ' + unit).strip()))
@@ -171,20 +169,16 @@ class AsciiScanfileSinkHandler(DataSinkHandler):
         yunits = [v.unit for v in ds.detvalueinfo]
         # to be written later (after info)
         file_names = ['file%d' % i for i in range(1, nfiles + 1)]
-        if self._semicolon:
-            self._colnames = xnames + [';'] + ynames + file_names
-            # make sure there are no empty units
-            self._colunits = [u or '-' for u in xunits + [';'] + yunits +
-                              [''] * nfiles]
-        else:
-            self._colnames = xnames + ynames + file_names
-            self._colunits = [u or '-' for u in xunits + yunits +
-                              [''] * nfiles]
+        self._colnames = xnames + [';'] + ynames + file_names
+        # make sure there are no empty units
+        self._colunits = [u or '-' for u in xunits + [';'] + yunits +
+                          [''] * nfiles]
         self._file.flush()
 
-    def addSubset(self, point):
-        if point.settype != POINT:
+    def addSubset(self, subset):
+        if subset.settype != POINT:
             return
+        point = subset
         ds = self.dataset
         if point.number == 1:
             self._write_header(ds, len(point.filenames))
@@ -195,13 +189,16 @@ class AsciiScanfileSinkHandler(DataSinkHandler):
                   zip(self.dataset.devvalueinfo, point.devvaluelist)] + \
                  [safe_format(info.fmtstr, val) for (info, val) in
                   zip(self.dataset.envvalueinfo, point.envvaluelist)]
-        if self._semicolon:
-            values += [';']
+        values += [';']
         values += [safe_format(info.fmtstr, val) for (info, val) in
                    zip(self.dataset.detvalueinfo, point.detvaluelist)]
-        values += point.filenames
+        values += self.getFilenames(point)
+
         self._file.write('\t'.join(values) + '\n')
         self._file.flush()
+
+    def getFilenames(self, point):
+        return point.filenames
 
     def end(self):
         if self._fname:
@@ -213,16 +210,14 @@ class AsciiScanfileSinkHandler(DataSinkHandler):
 class AsciiScanfileSink(FileSink):
     """A data sink that writes to a plain ASCII data file."""
     parameters = {
-        'commentchar':      Param('Comment character', type=str, default='#',
-                                  settable=True),
-        'semicolon':        Param('Whether to add a semicolon between X and Y '
-                                  'values', type=bool, default=True),
+        'commentchar': Param('Comment character', type=str, default='#',
+                             settable=True),
     }
 
     handlerclass = AsciiScanfileSinkHandler
 
     parameter_overrides = {
-        'settypes':  Override(default=[SCAN, SUBSCAN]),
+        'settypes': Override(default=[SCAN, SUBSCAN]),
         'filenametemplate': Override(default=['%(proposal)s_%(scancounter)08d.dat']),
     }
 

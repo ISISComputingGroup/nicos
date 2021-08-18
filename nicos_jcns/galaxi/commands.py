@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,15 +26,16 @@
 
 """Module for GALAXI specific commands."""
 
-from __future__ import absolute_import, division, print_function
-
 from datetime import datetime
 from os import path
 
 from nicos import session
 from nicos.commands import basic, device, helparglist, measure, usercommand
+from nicos.core.constants import SCAN
 
-from nicos_jcns.devices.pilatus_det import Detector as PilatusDetector
+from nicos_jcns.devices.pilatus_det import Detector as PilatusDetector, \
+    TIFFImageSink as PilatusSink
+from nicos_jcns.galaxi.devices.mythen_det import ImageSink as MythenSink
 
 
 @usercommand
@@ -84,15 +85,23 @@ def count(n, *detlist, **presets):
     point of the manual scan.
     """
     filename = presets.pop('filename', 'tmpcount.tif')
-    presets['temporary'] = True
-    for _ in range(n):
-        for det in session.experiment.detectors:
-            if isinstance(det, PilatusDetector):
-                det.imagedir = path.join(str(datetime.now().year),
-                                         session.experiment.proposal)
-                det.nextfilename = filename
-        measure.count(*detlist, **presets)
-        session.breakpoint(2)  # allow daemon to stop here
+    galaxi_sinks = {sink: sink.settypes for sink in session.datasinks
+                    if isinstance(sink, (MythenSink, PilatusSink))}
+    try:
+        for sink in galaxi_sinks:
+            # deactivate during count
+            sink._setROParam('settypes', [SCAN])
+        for _ in range(n):
+            for det in session.experiment.detectors:
+                if isinstance(det, PilatusDetector):
+                    det.imagedir = path.join(str(datetime.now().year),
+                                             session.experiment.proposal)
+                    det.nextfilename = filename
+            measure.count(*detlist, **presets)
+            session.breakpoint(2)  # allow daemon to stop here
+    finally:
+        for sink, settypes in galaxi_sinks.items():
+            sink._setROParam('settypes', settypes)
 
 
 @usercommand
@@ -124,10 +133,11 @@ def SetDetectorEnergy(radiation=None, **value):
     wait = value.pop('wait', True)
     configured = []
     for det in session.experiment.detectors:
-        for ch in det._channels:
-            if hasattr(ch, 'setEnergy'):
-                configured.append(det)
-                ch.setEnergy(radiation, **value)
-                break  # maximum one channel per detector can set energy
+        if hasattr(det, '_channels'):
+            for ch in det._channels:
+                if hasattr(ch, 'setEnergy'):
+                    configured.append(det)
+                    ch.setEnergy(radiation, **value)
+                    break  # maximum one channel per detector can set energy
     if wait:
         device.wait(*configured)

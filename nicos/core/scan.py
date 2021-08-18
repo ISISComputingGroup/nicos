@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,9 +25,6 @@
 
 """Scan classes, new API."""
 
-from __future__ import absolute_import, division, print_function
-
-import sys
 from contextlib import contextmanager
 from time import time as currenttime
 
@@ -38,12 +35,11 @@ from nicos.core import status
 from nicos.core.acquire import CountResult, DevStatistics, acquire, \
     read_environment, stop_acquire_thread
 from nicos.core.constants import FINAL, INTERMEDIATE, SIMULATION, SLAVE
-from nicos.core.errors import LimitError, ModeError, NicosError
+from nicos.core.errors import LimitError, ModeError, NicosError, UsageError
 from nicos.core.mixins import HasLimits
 from nicos.core.params import Value
 from nicos.core.utils import CONTINUE_EXCEPTIONS, SKIP_EXCEPTIONS, multiWait
-from nicos.pycompat import iteritems, number_types, reraise
-from nicos.utils import Repeater
+from nicos.utils import Repeater, number_types
 
 
 class SkipPoint(Exception):
@@ -54,7 +50,7 @@ class StopScan(Exception):
     """Custom exception class to stop the rest of the scan."""
 
 
-class Scan(object):
+class Scan:
     """
     Represents a general scan over some devices with specified detectors.
     """
@@ -65,13 +61,15 @@ class Scan(object):
         if session.mode == SLAVE:
             raise ModeError('cannot scan in slave mode')
         self.dataset = None
-        if not detlist:
+        if detlist is None:
             detlist = session.experiment.detectors
-        if not detlist:
-            session.log.warning('scanning without detector, use SetDetectors()'
-                                ' to select which detector(s) you want to use')
-        # check preset names for validity (XXX duplication with count() command!)
-        elif preset:
+            if not detlist:
+                session.log.warning('scanning without detector, '
+                                    'use SetDetectors() to select which '
+                                    'detector(s) you want to use')
+        # check preset names for validity
+        # (XXX duplication with count() command!)
+        if detlist and preset:
             names = set(preset)
             for det in detlist:
                 names.difference_update(det.presetInfo())
@@ -86,9 +84,11 @@ class Scan(object):
         else:
             allenvlist = session.experiment.sampleenv
             if envlist is not None:
-                allenvlist.extend(dev for dev in envlist if dev not in allenvlist)
+                allenvlist.extend(dev for dev in envlist
+                                  if dev not in allenvlist)
         self._firstmoves = firstmoves
         # convert multistep to device positions
+        self._primary_devicesindex = len(devices)
         self._mscount = 1
         if multistep:
             self._mscount = mscount = len(multistep[0][1])
@@ -132,7 +132,7 @@ class Scan(object):
         if len(self._startpositions) <= self._mscount:
             return
         # iterate over devices (only primary scan devices)
-        for j, dev in enumerate(self._devices):
+        for j, dev in enumerate(self._devices[:self._primary_devicesindex]):
             valueInfo = dev.valueInfo()
             subvals = len(valueInfo)
             st0 = self._startpositions[0][j]
@@ -204,7 +204,8 @@ class Scan(object):
             from nicos.core.data import ScanData
             session.elogEvent('scanend', ScanData(self.dataset))
         except Exception:
-            session.log.debug('could not add scan to electronic logbook', exc=1)
+            session.log.debug('could not add scan to electronic logbook',
+                              exc=1)
         session.breakpoint(1)
 
     def handleError(self, what, err):
@@ -279,7 +280,7 @@ class Scan(object):
 
         try:
             # remember the read values so they can be used for the data point
-            for (dev, value) in iteritems(multiWait(waitdevs)):
+            for (dev, value) in multiWait(waitdevs).items():
                 # (None, value): None identifies the 'main' value
                 waitresults[dev.name] = (None, value)
         except NicosError as err:
@@ -375,18 +376,19 @@ class Scan(object):
                             self.moveDevices(self._devices,
                                              self._endpositions[i], wait=False)
                     except SkipPoint:
+                        session.breakpoint(2)
                         continue
-                    except:  # pylint: disable=bare-except
-                        exc_info = sys.exc_info()
+                    except BaseException as err:
                         try:
                             self.finishPoint()
                         except Exception:
                             session.log.exception('could not finish point')
-                        reraise(*exc_info)
+                        raise err
                     try:
                         # measure...
                         # XXX(dataapi): is target= needed?
-                        point = dataman.beginPoint(target=position)
+                        point = dataman.beginPoint(target=position,
+                                                   preset=self._preset)
                         dataman.putValues(waitresults)
                         self.readEnvironment()
                         try:
@@ -453,8 +455,14 @@ class SweepScan(Scan):
             if start is not None:
                 firstmoves.append((dev, start))
             self._sweeptargets.append(end)
-        # sweep scans support a special "delay" preset
+        # sweep scans support a special "delay" and "minstep" presets
         self._delay = preset.pop('delay', 0)
+        self._minstep = preset.pop('minstep', 0)
+        if not isinstance(self._minstep, list):
+            self._minstep = [self._minstep] * len(devices)
+        elif len(self._minstep) != len(devices):
+            raise UsageError('Invalid number of minstep values. For each '
+                             'device a minstep value must be given!')
         Scan.__init__(self, [], points, [], firstmoves, multistep,
                       detlist, envlist, preset, scaninfo, subscan, xindex)
         # XXX(dataapi): devices should be in devlist, not envlist
@@ -492,11 +500,25 @@ class SweepScan(Scan):
                     self.moveDevices(self._sweepdevices, self._sweeptargets,
                                      wait=False)
                 except SkipPoint:
-                    raise StopScan
-        elif self._delay:
-            # wait between points, but only from the second point on
-            session.action('Delay')
-            session.delay(self._delay)
+                    raise StopScan  # pylint:disable=raise-missing-from
+            if self._minstep:
+                self._laststep = [dev.read() for dev in self._sweepdevices]
+        else:
+            if self._delay:
+                # wait between points, but only from the second point on
+                session.action('Delay')
+                session.delay(self._delay)
+            if self._sweepdevices and self._minstep:
+                # wait until next step
+                while True:
+                    position = [dev.read() for dev in self._sweepdevices]
+                    l = list(zip(self._laststep, position, self._minstep))
+                    if any(abs(x-y) > z for x,y,z in l):
+                        break
+                    if not any(dev.status()[0] == status.BUSY
+                               for dev in self._sweepdevices):
+                        break
+                self._laststep = [(x + z if x < y else x - z) for x,y,z in l]
         Scan.preparePoint(self, num, xvalues)
         if session.mode == SIMULATION:
             self._sim_start = session.clock.time
@@ -585,7 +607,7 @@ class ContinuousScan(Scan):
 
     def _calculate_diff(self, last, current):
         res = {}
-        for (detname, (vals, images)) in iteritems(current):
+        for (detname, (vals, images)) in current.items():
             values = [val - last[detname][0][i]
                       if isinstance(val, number_types) else val
                       for i, val in enumerate(vals)]
@@ -682,7 +704,8 @@ class ManualScan(Scan):
         envlist.extend(dev for dev in session.experiment.sampleenv
                        if dev not in envlist)
         Scan.__init__(self, [], Repeater([]), Repeater([]), firstmoves,
-                      None, detlist, envlist, preset, scaninfo, subscan, xindex)
+                      None, detlist, envlist, preset, scaninfo,
+                      subscan, xindex)
         self._envlist = envlist
         self._multistep = multistep
         if multistep:
@@ -715,10 +738,12 @@ class ManualScan(Scan):
     def _step_inner(self, preset):
         dataman = session.experiment.data
         preset = preset or self._preset
+        self.dataset.preset = preset
         self._curpoint += 1
         self.preparePoint(self._curpoint, [])
         try:
             point = dataman.beginPoint()
+            point.preset = preset
             actualpos = self.readPosition()
             dataman.putValues(actualpos)
             try:

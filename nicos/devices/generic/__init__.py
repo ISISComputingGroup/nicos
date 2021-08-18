@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Generic device classes using hardware-specific attached devices."""
-
-from __future__ import absolute_import, division, print_function
 
 # backwards compatibility for config files
 from nicos.core.device import DeviceAlias, NoDevice
@@ -49,4 +47,4 @@ from nicos.devices.generic.system import FreeSpace
 from nicos.devices.generic.virtual import VirtualCoder, VirtualCounter, \
     VirtualImage, VirtualMotor, VirtualRealTemperature, \
     VirtualReferenceMotor, VirtualScanningDetector, VirtualTemperature, \
-    VirtualTimer
+    VirtualTimer, VirtualGauss

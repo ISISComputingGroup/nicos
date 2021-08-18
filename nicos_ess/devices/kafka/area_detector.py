@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,8 +21,6 @@
 #   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
-
-from __future__ import absolute_import, division, print_function
 
 import kafka
 import numpy
@@ -86,8 +84,7 @@ class ADKafkaImageDetector(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
     def new_messages_callback(self, messages):
         if not messages:
             return
-        lastkey = sorted(list(messages.keys()))[-1]
-        self._lastmessage = (lastkey, messages[lastkey])
+        self._lastmessage = sorted(messages, key=lambda m: m[0])[~0]
 
     def doStatus(self, maxage=0):
         st = self._attached_kafka_plugin.doStatus()
@@ -103,7 +100,7 @@ class ADKafkaImageDetector(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
         return ()
 
 
-class HistogramFlatbuffersDeserializer(object):
+class HistogramFlatbuffersDeserializer:
     """
     Decode the histogram using the flatbuffers schema hs00
     """
@@ -143,4 +140,4 @@ class HistogramFlatbuffersDeserializer(object):
             # dtype=ArrayDouble.ArrayDouble)
 
         value = numpy.reshape(value, histogram.CurrentShapeAsNumpy())
-        return value, histogram.Timestamp(), histogram.Source().decode('utf-8')
+        return value, histogram.Timestamp(), histogram.Source().decode()

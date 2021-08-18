@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Qt designer plugin for NICOS UI widgets."""
-
-from __future__ import absolute_import, division, print_function
 
 import os
 
@@ -53,7 +51,7 @@ class NicosPluginBase(QPyDesignerCustomWidgetPlugin):
 
     def createWidget(self, parent):
         try:
-            # pylint: disable=E1102
+            # pylint: disable=not-callable
             return self.widget_class(parent, designMode=True)
         except Exception as e:
             name = self.widget_class.__name__
@@ -94,13 +92,7 @@ from nicos.guisupport.widget import NicosWidget  # isort:skip
 # imported for side effects
 # pylint: disable=unused-import
 from nicos.guisupport import (button, containers, display, led,  # isort:skip
-                              squeezedlbl, tas, trees, typedvalue)
-
-try:
-    from nicos.guisupport import plots  # pylint: disable=W0611
-except (ImportError, RuntimeError):
-    # Qwt may be missing
-    pass
+                              plots, squeezedlbl, tas, trees, typedvalue)
 
 # import other modules to make their widgets known to __subclasses__()
 for addmod in os.environ.get('NICOSDESIGNER_MODULES', '').split(':'):

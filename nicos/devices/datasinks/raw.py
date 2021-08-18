@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,29 +24,59 @@
 
 """Raw image formats."""
 
-from __future__ import absolute_import, division, print_function
-
 import re
+from io import TextIOWrapper
 from os import path
 
 import numpy as np
 
 from nicos import session
-from nicos.core import LIVE, ConfigurationError, DataSinkHandler, Override
+from nicos.core import LIVE, ConfigurationError, DataSinkHandler, NicosError, \
+    Override
 from nicos.core.data.sink import NicosMetaWriterMixin
 from nicos.devices.datasinks.image import ImageFileReader, ImageSink, \
     SingleFileSinkHandler
-from nicos.pycompat import TextIOWrapper
 
 
-class SingleRawImageSinkHandler(NicosMetaWriterMixin, SingleFileSinkHandler):
+class SingleTextImageSinkHandler(NicosMetaWriterMixin, SingleFileSinkHandler):
 
     defer_file_creation = True
     update_headerinfo = True
 
     def writeHeader(self, fp, metainfo, image):
         fp.seek(0)
-        fp.write(np.asarray(image).tostring())
+        np.savetxt(fp, image, fmt='%d', delimiter='\t', newline='\n')
+        fp.write(b'\n')
+        self.writeMetaInformation(fp)
+        fp.flush()
+
+
+class SingleTextImageSink(ImageSink):
+    """Writes raw text image data and header into a single file.
+
+    Formatting of the image data is done by numpy itself, depending on the
+    image shape.
+    """
+
+    parameter_overrides = {
+        'filenametemplate': Override(mandatory=False, userparam=False,
+                                     default=['%(proposal)s_%(pointcounter)s.raw',
+                                              '%(proposal)s_%(scancounter)s'
+                                              '_%(pointnumber)s.raw']),
+    }
+
+    handlerclass = SingleTextImageSinkHandler
+
+
+class SingleRawImageSinkHandler(NicosMetaWriterMixin, SingleFileSinkHandler):
+
+    defer_file_creation = True
+    update_headerinfo = True
+    filetype = 'singleraw'
+
+    def writeHeader(self, fp, metainfo, image):
+        fp.seek(0)
+        fp.write(np.asarray(image).tobytes())
         fp.write(b'\n')
         self.writeMetaInformation(fp)
         fp.flush()
@@ -63,6 +93,24 @@ class SingleRawImageSink(ImageSink):
     }
 
     handlerclass = SingleRawImageSinkHandler
+
+
+class SingleRawImageFileReader(ImageFileReader):
+    filetypes = [('singleraw', 'NICOS Single Raw Image File (*.raw)')]
+
+    @classmethod
+    def fromfile(cls, filename):
+        if path.isfile(filename):
+            with open(filename, 'rb') as f:
+                content = f.read()
+                for s in reversed(content.split(b'\n')):
+                    if s.startswith(b'ArrayDesc'):
+                        _desc, shape, t, _axes = eval(s.replace(
+                            b'ArrayDesc', b'').replace(b'dtype', b'np.dtype'))
+                        return np.frombuffer(
+                            content, t, np.product(shape)).reshape(shape)
+                raise NicosError('no ArrayDesc line found')
+        raise NicosError('file not found')
 
 
 class RawImageSinkHandler(NicosMetaWriterMixin, DataSinkHandler):
@@ -103,7 +151,7 @@ class RawImageSinkHandler(NicosMetaWriterMixin, DataSinkHandler):
         if self._logfile is None:
             return
         self._logfile.seek(0)
-        wrapper = TextIOWrapper(self._logfile)
+        wrapper = TextIOWrapper(self._logfile, encoding='utf-8')
         wrapper.write('%-15s\tmean\tstdev\tmin\tmax\n' % '# dev')
         for dev in self.dataset.valuestats:
             wrapper.write('%-15s\t%.3f\t%.3f\t%.3f\t%.3f\n' %
@@ -113,7 +161,7 @@ class RawImageSinkHandler(NicosMetaWriterMixin, DataSinkHandler):
 
     def _writeData(self, fp, data):
         fp.seek(0)
-        fp.write(np.asarray(data).tostring())
+        fp.write(np.asarray(data).tobytes())
         fp.flush()
 
     def putResults(self, quality, results):
@@ -178,7 +226,7 @@ class RawImageFileReader(ImageFileReader):
     def fromfile(cls, filename):
         fheader = path.splitext(filename)[0] + '.header'
         if path.isfile(fheader) and path.isfile(filename):
-            with open(fheader, 'r') as fd:
+            with open(fheader, 'r', encoding='utf-8', errors='replace') as fd:
                 for line in fd:
                     # TODO: ArrayDesc currently uses nx, ny, nz, ... as shape
                     if line.startswith('ArrayDesc('):
@@ -189,3 +237,6 @@ class RawImageFileReader(ImageFileReader):
                             dtype = m.group(3)
                             return np.fromfile(filename, dtype).reshape((ny,
                                                                          nx))
+                raise NicosError('no ArrayDesc line found')
+        else:
+            raise NicosError('file and/or corresponding .header not found')

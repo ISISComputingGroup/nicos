@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,9 +25,8 @@
 
 """NICOS tests for some utility modules."""
 
-from __future__ import absolute_import, division, print_function
-
 import os
+import pickle
 import socket
 import sys
 import time
@@ -36,13 +35,13 @@ from datetime import timedelta
 import pytest
 
 from nicos.core.errors import NicosError
-from nicos.pycompat import cPickle as pickle
-from nicos.utils import Repeater, bitDescription, checkSetupSpec, chunks, \
-    closeSocket, comparestrings, extractKeyAndIndex, formatDuration, \
-    formatExtendedFrame, formatExtendedStack, formatExtendedTraceback, \
-    lazy_property, moveOutOfWay, num_sort, parseConnectionString, \
-    parseDuration, readonlydict, readonlylist, safeWriteFile, squeeze, \
-    tcpSocket, timedRetryOnExcept, tupelize
+from nicos.utils import TB_CAUSE_MSG, Repeater, allDays, bitDescription, \
+    checkSetupSpec, chunks, closeSocket, comparestrings, extractKeyAndIndex, \
+    formatDuration, formatExtendedFrame, formatExtendedStack, \
+    formatExtendedTraceback, lazy_property, moveOutOfWay, num_sort, \
+    parseConnectionString, parseDuration, readonlydict, readonlylist, \
+    safeName, safeWriteFile, squeeze, tcpSocket, timedRetryOnExcept, \
+    tupelize
 from nicos.utils.timer import Timer
 
 from test.utils import raises
@@ -51,7 +50,7 @@ from test.utils import raises
 def test_lazy_property():
     asked = []
 
-    class P(object):
+    class P:
         @lazy_property
         def prop(self):
             asked.append('x')
@@ -130,7 +129,6 @@ def test_functions():
     assert parseConnectionString('', 1302) is None
     assert parseConnectionString('host?', 1302) is None
 
-    # pylint: disable=range-builtin-not-iterating
     assert [tuple(x) for x in chunks(range(10), 3)] == \
         [(0, 1, 2), (3, 4, 5), (6, 7, 8), (9,)]
 
@@ -142,11 +140,16 @@ def test_traceback():
     assert any('a                    = 1' in line for line in fmt)
 
     try:
-        1 / 0
-    except ZeroDivisionError:
+        try:
+            1 / 0
+        except ZeroDivisionError as err:
+            raise RuntimeError from err
+    except Exception:
         ei = sys.exc_info()
-        tb = formatExtendedTraceback(*ei)
+        tb = formatExtendedTraceback(ei[1])
         assert 'ZeroDivisionError' in tb
+        assert 'RuntimeError' in tb
+        assert TB_CAUSE_MSG in tb
         assert ', in test_traceback' in tb
 
     st = formatExtendedStack()
@@ -444,6 +447,33 @@ def test_parse_duration_parse_errors(inp):
 ])
 def test_parse_duration_type_errors(inp):
     assert raises(TypeError, parseDuration, inp)
+
+
+def test_all_days():
+    # 25. Oct 2020 switch CEST -> CET
+    exp_list = [('2020', '10-24'), ('2020', '10-25'), ('2020', '10-26'),
+                ('2020', '10-27'), ('2020', '10-28')]
+    # 28. Oct 2020, 08:00:00
+    tmto = time.mktime((2020, 10, 28, 8, 0, 0, 0, 0, -1))
+    assert list(allDays(tmto - 86400, tmto)) == exp_list[3:]
+    assert list(allDays(tmto - 2 * 86400, tmto)) == exp_list[2:]
+    assert list(allDays(tmto - 3 * 86400, tmto)) == exp_list[1:]
+    assert list(allDays(tmto - 4 * 86400, tmto)) == exp_list
+
+    # 28. Mar 2020 switch CET -> CEST
+    exp_list = [('2020', '03-27'), ('2020', '03-28'), ('2020', '03-29'),
+                ('2020', '03-30'), ('2020', '03-31')]
+    # 31. Mar 2020, 08:00:00
+    tmto = time.mktime((2020, 3, 31, 8, 0, 0, 0, 0, 1))
+    assert list(allDays(tmto - 86400, tmto)) == exp_list[3:]
+    assert list(allDays(tmto - 2 * 86400, tmto)) == exp_list[2:]
+    assert list(allDays(tmto - 3 * 86400, tmto)) == exp_list[1:]
+    assert list(allDays(tmto - 4 * 86400, tmto)) == exp_list
+
+@pytest.mark.parametrize('name', [('COM1','_COM1_'),
+                                  ('xyz.txt','xyz.txt')])
+def test_safeName(name):
+    assert safeName(name[0]) == name[1]
 
 
 @pytest.mark.parametrize('maxbackup', [2, None, 0])

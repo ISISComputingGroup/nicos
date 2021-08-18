@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -46,7 +46,10 @@ subprocess.check_call([sys.executable,
 def find_custom():
     res = []
     for facilityroot in glob.glob(path.join(rootdir, 'nicos_*')):
-        for root, _dirs, files in os.walk(facilityroot):
+        for root, dirs, files in os.walk(facilityroot):
+            # Prune unneeded subdirs.
+            dirs[:] = [d for d in dirs
+                       if d not in ('setups', 'testscripts', 'template')]
             for fn in files:
                 if fn.endswith('.pyc'):
                     continue
@@ -69,7 +72,7 @@ def find_uis():
 def find_gr():
     return [
         (path.join(grrtdir, '*.*'), path.join('gr', 'bin')),
-        (path.join(grrtdir, 'fonts', '*.*'), path.join('gr', 'bin', 'fonts')),
+        (path.join(grrtdir, '..', 'fonts', '*.*'), path.join('gr', 'fonts')),
     ]
 
 

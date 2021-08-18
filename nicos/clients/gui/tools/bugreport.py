@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,16 +24,17 @@
 
 """Simplified interface to report a ticket to the NICOS Redmine tracker."""
 
-from __future__ import absolute_import, division, print_function
+import html
+import sys
 
-from cgi import escape
-
-from nicos.clients.gui.utils import CompatSettings, DlgUtils, loadUi
-from nicos.guisupport.qt import QCheckBox, QDesktopServices, QDialog, \
-    QDialogButtonBox, QGridLayout, QLabel, QLineEdit, QUrl
+from nicos import nicos_version
+from nicos.clients.gui.utils import DlgUtils, loadUi
+from nicos.guisupport.qt import PYQT_VERSION_STR, QT_VERSION_STR, QCheckBox, \
+    QDesktopServices, QDialog, QDialogButtonBox, QGridLayout, QLabel, \
+    QLineEdit, QSettings, QUrl
 
 try:
-    import redminelib  # pylint: disable=import-error
+    import redminelib
 except ImportError:
     try:
         import redmine as redminelib
@@ -54,8 +55,9 @@ class BugreportTool(DlgUtils, QDialog):
         QDialog.__init__(self, parent)
         DlgUtils.__init__(self, self.toolName)
         loadUi(self, 'tools/bugreport.ui')
+        self.client = client
 
-        settings = CompatSettings('nicos', 'secrets')
+        settings = QSettings('nicos', 'secrets')
         settings.beginGroup('Redmine')
         self.instrument = settings.value('instrument', '')
         self.apikey = settings.value('apikey')
@@ -73,12 +75,13 @@ class BugreportTool(DlgUtils, QDialog):
 
         self.stacker.setCurrentIndex(0)
         self.subject.setFocus()
-        btn = self.buttonBox.addButton('Login details', QDialogButtonBox.ResetRole)
+        btn = self.buttonBox.addButton('Login details',
+                                       QDialogButtonBox.ResetRole)
         btn.clicked.connect(self._queryDetails)
 
         if not redminelib:
-            self.showError('Reporting is not possible since the python-redmine '
-                           'module is not installed.')
+            self.showError('Reporting is not possible since the '
+                           'python-redmine module is not installed.')
             return  # don't add Submit button
         elif not self.instrument or not self.apikey:
             if not self._queryDetails():
@@ -129,7 +132,7 @@ class BugreportTool(DlgUtils, QDialog):
                 return False
             self.showInfo('Login successful.  Your API key has been stored '
                           'for further reports.')
-            settings = CompatSettings('nicos', 'secrets')
+            settings = QSettings('nicos', 'secrets')
             settings.beginGroup('Redmine')
             if noinstrBox.isChecked():
                 self.instrument = 'none'
@@ -151,7 +154,25 @@ class BugreportTool(DlgUtils, QDialog):
         ticket_type = self.ticketType.currentText()
         is_critical = self.highPrio.isChecked()
         subject = self.subject.text().strip()
+        info = [
+            'Used versions:',
+            '    Client: %s' % nicos_version,
+            '    Python: %s' % sys.version.split()[0],
+            '    Qt:     %s' % QT_VERSION_STR,
+            '    PyQt:   %s' % PYQT_VERSION_STR,
+        ]
+        if self.client.isconnected:
+            dinfo = self.client.daemon_info.copy()
+            info += [
+                '    Server: %s' % dinfo.get('daemon_version', ''),
+                'Connected to: %s' % self.client.host,
+                '    root: %s' % dinfo.get('nicos_root', ''),
+                '    custom:',
+                '        path:    %s' % dinfo.get('custom_path', ''),
+                '        version: %s' % dinfo.get('custom_version', ''),
+            ]
         description = self.descText.toPlainText().strip()
+        description += '\n\n' + '\n'.join(info)
         reproduction = self.reproText.toPlainText().strip()
         add_log = self.scriptBox.isChecked()
 
@@ -163,9 +184,9 @@ class BugreportTool(DlgUtils, QDialog):
             ticket_num = self.submitIssue(ticket_type, is_critical, subject,
                                           description, reproduction, add_log)
         except Exception as e:
-            self.showError('Unfortunately, something went wrong submitting the '
-                           'ticket (%s). The tracker page will now be opened, '
-                           'please enter the ticket there.' % e)
+            self.showError('Unfortunately, something went wrong submitting '
+                           'the ticket (%s). The tracker page will now be '
+                           'opened, please enter the ticket there.' % e)
             QDesktopServices.openUrl(QUrl(CREATE_TICKET_URL))
             return
 
@@ -182,7 +203,7 @@ class BugreportTool(DlgUtils, QDialog):
                     reproduction, add_log):
 
         def wrap(text):
-            return escape(text).replace('\n\n', '</p><p>'). \
+            return html.escape(text).replace('\n\n', '</p><p>'). \
                 replace('\n', '<br/>')
 
         full_desc = '<p>' + wrap(description) + '</p>'
@@ -191,10 +212,10 @@ class BugreportTool(DlgUtils, QDialog):
                          '<p>' + wrap(reproduction) + '</p>'
         if self.traceback:
             full_desc += '\n\n<p><b>Traceback:</b></p>\n' + \
-                         '<pre>' + escape(self.traceback) + '</pre>'
+                         '<pre>' + html.escape(self.traceback) + '</pre>'
         if add_log and self.log_excerpt:
             full_desc += '\n\n<p><b>Log excerpt:</b></p>\n' + \
-                         '<pre>' + escape(self.log_excerpt) + '</pre>'
+                         '<pre>' + html.escape(self.log_excerpt) + '</pre>'
 
         rm = redminelib.Redmine(TRACKER_URL, key=self.apikey)
         issue = rm.issue.new()

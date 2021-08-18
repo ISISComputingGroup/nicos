@@ -21,6 +21,8 @@ The experiment device is selected in setups using
 
 .. autoclass:: ImagingExperiment()
 
+.. autoclass:: SXTalExperiment()
+
 .. autoclass:: Sample()
 
 
@@ -63,6 +65,7 @@ be configured in setups like normal devices and selected in
 .. autoclass:: ImageSink()
 
 .. autoclass:: SingleRawImageSink()
+.. autoclass:: SingleTextImageSink()
 .. autoclass:: RawImageSink()
 .. autoclass:: FITSImageSink()
 .. autoclass:: TIFFImageSink()
@@ -104,3 +107,7 @@ Notifiers can be configured in setups like normal devices and are selected in
 .. module:: nicos.devices.notifiers.slack
 
 .. autoclass:: Slacker()
+
+.. module:: nicos.devices.notifiers.mattermost
+
+.. autoclass:: Mattermost()

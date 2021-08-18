@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """Devices via the CARESS device service."""
 
-from __future__ import absolute_import, division, print_function
-
 import subprocess
 import sys
 
@@ -40,8 +38,8 @@ try:
     from omniORB import CORBA
     import CosNaming
 
-    from . import CARESS  # pylint: disable=import-error,no-name-in-module
-    from . import _GlobalIDL  # pylint: disable=import-error,no-name-in-module,unused-import
+    from . import CARESS
+    from . import _GlobalIDL  # pylint: disable=unused-import
     import omniORB
 
     sys.modules['CARESS'] = sys.modules['nicos.devices.vendor.caress.CARESS']
@@ -54,7 +52,6 @@ try:
     # omniORB.setClientConnectTimeout(0)
 except ImportError:
     omniORB = None
-
 
 
 CORBA_DEVICE = 500
@@ -160,10 +157,11 @@ class CARESSDevice(HasCommunication):
                 session.delay(0.5)
             return self.cid
         self.log.debug('get CARESS device ID: %r', device)
-        answer = createSubprocess('cd %s && %s/dump_u1 -n %s' %
-                                  (self.caresspath, self.toolpath, device, ),
-                                  shell=True,
-                                  stdout=subprocess.PIPE).stdout.read()
+        answer = createSubprocess(
+            'cd %s && %s/dump_u1 -n %s' % (
+                self.caresspath, self.toolpath, device),
+            shell=True, stdout=subprocess.PIPE, universal_newlines=True,
+            ).communicate()[0]
         self._caress_name = device
         if answer in ('', None):
             if not CARESSDevice._caress_maps:
@@ -206,7 +204,8 @@ class CARESSDevice(HasCommunication):
                 obj = _root_context.resolve([CosNaming.NameComponent(tmp[0],
                                                                      tmp[1])])
             except CosNaming.NamingContext.NotFound as ex:
-                raise ConfigurationError(self, 'Name not found: %s' % (ex,))
+                raise ConfigurationError(
+                    self, 'Name not found: %s' % (ex,)) from ex
             self._caressObject = obj._narrow(CARESS.CORBADevice)
         else:
             try:
@@ -216,7 +215,8 @@ class CARESSDevice(HasCommunication):
                                                'server.context/absdev.object' %
                                                (self.nameserver, self.objname))
             except CORBA.BAD_PARAM as ex:
-                raise ConfigurationError(self, 'Name not found: %s' % (ex,))
+                raise ConfigurationError(
+                    self, 'Name not found: %s' % (ex,)) from ex
 
         if CORBA.is_nil(self._caressObject):
             raise CommunicationError(self, 'Could not create a CARESS device')
@@ -279,22 +279,20 @@ class CARESSDevice(HasCommunication):
             #                    res, cid, self.config)
             if self._device_kind() == CORBA_DEVICE:
                 if self.absdev:
-                    res = self._caressObject \
-                        .char_loadblock_module_orb(0, cid, 1,
-                                                   len(self.loadblock), 16,
-                                                   self.loadblock)
+                    res = self._caressObject.char_loadblock_module_orb(
+                        0, cid, 1, len(self.loadblock), 16, self.loadblock)
                 else:
-                    val = CARESS.Value(ab=self.loadblock)
-                    res = self._caressObject \
-                        .loadblock_module(0, cid, 1,
-                                          len(self.loadblock), val)  # 16, val)
+                    val = CARESS.Value(ab=self.loadblock.encode())
+                    res = self._caressObject.loadblock_module(
+                        0, cid, 1, len(self.loadblock), val)  # 16, val)
             self._initialized = True
             if not self._is_corba_device():
                 CARESSDevice._used_counter += 1
 
         except CORBA.TRANSIENT as err:
-            raise CommunicationError(self, 'could not init CARESS module %r '
-                                     '(%d: %s)' % (err, cid, self.config))
+            raise CommunicationError(
+                self, 'could not init CARESS module %r (%d: %s)' % (
+                    err, cid, self.config)) from err
 
     def doInit(self, mode):
         if mode == SIMULATION:
@@ -340,9 +338,8 @@ class CARESSDevice(HasCommunication):
             # result = self._caressObject.read_module(0x80000000, self.cid)
             result, state, val = self._caressObject.read_module(0, self.cid)
             if result != CARESS.OK:
-                raise CommunicationError(self,
-                                         'Could not read the CARESS module: %d'
-                                         % self.cid)
+                raise CommunicationError(
+                    self, 'Could not read the CARESS module: %d' % self.cid)
             if hasattr(val, 'f'):
                 return (state, val.f)
             return (state, val.l,)
@@ -352,13 +349,12 @@ class CARESSDevice(HasCommunication):
             l, result = self._caressObject.read_module_orb(0, self.cid, _)
             self.log.debug('read_module: %d, %r', l, result)
             if l != 0:
-                raise CommunicationError(self,
-                                         'Could not read the CARESS module: %d'
-                                         % self.cid)
+                raise CommunicationError(
+                    self, 'Could not read the CARESS module: %d' % self.cid)
             if result[0].value() != self.cid:
-                raise CommunicationError(self,
-                                         'Answer from wrong module!: %d %r' %
-                                         (self.cid, result[0]))
+                raise CommunicationError(
+                    self, 'Answer from wrong module!: %d %r' % (
+                        self.cid, result[0]))
             state = result[1].value()
             if state == OFF_LINE:
                 raise NicosError(self, 'Module is off line!')
@@ -402,7 +398,7 @@ class CARESSDevice(HasCommunication):
             return function(*args)
         except (CORBA.COMM_FAILURE, CORBA.TRANSIENT) as err:
             tries = self.comtries - 1
-            while True and tries > 0:
+            while True and tries > 0:  # pylint: disable=simplifiable-condition
                 self.log.warning('Remaining tries: %d', tries)
                 session.delay(self.comdelay)
                 if isinstance(err, CORBA.TRANSIENT):
@@ -413,8 +409,9 @@ class CARESSDevice(HasCommunication):
                     return function(*args)
                 except (CORBA.COMM_FAILURE, CORBA.TRANSIENT) as err:
                     tries -= 1
-            raise CommunicationError(self, 'CARESS error: %s%r: %s' %
-                                     (function.__name__, args, err))
+            raise CommunicationError(
+                self, 'CARESS error: %s%r: %s' % (
+                    function.__name__, args, err)) from err
         finally:
             pass
 #           self._com_lock.release()

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,14 +22,11 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from time import time as currenttime
 
 from nicos import session
 from nicos.commands import helparglist, usercommand
-from nicos.pycompat import number_types, string_types
-from nicos.utils import parseDateString
+from nicos.utils import number_types, parseDateString
 
 from nicos_ess.devices.datasinks.nexussink import NexusFileWriterSink
 
@@ -93,7 +90,7 @@ def RewriteHistory(fromtime, totime=None):
     for sink in session.datasinks:
         if isinstance(sink, NexusFileWriterSink):
             key = 'lastsinked'
-            if isinstance(fromtime, string_types):
+            if isinstance(fromtime, str):
                 try:
                     fromtime = parseDateString(fromtime)
                 except ValueError:

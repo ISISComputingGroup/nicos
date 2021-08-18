@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,12 +24,11 @@
 
 """Special detector devices for the SANS1"""
 
-from __future__ import absolute_import, division, print_function
 
 from nicos.core.mixins import DeviceMixinBase
 from nicos.core.params import Param, floatrange, tupleof
 from nicos.devices.generic import Detector as GenericDetector, \
-    GatedDetector as GenericGatedDetector
+    GatedDetector as GenericGatedDetector, LockedDevice
 
 
 class DetectorMixin(DeviceMixinBase):
@@ -44,9 +43,27 @@ class DetectorMixin(DeviceMixinBase):
 
 class Detector(DetectorMixin, GenericDetector):
     """Standard detector including its size."""
-    pass
 
 
 class GatedDetector(DetectorMixin, GenericGatedDetector):
     """Standard gated detector including its size."""
-    pass
+
+
+class DetectorTranslation(LockedDevice):
+    """Standard locked device including check position at start."""
+
+    def doIsAtTarget(self, pos=None, target=None):
+        if pos is None:
+            pos = self.read(0)
+        self.log.debug('Current pos: %s, target: %s', pos, target)
+        if target is None:
+            if self._attached_device.target:
+                return self._attached_device.isAtTarget(pos)
+            if self.target is None:
+                return False
+            target = self.target
+        return self._attached_device.isAtTarget(pos, target)
+
+    def doStart(self, target):
+        if not self.isAtTarget(self.read(0), target=target):
+            LockedDevice.doStart(self, target)

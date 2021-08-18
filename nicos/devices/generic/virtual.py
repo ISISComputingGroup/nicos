@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,6 @@
 
 """Virtual devices for testing."""
 
-from __future__ import absolute_import, division, print_function
-
 import random
 import threading
 import time
@@ -45,7 +43,6 @@ from nicos.core.scan import Scan
 from nicos.devices.abstract import CanReference, Coder, Motor
 from nicos.devices.generic.detector import ActiveChannel, ImageChannelMixin, \
     PassiveChannel
-from nicos.pycompat import string_types
 from nicos.utils import clamp, createThread
 from nicos.utils.timer import Timer
 
@@ -73,8 +70,14 @@ class VirtualMotor(HasOffset, CanDisable, Motor):
     def doInit(self, mode):
         # set current value to be at target on init, helps with devices
         # that switch between being virtual and real
-        if self.target is not None and mode == MASTER:
-            self._setROParam('curvalue', self.target + self.offset)
+        # If the target is not set, take the configured curvalue and configured
+        # offset. This is helpful for the demo, where normally no targets
+        # set at clean setup.
+        if mode == MASTER:
+            if self.target is not None:
+                self._setROParam('curvalue', self.target + self.offset)
+            else:
+                self._setROParam('target', self.curvalue - self.offset)
 
     def doStart(self, pos):
         if self.curstatus[0] == status.DISABLED:
@@ -168,7 +171,7 @@ class VirtualReferenceMotor(CanReference, VirtualMotor):
     def doReference(self, *args):
         # if self.status(0)[0] == status.BUSY:
         #   raise NicosError(self, 'cannot reference if device is moving.')
-        refswitch = args[0] if args and isinstance(args[0], string_types) \
+        refswitch = args[0] if args and isinstance(args[0], str) \
             else self.refswitch
         self.log.debug('reference: %s', refswitch)
         if refswitch == 'high':
@@ -195,13 +198,15 @@ class VirtualReferenceMotor(CanReference, VirtualMotor):
 class VirtualCoder(HasOffset, Coder):
     """A virtual coder that just returns the value of a motor, with offset."""
 
+    hardware_access = False
+
     attached_devices = {
         'motor': Attach('Motor to read out to get coder value', Readable,
                         optional=True)
     }
 
     parameter_overrides = {
-        'unit': Override(mandatory=False),
+        'unit': Override(mandatory=False, volatile=True),
     }
 
     def doRead(self, maxage=0):
@@ -217,9 +222,7 @@ class VirtualCoder(HasOffset, Coder):
     def doReadUnit(self):
         """For devices with a unit attribute."""
         # prefer configured unit if nothing is set on the motor device
-        if 'unit' in self._config:
-            return self._config['unit']
-        return self._attached_motor.unit
+        return self._config.get('unit', self._attached_motor.unit)
 
 
 class VirtualChannel(ActiveChannel):
@@ -339,7 +342,7 @@ class VirtualCounter(VirtualChannel):
             self._generator = lambda x: self.countrate * x
         elif self.gentype == 'gauss':
             self._generator = lambda x: normal(loc=self.countrate,
-                                              scale=self.countrate / 10.) * x
+                                               scale=self.countrate / 10.) * x
 
     def doStart(self):
         self._fcurrent = 0.
@@ -354,7 +357,8 @@ class VirtualCounter(VirtualChannel):
                     self.curvalue = self.preselection
                     break
                 time.sleep(self._base_loop_delay)
-                self._fcurrent += max(0, self._generator(self._base_loop_delay))
+                self._fcurrent += max(0,
+                                      self._generator(self._base_loop_delay))
                 self.curvalue = int(self._fcurrent)
         finally:
             self.curstatus = (status.OK, 'idle')
@@ -366,6 +370,78 @@ class VirtualCounter(VirtualChannel):
 
     def valueInfo(self):
         return Value(self.name, unit='cts', errors='sqrt', type=self.type,
+                     fmtstr='%d'),
+
+
+class VirtualGauss(PassiveChannel):
+    """A virtual channel which returns values from gauss curves centered
+    at  defined positions of movable devices
+    """
+    attached_devices = {
+        'motors': Attach('Moveables on which the count depends',
+                         Moveable, multiple=True),
+    }
+
+    parameters = {
+        'centers': Param('Center of the gaussian',
+                         type=listof(float),
+                         settable=True),
+        'stddev': Param('Standard deviation of the gauss function',
+                        type=float,
+                        settable=True,
+                        ),
+        'rate': Param('Amplitude in counts/sec',
+                      type=float,
+                      settable=True,
+                      default=100.),
+    }
+    _start_time = None
+    _end_time = None
+    _pause_start = None
+    _pause_intervall = None
+
+    def doStart(self):
+        self._start_time = time.time()
+        self._pause_start = None
+        self._pause_time = None
+        PassiveChannel.doStart(self)
+
+    def doStop(self):
+        self._end_time = time.time()
+        PassiveChannel.doStop(self)
+
+    def doFinish(self):
+        self._end_time = time.time()
+        if self._pause_start:
+            self.doResume()
+        PassiveChannel.doFinish(self)
+
+    def doPause(self):
+        self._pause_start = time.time()
+
+    def doResume(self):
+        time_paused = time.time() - self._pause_start
+        if self._pause_intervall:
+            self._pause_intervall += time_paused
+        else:
+            self._pause_intervall = time_paused
+
+    def doRead(self, maxage=0):
+        if self._end_time:
+            elapsed_time = self._end_time - self._start_time
+            if self._pause_intervall:
+                elapsed_time -= self._pause_interval
+            ampl = elapsed_time * self.rate
+        else:
+            ampl = self.rate
+        count = 1.
+        for mot, center in zip(self._attached_motors, self.centers):
+            count *= max(1.0, ampl * np.exp(-(mot.read(maxage) - center)**2 /
+                                            2. * self.stddev**2))
+        return int(count)
+
+    def valueInfo(self):
+        return Value(self.name, unit='cts', errors='sqrt', type='counter',
                      fmtstr='%d'),
 
 
@@ -556,7 +632,7 @@ class VirtualRealTemperature(HasWindowTimeout, HasLimits, Moveable):
         lastflow = 0
         last_heaters = (0, 0)
         delta = 0
-        I = D = 0
+        I = D = 0  # noqa: E741
         lastD = 0
         damper = 1
         lastmode = self.mode
@@ -607,16 +683,16 @@ class VirtualRealTemperature(HasWindowTimeout, HasLimits, Moveable):
                 kd = kp * abs(self.d) / 2.    # LakeShore D = 2*T_d
 
                 P = kp * error
-                I += ki * error * h
+                I += ki * error * h  # noqa: E741
                 D = kd * delta / h
 
                 # avoid reset windup
-                I = clamp(I, 0., 100.)  # I is in %
+                I = clamp(I, 0., 100.)  # noqa: E741
 
                 # avoid jumping heaterpower if switching back to pid mode
                 if lastmode != self.mode:
                     # adjust some values upon switching back on
-                    I = self.heater - P - D
+                    I = self.heater - P - D  # noqa: E741
 
                 v = P + I + D
                 # in damping mode, use a weighted sum of old + new heaterpower
@@ -715,7 +791,7 @@ class VirtualImage(ImageChannelMixin, PassiveChannel):
     _timer = None
 
     def doInit(self, mode):
-        self.arraydesc = ArrayDesc(self.name, self.sizes, '<u4')
+        self.arraydesc = ArrayDesc(self.name, self.sizes[::-1], '<u4')
 
     def doPrepare(self):
         self.readresult = [0]
@@ -733,16 +809,13 @@ class VirtualImage(ImageChannelMixin, PassiveChannel):
         self._mythread = createThread('virtual detector %s' % self, self._run)
 
     def _run(self):
-        try:
-            while not self._stopflag:
-                elapsed = self._timer.elapsed_time()
-                self.log.debug('update image: elapsed = %.1f', elapsed)
-                array = self._generate(self._base_loop_delay).astype('<u4')
-                self._buf = self._buf + array
-                self.readresult = [self._buf.sum()]
-                time.sleep(self._base_loop_delay)
-        finally:
-            self._remaining = None
+        while not self._stopflag:
+            elapsed = self._timer.elapsed_time()
+            self.log.debug('update image: elapsed = %.1f', elapsed)
+            array = self._generate(self._base_loop_delay).astype('<u4')
+            self._buf = self._buf + array
+            self.readresult = [self._buf.sum()]
+            time.sleep(self._base_loop_delay)
 
     def doPause(self):
         self._timer.stop()
@@ -775,7 +848,6 @@ class VirtualImage(ImageChannelMixin, PassiveChannel):
         coll = (self._attached_collimation.read() if self._attached_collimation
                 else '15m')
         xl, yl = self.sizes
-        # pylint: disable=unbalanced-tuple-unpacking
         xx, yy = np.meshgrid(np.linspace(-(xl // 2), (xl // 2) - 1, xl),
                              np.linspace(-(yl // 2), (yl // 2) - 1, yl))
         beam = (t * 100 * np.exp(-xx**2/50) * np.exp(-yy**2/50)).astype(int)

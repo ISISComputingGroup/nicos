@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,8 +28,7 @@
 .d_dat: document the file format here.
 """
 
-from __future__ import absolute_import, division, print_function
-
+from io import TextIOWrapper
 from time import localtime, strftime, time as currenttime
 
 import numpy as np
@@ -41,12 +40,13 @@ from nicos.devices.datasinks.image import ImageSink, SingleFileSinkHandler
 
 class DNSFileSinkHandler(SingleFileSinkHandler):
 
-    filetype = 'DNS'
+    filetype = 'dns'
     accept_final_images_only = True
 
     def writeData(self, fp, image):
         """Save in DNS format"""
-        w = fp.write
+        textio = TextIOWrapper(fp, encoding='utf-8')
+        w = textio.write
         separator = "#" + "-"*74 + "\n"
 
         scannumber = 0
@@ -158,10 +158,10 @@ class DNSFileSinkHandler(SingleFileSinkHandler):
         tofchan = session.getDevice('dettof')
         w("# TOF parameters\n")
         w("#  TOF channels                %4d\n" % tofchan.timechannels)
-        tdiv = tofchan.divisor
-        w("#  Time per channel            %6.1f microsecs\n" % (0.1 * tdiv))
+        tdiv = tofchan.timeinterval
+        w("#  Time per channel            %6.1f microsecs\n" % (tdiv / 1000))
         tdel = tofchan.delay
-        w("#  Delay time                  %6.1f microsecs\n" % (0.1 * tdel))
+        w("#  Delay time                  %6.1f microsecs\n" % (tdel / 1000))
 
         w("#  Chopper slits\n")  # %4d\n" % config.datachopperslits) # TODO
         w("#  Elastic time channel\n")  # %4d\n" % config.dataelastictime) # TODO
@@ -203,6 +203,7 @@ class DNSFileSinkHandler(SingleFileSinkHandler):
             for q in range(tofchan.timechannels):
                 w(" %8d" % 0)
             w("\n")
+        textio.detach()
         fp.flush()
 
 

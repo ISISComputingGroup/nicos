@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,6 @@
 # *****************************************************************************
 
 """NICOS axis classes."""
-
-from __future__ import absolute_import, division, print_function
 
 from time import sleep
 
@@ -106,9 +104,9 @@ class Axis(CanReference, AbstractAxis):
         if mode == MASTER and self._hascoder and \
            self.motor.status()[0] != status.BUSY and \
            abs(self.motor.read() - self.coder.read()) > self.precision:
-            self.log.warning('Motor and encoder have different positions '
-                             '(%s vs. %s). Set motor position to coder '
-                             'position.' % (
+            self.log.warning('motor and encoder have different positions '
+                             '(%s vs. %s), setting motor position to coder '
+                             'position' % (
                                  self.motor.format(self.motor.read()),
                                  self.coder.format(self.coder.read())))
             self.motor.setPosition(self._getReading())
@@ -149,6 +147,7 @@ class Axis(CanReference, AbstractAxis):
         return umin - self.offset, umax - self.offset
 
     def doWriteUserlimits(self, limits):
+        # pylint: disable=assignment-from-none
         rval = AbstractAxis.doWriteUserlimits(self, limits)
         if rval:
             limits = rval
@@ -287,7 +286,7 @@ class Axis(CanReference, AbstractAxis):
         if self._errorstate:
             errorstate = self._errorstate
             self._errorstate = None
-            raise errorstate  # pylint: disable=E0702
+            raise errorstate  # pylint: disable=raising-bad-type
 
     def doTime(self, start, end):
         if hasattr(self._attached_motor, 'doTime'):
@@ -297,9 +296,9 @@ class Axis(CanReference, AbstractAxis):
     def doWriteDragerror(self, value):
         if not self._hascoder:
             if value != 0:
-                self.log.warning('Setting a nonzero value for dragerror only '
+                self.log.warning('setting a nonzero value for dragerror only '
                                  'works if a coder was specified in the setup, '
-                                 'which is different from the motor.')
+                                 'which is different from the motor')
             return 0.0
         else:
             self._maxdiff = value
@@ -317,7 +316,7 @@ class Axis(CanReference, AbstractAxis):
             raise NicosError(self, 'axis is moving now, please issue a stop '
                              'command and try it again')
         if self._errorstate:
-            raise self._errorstate  # pylint: disable=E0702
+            raise self._errorstate  # pylint: disable=raising-bad-type
         del self._new_offset
         HasOffset.doWriteOffset(self, value)
 
@@ -404,7 +403,7 @@ class Axis(CanReference, AbstractAxis):
         """
         diff = abs(pos - target)
         prec = self.precision
-        if (prec > 0 and diff >= prec) or (prec == 0 and diff):
+        if (0 < prec <= diff) or (prec == 0 and diff):
             msg = 'precision error: difference %.4g, precision %.4g' % \
                   (diff, self.precision)
             if error:
@@ -415,7 +414,7 @@ class Axis(CanReference, AbstractAxis):
         maxdiff = self.dragerror
         for obs in self._attached_obs:
             diff = abs(target - (obs.read() - self.offset))
-            if maxdiff > 0 and diff > maxdiff:
+            if 0 < maxdiff < diff:
                 msg = 'precision error (%s): difference %.4g, maximum %.4g' % \
                       (obs, diff, maxdiff)
                 if error:

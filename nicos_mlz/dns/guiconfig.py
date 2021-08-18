@@ -33,18 +33,16 @@ main_window = tabbed(
     ('Scan Plotting', panel('nicos.clients.gui.panels.scans.ScansPanel')),
     ('Device Plotting', panel('nicos.clients.gui.panels.history.HistoryPanel')),
     ('Logbook', panel('nicos.clients.gui.panels.elog.ELogPanel')),
-    ('Live display', panel('nicos.clients.gui.panels.liveqwt.LiveDataPanel',
-                           instrument='dns')),
-    ('Live display (PSD)', panel('nicos.clients.gui.panels.liveqwt.LiveDataPanel',
-                           instrument='dnspsd')),
+    ('Live display', panel('nicos.clients.gui.panels.live.LiveDataPanel',
+                           detectors=['det'])),
+    ('Live display (PSD)', panel('nicos.clients.gui.panels.live.LiveDataPanel',
+                           detectors=['qm_det'])),
 )
 
 windows = []
 
 tools = [
     tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
-         receiver='f.carsughi@fz-juelich.de',
-         mailserver='smtp.frm2.tum.de',
          sender='jcns@frm2.tum.de'),
     tool('Sample environment logbooks',
          'nicos.clients.gui.tools.website.WebsiteTool',

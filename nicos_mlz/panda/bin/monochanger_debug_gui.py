@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,6 @@
 
 """Q'n'D, hacked together GUI for debugging PANDA's Monochanger"""
 
-from __future__ import absolute_import, division, print_function
-
 import sys
 from struct import pack, unpack
 
@@ -38,9 +36,6 @@ from nicos.guisupport.qt import QApplication, QFormLayout, QFrame, \
 from pymodbus.client.sync import ModbusTcpClient
 
 # This is supposed to be a custom instrument specific stand-alone tool!
-
-
-
 
 
 def Stati(status):
@@ -64,7 +59,7 @@ class BaseDev(QWidget):
     has_status = False
 
     def __init__(self, model, name, addr):
-        super(BaseDev, self).__init__()
+        QWidget.__init__(self)
         self.name = name
         self.model = model
         self.addr = addr
@@ -270,7 +265,7 @@ class WriteWord(ReadWord):
             v = int(v[2:], 2)
         elif v.startswith('0') or v.startswith('o'):
             v = int(v[2:], 8)
-        elif v.startswith(('x', 'X',  '$')):
+        elif v.startswith(('x', 'X', '$')):
             v = int(v[1:], 16)
         else:
             v = int(v)
@@ -355,7 +350,7 @@ class MainWindow(QMainWindow):
     i = 0
 
     def __init__(self, parent = None):
-        super(MainWindow, self).__init__(parent)
+        QMainWindow.__init__(self, parent)
 
         # scroll area Widget contents - layout
         self.scrollLayout = QFormLayout()
@@ -470,11 +465,10 @@ class MainWindow(QMainWindow):
             self._registers = [self.i + i for i in range(77)]
             self.i += 1
 
-    def timerEvent(self, event):  # pylint: disable=R0915
+    def timerEvent(self, event):
         self._sync()
         for w in self.widgets:
             w._update()
-        return
 
     def addWidget(self, which):
         which.setContentsMargins(10, 0, 0, 0)

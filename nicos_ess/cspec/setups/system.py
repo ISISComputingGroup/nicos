@@ -8,7 +8,7 @@ sysconfig = dict(
     cache = 'localhost',
     instrument = None,
     experiment = 'Exp',
-    datasinks = ['conssink', 'filesink', 'daemonsink'],
+    datasinks = ['conssink', 'filesink', 'daemonsink', 'liveview'],
     notifiers = ['email'],
 )
 
@@ -26,7 +26,7 @@ devices = dict(
         responsible = 'P.P. Deen <pascale.deen@esss.se>',
         website = 'https://europeanspallationsource.se/instruments/cspec',
         operators = ['European Spallation Source (ESS)',
-                     u'Technische Universität München (TUM)',
+                     'Technische Universität München (TUM)',
         ]
     ),
     Sample = device('nicos.devices.sample.Sample',
@@ -53,4 +53,5 @@ devices = dict(
         path = None,
         minfree = 5,
     ),
+    liveview=device('nicos.devices.datasinks.LiveViewSink', ),
 )

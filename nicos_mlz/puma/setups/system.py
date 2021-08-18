@@ -24,16 +24,15 @@ devices = dict(
         doi = 'http://dx.doi.org/10.17815/jlsrf-1-36',
         website = 'http://www.mlz-garching.de/puma',
         operators = [
-            u'Technische Universität München (TUM)',
-            u'Institut für Physikalische Chemie, Georg-August-Universität '
-            u'Göttingen',
+            'Technische Universität München (TUM)',
+            'Institut für Physikalische Chemie, Georg-August-Universität '
+            'Göttingen',
         ],
     ),
     Exp = device('nicos_mlz.panda.devices.experiment.PandaExperiment',
         description = 'Experiment of PUMA',
         sample = 'Sample',
         dataroot = '/data',
-        propdb = '/pumacontrol2/propdb',
         managerights = dict(
             enableDirMode = 0o775,
             enableFileMode = 0o664,
@@ -66,7 +65,7 @@ devices = dict(
     ),
     LogSpace = device('nicos.devices.generic.FreeSpace',
         description = 'Free space on the log drive',
-        path = '/pumacontrol2/log',
+        path = '/pumacontrol/log',
         lowlevel = True,
         warnlimits = (0.5, None),
     ),

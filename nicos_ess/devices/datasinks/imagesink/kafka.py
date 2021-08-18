@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,13 +22,11 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from time import time as currenttime
 
 from nicos.core import FINAL, INTERMEDIATE, DataSink, DataSinkHandler, \
     Override, Param, dictof, tupleof
-from nicos.core.constants import POINT
+from nicos.core.constants import POINT, SIMULATION
 
 from nicos_ess.devices.datasinks.imagesink.serializer import \
     HistogramFlatbuffersSerializer
@@ -72,7 +70,7 @@ class ImageKafkaDataSinkHandler(DataSinkHandler):
         if quality not in [INTERMEDIATE, FINAL]:
             return
 
-        timestamp = long(currenttime() * 1E9)
+        timestamp = currenttime() * 1E9
         _, arrays = results[self.detector.name]
         for desc, array in zip(self.detector.arrayInfo(), arrays):
             self._sendArray(timestamp, desc, array)
@@ -110,5 +108,7 @@ class ImageKafkaDataSink(ProducesKafkaMessages, DataSink):
     serializer = HistogramFlatbuffersSerializer()
 
     def doInit(self, mode):
+        if mode == SIMULATION:
+            return
         # Increase the maximum message size that the producer can send
         self._setProducerConfig(max_request_size=self.maximagesize)

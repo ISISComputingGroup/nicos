@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,7 @@
 
 """Module to test custom specific modules."""
 
-from __future__ import absolute_import, division, print_function
-
+import ast
 import os
 
 import pytest
@@ -33,15 +32,10 @@ import pytest
 from nicos.core import status
 from nicos.core.errors import InvalidValueError, LimitError
 
-try:
-    from string import maketrans  # pylint: disable=deprecated-module
-except ImportError:
-    maketrans = str.maketrans
-
 session_setup = 'multianalyzer'
 
 
-class TestMultiAnalyzer(object):
+class TestMultiAnalyzer:
     """Multi analyzer test class."""
 
     @pytest.fixture(scope='function', autouse=True)
@@ -137,14 +131,14 @@ class TestMultiAnalyzer(object):
         with open(os.path.join(dirname, 'man_test.txt')) as f:
             for s in f.readlines():
                 # convert stringified list to list avoiding use of 'eval'
-                v = [float(x) for x in s.translate(maketrans('][,', '   ')).split()]
+                v = ast.literal_eval(s)
                 assert man.isAllowed(v)[0]
 
         # read bad targets from file
         with open(os.path.join(dirname, 'man_test_fail.txt')) as f:
             for s in f.readlines():
                 # convert stringified list to list avoiding use of 'eval'
-                v = [float(x) for x in s.translate(maketrans('][,', '   ')).split()]
+                v = ast.literal_eval(s)
                 assert not man.isAllowed(v)[0]
 
     def test_movement(self, session):
@@ -158,7 +152,7 @@ class TestMultiAnalyzer(object):
 
         man.maw([0] * 11 + [-i * 0.1 for i in range(11)])
         man.maw([0] * 22)
-        man.maw([i for i in range(11)] + [-i * 0.1 for i in range(11)])
+        man.maw(list(range(11)) + [-i * 0.1 for i in range(11)])
 
     def test_reset(self, session):
         """Check reset and reference of device."""

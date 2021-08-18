@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 # *****************************************************************************
 
 """NICOS GUI main window."""
-
-from __future__ import absolute_import, division, print_function
 
 import sys
 import traceback
@@ -54,7 +52,6 @@ from nicos.guisupport.qt import PYQT_VERSION_STR, QT_VERSION_STR, QAction, \
     QTimer, QWebView, pyqtSignal, pyqtSlot
 from nicos.protocols.daemon import BREAK_NOW, STATUS_IDLE, STATUS_IDLEEXC, \
     STATUS_INBREAK
-from nicos.pycompat import iteritems, listvalues, text_type
 from nicos.utils import checkSetupSpec, importString
 
 try:
@@ -78,6 +75,9 @@ class ToolAction(QAction):
 
     def __init__(self, client, icon, text, options, parent=None):
         QAction.__init__(self, icon, text, parent)
+        # the default menu rule is TextHeuristicRole, which moves 'setup' to
+        # the 'Preferences' Menu on a Mac -> this is not what we want
+        self.setMenuRole(self.NoRole)
         setups = options.get('setups', '')
         self.setupSpec = setups
         if self.setupSpec:
@@ -92,6 +92,9 @@ class MainWindow(DlgUtils, QMainWindow):
     name = 'MainWindow'
     # Emitted when a panel generates code that an editor panel should add.
     codeGenerated = pyqtSignal(object)
+
+    # Interval (in ms) to make "keepalive" queries to the daemon.
+    keepaliveInterval = 12*3600*1000
 
     ui = 'main.ui'
 
@@ -193,6 +196,10 @@ class MainWindow(DlgUtils, QMainWindow):
         self._reconnect_count = 0
         self._reconnect_time = 0
 
+        # timer for session keepalive, every 12 hours
+        self.keepaliveTimer = QTimer(singleShot=False, timeout=self._keepalive)
+        self.keepaliveTimer.start(self.keepaliveInterval)
+
         # setup tray icon
         self.trayIcon = QSystemTrayIcon(self)
         self.trayIcon.activated.connect(self.on_trayIcon_activated)
@@ -206,10 +213,6 @@ class MainWindow(DlgUtils, QMainWindow):
             lambda hide: self.setVisible(not hide))
         self.trayIcon.setContextMenu(self.trayMenu)
 
-        self.statusLabel = QLabel('', self, pixmap=QPixmap(':/disconnected'),
-                                  margin=5, minimumSize=QSize(30, 10))
-        self.toolBarMain.addWidget(self.statusLabel)
-
         # help window
         self.helpWindow = None
         # watchdog window
@@ -218,6 +221,14 @@ class MainWindow(DlgUtils, QMainWindow):
         self.pnpWindows = {}
 
         # create initial state
+        self._init_toolbar()
+
+    def _init_toolbar(self):
+        self.statusLabel = QLabel('', self, pixmap=QPixmap(':/disconnected'),
+                                  margin=5, minimumSize=QSize(30, 10))
+
+        self.toolbar = self.toolBarMain
+        self.toolbar.addWidget(self.statusLabel)
         self.setStatus('disconnected')
 
     def addPanel(self, panel, always=True):
@@ -306,7 +317,7 @@ class MainWindow(DlgUtils, QMainWindow):
     def initDataReaders(self):
         try:
             # just import to register all default readers
-            # pylint: disable=unused-import, unused-variable
+            # pylint: disable=unused-import
             import nicos.devices.datasinks
         except ImportError:
             pass
@@ -331,10 +342,19 @@ class MainWindow(DlgUtils, QMainWindow):
                 self._reconnect_time = self.client.RECONNECT_INTERVAL_LONG
             self.client.connect(self.conndata)
 
+    def _keepalive(self):
+        if self.client.isconnected:
+            self.client.ask('keepalive')
+
     def show(self):
         QMainWindow.show(self)
         if self.autoconnect and not self.client.isconnected:
             self.on_actionConnect_triggered(True)
+        if sys.platform == 'darwin':
+            # on Mac OS loadBasicWindowSettings seems not to work before show()
+            # so we do it here again
+            with self.sgroup as settings:
+                loadBasicWindowSettings(self, settings)
 
     def startup(self):
         self.show()
@@ -345,11 +365,11 @@ class MainWindow(DlgUtils, QMainWindow):
 
         self.connpresets = {}
         # new setting key, with dictionary values
-        for (k, v) in iteritems(settings.value('connpresets_new', {})):
+        for (k, v) in settings.value('connpresets_new', {}).items():
             self.connpresets[k] = ConnectionData(**v)
         # if it was empty, try old setting key with list values
         if not self.connpresets:
-            for (k, v) in iteritems(settings.value('connpresets', {})):
+            for (k, v) in settings.value('connpresets', {}).items():
                 self.connpresets[k] = ConnectionData(
                     host=v[0], port=int(v[1]), user=v[2], password=None)
         self.lastpreset = settings.value('lastpreset', '')
@@ -368,11 +388,11 @@ class MainWindow(DlgUtils, QMainWindow):
 
     def loadAuxWindows(self, settings):
         open_wintypes = settings.value('auxwindows') or []
-        if isinstance(open_wintypes, text_type):
+        if isinstance(open_wintypes, str):
             open_wintypes = [int(w) for w in open_wintypes.split(',')]
 
         for wtype in open_wintypes:
-            if isinstance(wtype, text_type):
+            if isinstance(wtype, str):
                 wtype = int(wtype)
             self.createWindow(wtype)
 
@@ -413,7 +433,7 @@ class MainWindow(DlgUtils, QMainWindow):
             with panel.sgroup as settings:
                 panel.saveSettings(settings)
 
-        for window in listvalues(self.windows):
+        for window in list(self.windows.values()):
             if not window.close():
                 event.ignore()
                 return

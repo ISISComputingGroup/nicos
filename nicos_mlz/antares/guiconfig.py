@@ -36,14 +36,12 @@ windows = [
     window('Errors', 'errors',
            panel('nicos.clients.gui.panels.errors.ErrorPanel')),
     window('Live data', 'live',
-           panel('nicos.clients.gui.panels.liveqwt.LiveDataPanel',
-                 instrument = 'imaging')),
+           panel('nicos.clients.gui.panels.live.ImagingLiveDataPanel',
+                 filetypes=['fits'],)),
 ]
 
 tools = [
     tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
-         receiver='f.carsughi@fz-juelich.de',
-         mailserver='smtp.frm2.tum.de',
          sender='antares@frm2.tum.de',
     ),
     tool('Calculator', 'nicos.clients.gui.tools.calculator.CalculatorTool'),

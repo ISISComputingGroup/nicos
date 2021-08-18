@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,16 +24,13 @@
 
 """Detector switcher for KWS."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.core import MASTER, SIMULATION, Attach, ConfigurationError, \
     DeviceMixinBase, HasLimits, Moveable, MoveError, Override, Param, dictof, \
-    dictwith, multiReset, multiStop, oneof, status
+    dictwith, multiReset, multiStop, none_or, oneof, status
 from nicos.devices.abstract import MappedMoveable
 from nicos.devices.generic.sequence import BaseSequencer, SeqDev, SeqSleep, \
     SequencerMixin
 from nicos.devices.tango import Motor as TangoMotor
-from nicos.pycompat import iteritems
 from nicos.utils import num_sort
 
 
@@ -42,8 +39,9 @@ class oneof_detector(oneof):
         try:
             return oneof.__call__(self, val)
         except ValueError:
-            raise ValueError('preset %r does not exist for the current '
-                             'selector setting' % val)
+            raise ValueError(
+                'preset %r does not exist for the current selector setting' %
+                val) from None
 
 
 class DetectorPosSwitcherMixin(DeviceMixinBase):
@@ -81,7 +79,8 @@ class DetectorPosSwitcher(DetectorPosSwitcherMixin, SequencerMixin,
         'mapkey':     Param('Last selector position for mapping',
                             type=str, settable=True, internal=True),
         'beamstopsettlepos': Param('Settling position for beamstop y axis',
-                                   settable=True, default=400),
+                                   type=none_or(float), settable=True,
+                                   default=400),
     }
 
     parameter_overrides = {
@@ -91,8 +90,8 @@ class DetectorPosSwitcher(DetectorPosSwitcherMixin, SequencerMixin,
 
     def doInit(self, mode):
         # check that an offset is defined for each z distance
-        for _selpos, selpresets in iteritems(self.presets):
-            for _pname, preset in iteritems(selpresets):
+        for _selpos, selpresets in self.presets.items():
+            for _pname, preset in selpresets.items():
                 if preset['z'] not in self.offsets:
                     raise ConfigurationError(
                         self, 'no detector offset found in configuration '
@@ -126,15 +125,18 @@ class DetectorPosSwitcher(DetectorPosSwitcherMixin, SequencerMixin,
                 raise MoveError(self, 'Cannot start device, sequence is still '
                                       'running (at %s)!' % self._seq_status[1])
 
+        det_z = self._attached_det_z
         seq = []
         seq.append(SeqDev(self._attached_bs_y, pos[1], stoppable=True))
         seq.append(SeqDev(self._attached_bs_x, pos[0], stoppable=True))
-        seq.append(SeqDev(self._attached_det_z, pos[2], stoppable=True))
+        seq.append(SeqDev(det_z, pos[2], stoppable=True))
 
         # if z has to move, reposition beamstop y afterwards by going to
         # some other value (damping vibrations) and back
-        if abs(self._attached_det_z.read(0) - pos[2]) > self._attached_det_z.precision:
-            seq.append(SeqDev(self._attached_bs_y, self.beamstopsettlepos, stoppable=True))
+        if self.beamstopsettlepos is not None and \
+           abs(det_z.read(0) - pos[2]) > det_z.precision:
+            seq.append(SeqDev(self._attached_bs_y, self.beamstopsettlepos,
+                              stoppable=True))
             seq.append(SeqSleep(30))
             seq.append(SeqDev(self._attached_bs_y, pos[1], stoppable=True))
 
@@ -148,7 +150,7 @@ class DetectorPosSwitcher(DetectorPosSwitcherMixin, SequencerMixin,
         def eq(posname, val):
             return abs(pos[posname][0] - val) <= pos[posname][1]
 
-        for name, values in iteritems(self.mapping):
+        for name, values in self.mapping.items():
             if eq('det_z', values[2]) and eq('bs_x', values[0]) and \
                eq('bs_y', values[1]):
                 return name

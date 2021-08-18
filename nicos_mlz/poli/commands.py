@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """Module with specific commands for POLI."""
 
-from __future__ import absolute_import, division, print_function
-
 import csv
 import math
 import subprocess
@@ -45,8 +43,7 @@ from nicos.core.scan import CONTINUE_EXCEPTIONS, SKIP_EXCEPTIONS, Scan
 from nicos.core.spm import Bare, spmsyntax
 from nicos.devices.sxtal.instrument import SXTalBase
 from nicos.devices.sxtal.xtal.orientation import orient
-from nicos.pycompat import iteritems, number_types, string_types
-from nicos.utils import createSubprocess, printTable
+from nicos.utils import createSubprocess, number_types, printTable
 
 __all__ = [
     'lubricate_liftingctr',
@@ -223,7 +220,7 @@ def centerpeak(*args, **kwargs):
                 fit_center, fit_ampl, _fit_fwhm, fit_bkgd = params
                 if math.isnan(fit_center) or \
                    not (minvalue <= fit_center <= maxvalue) or \
-                   fit_ampl < fit_bkgd:
+                   fit_ampl < 0.5 * fit_bkgd:
                     maw(dev, center)
                     session.log.error('Gaussian peak too small, or center '
                                       'outside scanning area')
@@ -376,17 +373,19 @@ def _getQ(v, name):
         else:
             raise TypeError
     except TypeError:
-        raise UsageError('%s must be a sequence of (h, k, l)' % name)
+        raise UsageError('%s must be a sequence of (h, k, l)' % name) from None
 
 
 def _handleQScanArgs(args, kwargs, Q, dQ, scaninfo):
-    preset, detlist, envlist, move, multistep = {}, [], None, [], []
+    preset, detlist, envlist, move, multistep = {}, None, None, [], []
     for arg in args:
-        if isinstance(arg, string_types):
+        if isinstance(arg, str):
             scaninfo = arg + ' - ' + scaninfo
         elif isinstance(arg, number_types):
             preset['t'] = arg
         elif isinstance(arg, Measurable):
+            if detlist is None:
+                detlist = []
             detlist.append(arg)
         elif isinstance(arg, Readable):
             if envlist is None:
@@ -394,7 +393,7 @@ def _handleQScanArgs(args, kwargs, Q, dQ, scaninfo):
             envlist.append(arg)
         else:
             raise UsageError('unsupported qscan argument: %r' % arg)
-    for key, value in iteritems(kwargs):
+    for key, value in kwargs.items():
         if key == 'h' or key == 'H':
             Q[0] = value
         elif key == 'k' or key == 'K':
@@ -606,9 +605,9 @@ def PosListShow(listname='default'):
             '' if calcpos is None else '%.3f' % R2D(calcpos.nu),
         ))
     printTable(('pos#',
-                u'γ', u'ω', u'ν', u'I', u'σ(I)',
+                'γ', 'ω', 'ν', 'I', 'σ(I)',
                 'h', 'k', 'l',
-                u'γ_calc', u'ω_calc', u'ν_calc'),
+                'γ_calc', 'ω_calc', 'ν_calc'),
                items, session.log.info, rjust=True)
 
 
@@ -616,7 +615,7 @@ def _add_to_pos_list(pos, intensity, args):
     listname = 'default'
     sigma = hkl = None
     for arg in args:
-        if isinstance(arg, string_types):
+        if isinstance(arg, str):
             listname = arg
         elif isinstance(arg, number_types):
             sigma = arg
@@ -736,7 +735,7 @@ def IndexPeaks(max_deviation=0.2, listname='default'):
     If you want to manually run Indexus, you can use the generated input files
     as a template.
     """
-    if isinstance(max_deviation, string_types):
+    if isinstance(max_deviation, str):
         listname = max_deviation
         max_deviation = 0.2
     sample = session.experiment.sample
@@ -760,7 +759,7 @@ def IndexPeaks(max_deviation=0.2, listname='default'):
 
     # write input file for Indexus
     root = session.experiment.samplepath
-    with open(path.join(root, 'indexus.txt'), 'w') as fp:
+    with open(path.join(root, 'indexus.txt'), 'w', encoding='utf-8') as fp:
         fp.write('''\
 poli                             ! instrument
 n                                ! extended output
@@ -774,7 +773,7 @@ n                                ! extended output
 .0 .1 -1.0 1.0                   ! offset nu, step, low and high limits
 ''' % params)
     R2D = math.degrees
-    with open(path.join(root, 'angles.txt'), 'w') as fp:
+    with open(path.join(root, 'angles.txt'), 'w', encoding='utf-8') as fp:
         fp.write('   gamma    omega       nu        I     sigI\n')
         for pos, _hkl, (intensity, sigma) in posl:
             fp.write('%8.3f %8.3f %8.3f %8.2f %8.2f\n' % (
@@ -784,7 +783,7 @@ n                                ! extended output
     proc = createSubprocess(['indexus'], cwd=root, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT)
     output = proc.communicate()[0]
-    if 'unable to find solution' in output:
+    if b'unable to find solution' in output:
         session.log.warning('Indexus could not find a solution.')
         IndexPeaks._last_result = None
         return
@@ -796,7 +795,7 @@ n                                ! extended output
     dgamma = 0.
     dnu = 0.
     chi2 = 0.
-    with open(path.join(root, 'indexus.lis'), 'r') as fp:
+    with open(path.join(root, 'indexus.lis'), 'r', encoding='utf-8') as fp:
         lines = iter(fp)
         for line in lines:
             if line.startswith(' best combination:'):
@@ -819,7 +818,7 @@ n                                ! extended output
                     peaks.append([float(ix) for ix in cols[:3]])
                     table.append([str(i)] + cols)
                 break
-    printTable(('pos#', 'h', 'k', 'l', u'γ', u'ω', u'ν', u'I', u'σ(I)'),
+    printTable(('pos#', 'h', 'k', 'l', 'γ', 'ω', 'ν', 'I', 'σ(I)'),
                table, session.log.info, rjust=True)
 
     # calculate UB matrix from "best combination" of two peaks
@@ -832,7 +831,7 @@ n                                ! extended output
     IndexPeaks._last_result = (new_cell.rmat.T, (dgamma, dnu), listname, peaks)
     session.log.info('Using (%.4g %.4g %.4g) and (%.4g %.4g %.4g) to calculate'
                      ' UB matrix:', *(tuple(hkl1) + tuple(hkl2)))
-    for row in new_cell.rmat.T:
+    for row in new_cell.rmat.T:  # pylint: disable=not-an-iterable
         session.log.info(' %8.4f %8.4f %8.4f', *row)
     session.log.info('')
     session.log.info('Fit quality χ²: %8.4f', chi2)
@@ -935,7 +934,7 @@ def GenDataset(name, hmax, kmax, lmax, uniq=False, kvector=None):
             kvectors = [array(k) for k in kvectors]
         except Exception:
             raise UsageError('kvector needs to be a HKL vector or a list '
-                             'of HKL vectors')
+                             'of HKL vectors') from None
 
         new_hkls = []
         for hkl in hkls:
@@ -972,7 +971,7 @@ def GenDataset(name, hmax, kmax, lmax, uniq=False, kvector=None):
                      len(all_pos), len(hkls))
 
     fullpath = path.join(root, name + '.csv')
-    with open(fullpath, 'w') as fp:
+    with open(fullpath, 'w', encoding='utf-8') as fp:
         writer = csv.writer(fp)
         writer.writerow(['h', 'k', 'l', 'gamma', 'omega', 'nu', 'width'])
         for row in all_pos:
@@ -1010,7 +1009,7 @@ def ScanDataset(name, speed=None, timedelta=None, start=1, cont=True):
     session.log.info('Reading reflection list from %s.', fullpath)
 
     all_pos = []
-    with open(fullpath, 'r') as fp:
+    with open(fullpath, 'r', encoding='utf-8') as fp:
         reader = csv.reader(fp)
         for row in reader:
             if row[0] == 'h':
@@ -1053,10 +1052,7 @@ def ScanDataset(name, speed=None, timedelta=None, start=1, cont=True):
             # if abs(cur_om - om1) > abs(cur_om - om2):
             #     om1, om2 = om2, om1
             umin, umax = instr._attached_omega.userlimits
-            if om1 < umin:
-                om1 = umin
-            if om1 > umax:
-                om1 = umax
+            om1 = min(max(om1, umin), umax)
             try:
                 maw(instr._attached_gamma, calc['gamma'],
                     instr._attached_nu, calc['nu'],
@@ -1131,32 +1127,32 @@ def RefineMatrix(listname='default', **kwds):
 
     session.log.info('')
     session.log.info('Cell parameters:')
-    session.log.info(u'Initial:    a = %8.4f   b = %8.4f   c = %8.4f   '
-                     u'α = %7.3f   β = %7.3f   γ = %7.3f',
+    session.log.info('Initial:    a = %8.4f   b = %8.4f   c = %8.4f   '
+                     'α = %7.3f   β = %7.3f   γ = %7.3f',
                      *sample.cell.cellparams())
-    session.log.info(u'Final:      a = %8.4f   b = %8.4f   c = %8.4f   '
-                     u'α = %7.3f   β = %7.3f   γ = %7.3f',
+    session.log.info('Final:      a = %8.4f   b = %8.4f   c = %8.4f   '
+                     'α = %7.3f   β = %7.3f   γ = %7.3f',
                      p.a, p.b, p.c, p.alpha, p.beta, p.gamma)
-    session.log.info(u'Errors: +/-     %8.4f       %8.4f       %8.4f   '
-                     u'    %7.3f       %7.3f       %7.3f',
+    session.log.info('Errors: +/-     %8.4f       %8.4f       %8.4f   '
+                     '    %7.3f       %7.3f       %7.3f',
                      p.errors['a'], p.errors['b'], p.errors['c'],
                      p.errors['alpha'], p.errors['beta'], p.errors['gamma'])
 
     session.log.info('')
-    session.log.info(u'Initial:    λ = %8.4f   Δγ = %7.3f   Δν = %7.3f',
+    session.log.info('Initial:    λ = %8.4f   Δγ = %7.3f   Δν = %7.3f',
                      init_lambda, *init_offsets)
-    session.log.info(u'Final:      λ = %8.4f   Δγ = %7.3f   Δν = %7.3f',
+    session.log.info('Final:      λ = %8.4f   Δγ = %7.3f   Δν = %7.3f',
                      p.wavelength, p.delta_gamma, p.delta_nu)
-    session.log.info(u'Errors: +/-     %8.4f        %7.3f        %7.3f',
+    session.log.info('Errors: +/-     %8.4f        %7.3f        %7.3f',
                      p.errors['wavelength'], p.errors['delta_gamma'],
                      p.errors['delta_nu'])
 
     session.log.info('')
-    session.log.info(u'Reduced χ² (χ²/NDF): %8.4f', p.chi2)
+    session.log.info('Reduced χ² (χ²/NDF): %8.4f', p.chi2)
 
     session.log.info('')
     session.log.info('New UB matrix:')
-    for row in new_cell.rmat.T:
+    for row in new_cell.rmat.T:  # pylint: disable=not-an-iterable
         session.log.info(' %8.4f %8.4f %8.4f', *row)
 
     session.log.info('')

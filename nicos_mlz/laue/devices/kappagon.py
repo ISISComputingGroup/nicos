@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,8 +29,6 @@ main purposes:
  * handle dynamic limits
  * coord conversions
 """
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import Attach
 from nicos.core.device import Moveable
@@ -70,8 +68,8 @@ class KappaGon(IsController, Moveable):
     def isAdevTargetAllowed(self, adev, adevtarget):
         if adev == self._adevs['phi']:
             return True, 'Position allowed'  # phi can move freely
-# for better visual indent
-# pylint: disable=bad-indentation
+        # for better visual indent
+        # pylint: disable=bad-indentation
         if adev == self._adevs['kappa']:
             if (-45 < self._adevs['omega'].target < 135 or
                 135 < self._adevs['omega'].target < 255):
@@ -81,12 +79,12 @@ class KappaGon(IsController, Moveable):
                         return False, ' -10 < kappa < 10 for this omega position'
 
         if adev == self._adevs['omega']:
-            if (self._adevs['ttheta'].target - adevtarget < 45):
+            if self._adevs['ttheta'].target - adevtarget < 45:
                     return False, 'Omega too close to two-theta'
             else:
                     return True, 'Position OK'
         if adev == self._adevs['ttheta']:
-            if (adevtarget - self._adevs['omega'].target < 45):
+            if adevtarget - self._adevs['omega'].target < 45:
                     return False, 'Omega too close to two-theta'
             else:
                     return True, 'Position OK'

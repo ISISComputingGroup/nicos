@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 #   Björn Pedersen <bjoern.pedersen@frm2.tum.de>
 #
 # *****************************************************************************
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import USER, Param, User, listof
 from nicos.services.daemon.auth import AuthenticationError, \
@@ -70,12 +68,13 @@ class Authenticator(BaseAuthenticator):
             raise AuthenticationError('No username, please identify yourself!')
         # check for exact match (also matches empty password if username
         # matches)
-        pw = nicoskeystore.getCredential(username, domain=self.userdomain)
-        if pw is None:
+        password_ks = nicoskeystore.getCredential(username,
+                                                  domain=self.userdomain)
+        if password_ks is None:
             raise AuthenticationError('Invalid username or password!')
         for (user, level) in self.access:
             if user == username:
-                if pw == password:
+                if password_ks == password:
                     if password == '' and level > USER:  # pylint: disable=compare-to-empty-string
                         level = USER  # limit passwordless entries to USER
                     return User(username, level)

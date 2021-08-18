@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,13 +24,11 @@
 
 """NICOS tests for the watchdog condition primitives."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.services.watchdog.conditions import DelayedTrigger, Expression, \
     Precondition
 
 
-class DummyLog(object):
+class DummyLog:
     def __init__(self):
         self.warnings = []
 
@@ -69,6 +67,23 @@ def test_expression():
     assert not expr.log.warnings
     expr.update(0, {'a': 1, 'b': None})
     assert expr.log.warnings
+
+
+def test_expired():
+    expr = Expression(DummyLog(), 'a and b', '')
+
+    # no values: not triggered, not expired
+    assert not expr.triggered
+    assert not expr.is_expired(0)
+
+    expr.update(0, {'a': 1})
+    # expires after 6 seconds
+    assert not expr.is_expired(5)
+    assert expr.is_expired(10)
+
+    # needs to be still expired, not all values given
+    expr.update(12, {'a': 1})
+    assert expr.is_expired(12)
 
 
 def test_delayed():

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 # *****************************************************************************
 
 """IFF sample database sink and its handler."""
-
-from __future__ import absolute_import, division, print_function
 
 from base64 import b64encode
 from os import path
@@ -79,6 +77,7 @@ class DataSinkHandler(BaseDataSinkHandler):
             json={
                 'action_id': MEASUREMENT_ACTION_ID[
                     session.instrument.name.lower()],
+                # TODO: implement instrument specific 'data'?
                 'data': {
                     'name': {
                         'text': '{}-{:d}'.format(
@@ -172,7 +171,7 @@ class DataSinkHandler(BaseDataSinkHandler):
                     json={
                         'storage': 'local',
                         'original_file_name': self.dataset.filenames[0],
-                        'base64_content': b64encode(mf.read()).decode('utf8'),
+                        'base64_content': b64encode(mf.read()).decode(),
                     },
                 )
                 if r.status_code != POST_REQUEST_OK:

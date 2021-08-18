@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """Parameter definition helpers and typechecking combinators."""
 
-from __future__ import absolute_import, division, print_function
-
 import copy
 import re
 from os import path
@@ -33,8 +31,7 @@ from os import path
 import numpy as np
 
 from nicos.core.errors import ConfigurationError, ProgrammingError
-from nicos.pycompat import iteritems, string_types, text_type
-from nicos.utils import parseHostPort, readonlydict, readonlylist
+from nicos.utils import decodeAny, parseHostPort, readonlydict, readonlylist
 
 INFO_CATEGORIES = [
     ('experiment', 'Experiment information'),
@@ -50,7 +47,7 @@ INFO_CATEGORIES = [
 ]
 
 
-class Param(object):
+class Param:
     """This class defines the properties of a device parameter.
 
     The `.Device.parameters` attribute contains a mapping of parameter names to
@@ -129,8 +126,8 @@ class Param(object):
     def __init__(self, description, type=float, default=_notset,
                  mandatory=False, settable=False, volatile=False,
                  unit=None, fmtstr='%r', category=None, preinit=False,
-                 prefercache=None, userparam=None, internal=False, chatty=False,
-                 no_sim_restore=False, ext_desc=''):
+                 prefercache=None, userparam=None, internal=False,
+                 chatty=False, no_sim_restore=False, ext_desc=''):
         self.type = fixup_conv(type)
         if default is self._notset:
             default = type()
@@ -156,7 +153,7 @@ class Param(object):
                                    "exclusively.")
 
         if userparam is None:  # implicit settings
-            self.userparam = False if self.internal else True
+            self.userparam = not self.internal
         else:
             self.userparam = userparam
 
@@ -203,7 +200,7 @@ class Param(object):
         return txt
 
 
-class Override(object):
+class Override:
     """This class defines the overridden properties of a base class parameter.
 
     The `.Device.parameter_overrides` attribute contains a mapping of parameter
@@ -234,7 +231,7 @@ class Override(object):
         return newinfo
 
 
-class Attach(object):
+class Attach:
     """Specifies required properties of the attached dev(s) of an device class.
 
     The `.Device.attached_devices` attribute contains a mapping of internal
@@ -339,7 +336,7 @@ class Attach(object):
             # the boolean 'True' value
             if self.multiple is True:
                 return count > 0
-            return (count in multiple)
+            return count in multiple
 
         if configargs:
             if isinstance(configargs, (tuple, list)):
@@ -400,10 +397,10 @@ class Attach(object):
         return s + ')'
 
 
-class Value(object):
+class Value:
     """This class defines the properties of the "value" read from `.Readable`
-    and `.Measurable` classes.  Their ``.valueInfo()`` method must return a tuple
-    of instances of this class.
+    and `.Measurable` classes.  Their ``.valueInfo()`` method must return a
+    tuple of instances of this class.
 
     * The *name* parameter is the name of the value.  By convention, if only
       one value is returned, this is the name of the device.  Otherwise, if the
@@ -455,7 +452,7 @@ class Value(object):
         return Value(self.name, self.type, self.errors, self.unit, self.fmtstr)
 
 
-class ArrayDesc(object):
+class ArrayDesc:
     """Defines the properties of an array detector result.
 
     An array type consists of these attributes:
@@ -506,8 +503,8 @@ def convdoc(conv):
 def fixup_conv(conv):
     """Fix-up a single converter type.
 
-    Currently this converts "str" to "string" which is a version that supports
-    Unicode strings by encoding to str on Python 2.
+    This changes `str` to `string`, a converter that decodes bytes instead of
+    converting them using `repr`.
     """
     if conv is str:
         return string
@@ -518,16 +515,13 @@ def string(s=None):
     """a string"""
     if s is None:
         return ''
-    try:
-        return str(s)
-    except UnicodeError:
-        # on Python 2, this converts Unicode to our preferred encoding
-        if isinstance(s, text_type):
-            return s.encode('utf-8')
-        raise
+    if isinstance(s, bytes):
+        # str(s) would result in the string "b'...'"
+        return decodeAny(s)
+    return str(s)
 
 
-class listof(object):
+class listof:
 
     def __init__(self, conv):
         self.__doc__ = 'a list of %s' % convdoc(conv)
@@ -539,10 +533,10 @@ class listof(object):
         val = val if val is not None else []
         if not isinstance(val, (list, tuple)):
             raise ValueError('value needs to be a list')
-        return readonlylist(map(self.conv, val))  # pylint: disable=map-builtin-not-iterating
+        return readonlylist(map(self.conv, val))
 
 
-class nonemptylistof(object):
+class nonemptylistof:
 
     def __init__(self, conv):
         self.__doc__ = 'a non-empty list of %s' % convdoc(conv)
@@ -553,7 +547,7 @@ class nonemptylistof(object):
             return readonlylist([self.conv()])
         if not isinstance(val, (list, tuple)) or len(val) < 1:
             raise ValueError('value needs to be a nonempty list')
-        return readonlylist(map(self.conv, val))  # pylint: disable=map-builtin-not-iterating
+        return readonlylist(map(self.conv, val))
 
 
 def nonemptystring(s=Ellipsis):
@@ -561,12 +555,12 @@ def nonemptystring(s=Ellipsis):
     if s is Ellipsis:
         # used for setting the internal default if no default is given
         return None
-    if not (s and isinstance(s, string_types) ):
+    if not (s and isinstance(s, str)):
         raise ValueError('must be a non-empty string!')
     return s
 
 
-class tupleof(object):
+class tupleof:
 
     def __init__(self, *types):
         if not types:
@@ -595,7 +589,7 @@ def limits(val=None):
     return (ll, ul)
 
 
-class dictof(object):
+class dictof:
 
     def __init__(self, keyconv, valconv):
         self.__doc__ = 'a dict of %s keys and %s values' % \
@@ -608,22 +602,22 @@ class dictof(object):
         if not isinstance(val, dict):
             raise ValueError('value needs to be a dict')
         ret = {}
-        for k, v in iteritems(val):
+        for k, v in val.items():
             ret[self.keyconv(k)] = self.valconv(v)
         return readonlydict(ret)
 
 
-class dictwith(object):
+class dictwith:
 
     def __init__(self, **convs):
         self.__doc__ = 'a dict with the following keys: ' + \
             ', '.join('%s: %s' % (k, convdoc(c)) for k, c in convs.items())
         self.keys = set(convs)
-        self.convs = {k: fixup_conv(conv) for (k, conv) in iteritems(convs)}
+        self.convs = {k: fixup_conv(conv) for (k, conv) in convs.items()}
 
     def __call__(self, val=None):
         if val is None:
-            return {k: conv() for k, conv in iteritems(self.convs)}
+            return {k: conv() for k, conv in self.convs.items()}
         if not isinstance(val, dict):
             raise ValueError('value needs to be a dict')
         vkeys = set(val)
@@ -640,7 +634,7 @@ class dictwith(object):
         return readonlydict(ret)
 
 
-class intrange(object):
+class intrange:
 
     def __init__(self, fr, to):
         if isinstance(fr, bool) or isinstance(to, bool):
@@ -667,7 +661,7 @@ class intrange(object):
         return val
 
 
-class floatrange(object):
+class floatrange:
 
     def __init__(self, fr, to=None):
         fr = float(fr)
@@ -696,7 +690,7 @@ class floatrange(object):
         return val
 
 
-class setof(object):
+class setof:
 
     def __init__(self, *vals):
         self.__doc__ = 'a (sub)set of ' + ', '.join(map(repr, vals))
@@ -712,7 +706,7 @@ class setof(object):
         return val
 
 
-class oneof(object):
+class oneof:
 
     def __init__(self, *vals):
         self.__doc__ = 'one of ' + ', '.join(map(repr, vals))
@@ -729,7 +723,7 @@ class oneof(object):
         return val
 
 
-class oneofdict(object):
+class oneofdict:
 
     def __init__(self, vals):
         self.__doc__ = 'one of ' + ', '.join(map(repr, vals.values()))
@@ -746,18 +740,18 @@ class oneofdict(object):
         return val
 
 
-class oneofdict_or(object):
+class oneofdict_or:
     def __init__(self, named_vals, validator):
         self.conv = fixup_conv(validator)
         self.__doc__ = 'one of ' + ', '.join(map(repr, named_vals)) + \
             ', or ' + self.conv.__doc__
-        self.named_vals = {k: self.conv(v) for (k, v) in iteritems(named_vals)}
+        self.named_vals = {k: self.conv(v) for (k, v) in named_vals.items()}
 
     def __call__(self, val=None):
         return self.conv(self.named_vals.get(val, val))
 
 
-class none_or(object):
+class none_or:
 
     def __init__(self, conv):
         self.__doc__ = 'None or %s' % convdoc(conv)
@@ -776,7 +770,7 @@ def nicosdev(val=None):
     """a valid NICOS device name"""
     if not val:
         return ''
-    val = str(val)
+    val = string(val)
     if not nicosdev_re.match(val):
         raise ValueError('%r is not a valid NICOS device name' % val)
     return val
@@ -789,10 +783,11 @@ def tacodev(val=None):
     """a valid taco device"""
     if val in ('', None):
         return ''
-    val = str(val)
+    val = string(val)
     if not tacodev_re.match(val):
         raise ValueError('%r is not a valid Taco device name' % val)
     return val
+
 
 # allow only tango device names according tango spec
 # http://www.esrf.eu/computing/cs/tango/tango_doc/kernel_doc/ds_prog/node13.html
@@ -807,12 +802,13 @@ def tangodev(val=None):
     """a valid tango device"""
     if val in ('', None):
         return ''
-    val = str(val)
+    val = string(val)
     if not val.startswith('tango://'):
         raise ValueError('%r should start with "tango://"' % val)
     if not tangodev_re.match(val):
         raise ValueError('%r is not a valid Tango device name' % val)
     return val
+
 
 # Valid characters for PV-names are documented in the EPICS base manual:
 #   http://www.aps.anl.gov/epics/base/R3-15/3-docs/AppDevGuide/node7.html
@@ -824,7 +820,7 @@ def pvname(val=None):
     if val in ('', None):
         return ''
 
-    val = str(val)
+    val = string(val)
     if not pvname_re.match(val):
         raise ValueError('%r is not a valid PV name' % val)
     return val
@@ -844,7 +840,7 @@ def mailaddress(val=None):
     """a valid mail address"""
     if val in ('', None):
         return ''
-    val = text_type(val)
+    val = string(val)
     parts = val.split('@')
     parts[-1] = parts[-1].encode('idna').decode('ascii')
     val = '@'.join(parts)
@@ -858,7 +854,7 @@ def mailaddress(val=None):
 
 def absolute_path(val=path.sep):
     """an absolute file path"""
-    val = str(val)
+    val = string(val)
     if path.isabs(val):
         return val
     raise ValueError('%r is not a valid absolute path (should start with %r)' %
@@ -867,7 +863,7 @@ def absolute_path(val=path.sep):
 
 def relative_path(val=''):
     """a relative path, may not use ../../.. tricks"""
-    val = path.normpath(str(val))
+    val = path.normpath(string(val))
     if path.isabs(val):
         raise ValueError('%r is not a valid relative path (should NOT start '
                          'with %r)' % (val, path.sep))
@@ -884,7 +880,7 @@ def expanded_path(val=''):
 
 def subdir(val=''):
     """a relative subdir (a string NOT containing any path.sep)"""
-    val = str(val)
+    val = string(val)
     for sep in [path.sep, '\\', '/']:
         if sep in val:
             raise ValueError('%r is not a valid subdirectory (contains a %r)' %
@@ -905,6 +901,7 @@ def vec3(val=None):
         raise ValueError('value needs to be a 3-element vector')
     return readonlylist(ret)
 
+
 ipv4_re = re.compile(
     r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
     r'(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
@@ -915,14 +912,14 @@ def ipv4(val='0.0.0.0'):
     """a IP v4 address"""
     if val in ('', None):
         return ''
-    val = str(val)
+    val = string(val)
     res = ipv4_re.match(val)
     if not res or res.group() != res.string:
         raise ValueError('%r is not a valid IPv4 address' % val)
     return val
 
 
-class host(object):
+class host:
     """Validator for a host[:port] value.
 
     Optionally, defaulthost and/or defaultport can be specified.
@@ -942,7 +939,7 @@ class host(object):
             if not 0 < p < 65536:
                 raise ValueError
         except ValueError:
-            raise ValueError('The port is not a valid port number')
+            raise ValueError('The port is not a valid port number') from None
         return p
 
     def _addDefaults(self, host, port=None):
@@ -957,7 +954,7 @@ class host(object):
             else:
                 raise ValueError('A None host is not allowed '
                                  'without defaulthost')
-        if not isinstance(val, string_types + (tuple, list)):
+        if not isinstance(val, (str, tuple, list)):
             raise ValueError('must be a string or tuple/list (host, port)!')
         if not val:
             return self._addDefaults('')
@@ -965,7 +962,8 @@ class host(object):
         try:
             host, port = parseHostPort(val, self.defaultport, True)
         except ValueError:
-            raise ValueError('%r is not in the form host_name[:port]' % (val,))
+            raise ValueError(
+                '%r is not in the form host_name[:port]' % val) from None
         if not host:
             raise ValueError('Empty hostname is not allowed')
         return self._addDefaults(host, port)

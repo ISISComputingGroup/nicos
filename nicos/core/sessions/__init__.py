@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -30,8 +30,7 @@ the NICOS runtime.
 Only for internal usage by functions and methods.
 """
 
-from __future__ import absolute_import, division, print_function
-
+import builtins
 import copy
 import inspect
 import logging
@@ -39,6 +38,7 @@ import os
 import stat
 import sys
 from os import path
+from shutil import which
 from time import sleep, time as currenttime
 
 import numpy
@@ -61,15 +61,13 @@ from nicos.devices.cacheclient import CacheClient, CacheLockError, \
 from nicos.devices.instrument import Instrument
 from nicos.devices.notifiers import Notifier
 from nicos.protocols.cache import FLAG_NO_STORE
-from nicos.pycompat import builtins, exec_, iteritems, itervalues, \
-    listvalues, string_types
 from nicos.utils import fixupScript, formatArgs, formatDocstring, \
-    formatScriptError, which
+    formatScriptError
 from nicos.utils.loggers import ColoredConsoleHandler, NicosLogfileHandler, \
-    NicosLogger, initLoggers
+    NicosLogger, get_facility_log_handlers, initLoggers
 
 
-class Session(object):
+class Session:
     """The Session class provides all low-level routines needed for NICOS
     operations and keeps the global state: devices, configuration, loggers.
 
@@ -102,12 +100,18 @@ class Session(object):
         self.sessionid = makeSessionId()
         # contains all created device objects
         self.devices = {}
+        # contains names of failed devices, mapped to error strings
+        self.device_failures = {}
         # maps lower-cased device names to actual-cased device names
         self.device_case_map = {}
         # contains the name of all explicitly created devices
         self.explicit_devices = set()
         # contains the configuration for all configured devices
         self.configured_devices = {}
+        # dict[dynamic device name] of setup name (see getSetupInfo())
+        self.dynamic_devices = {}
+        # cache for getSyncDb
+        self.simulation_db = None
         # contains the name of all loaded modules with user commands
         self.user_modules = set()
         # contains all loaded setups
@@ -218,7 +222,7 @@ class Session(object):
                     cache.lock('master', cache._mastertimeout)
                 except CacheLockError as err:
                     raise ModeError('another master is already active: %s' %
-                                    sessionInfo(err.locked_by))
+                                    sessionInfo(err.locked_by)) from err
                 else:
                     cache._ismaster = True
                 # put version info into cache
@@ -251,7 +255,7 @@ class Session(object):
         # switch mode, taking care to switch "higher level" devices before
         # "lower level" (because higher level devices may need attached devices
         # still working in order to read out their last value)
-        devs = listvalues(self.devices)
+        devs = list(self.devices.values())
         switched = set()
         while devs:
             for dev in devs[:]:
@@ -276,6 +280,22 @@ class Session(object):
     def spMode(self):
         return self._spmode
 
+    def getSyncDb(self):
+        """get cache values for simulation
+
+        may be called while loading setups
+        cache the result, as it may be called several times
+        """
+        if self.simulation_db is None:
+            client = SyncCacheClient('Syncer',
+                                     cache=self.current_sysconfig['cache'],
+                                     prefix='nicos/', lowlevel=True)
+            try:
+                self.simulation_db = client.get_values()
+            finally:
+                client.doShutdown()
+        return self.simulation_db
+
     def simulationSync(self, db=None):
         """Synchronize device values and parameters from current cached values.
         """
@@ -284,13 +304,7 @@ class Session(object):
         if not self.current_sysconfig.get('cache'):
             raise NicosError('no cache is configured')
         if db is None:
-            client = SyncCacheClient('Syncer',
-                                     cache=self.current_sysconfig['cache'],
-                                     prefix='nicos/', lowlevel=True)
-            try:
-                db = client.get_values()
-            finally:
-                client.doShutdown()
+            db = self.getSyncDb()
         self._simulationSync_applyValues(db)
 
     def _simulationSync_applyValues(self, db):
@@ -298,16 +312,17 @@ class Session(object):
         if setups is not None and set(setups) != set(self.explicit_setups):
             self.unloadSetup()
             self.loadSetup(setups)
+        self.simulation_db = None  # clear cache for getSyncDb
         # set alias parameter first, needed to set parameters on alias devices
-        for devname, dev in iteritems(self.devices):
+        for devname, dev in self.devices.items():
             aliaskey = '%s/alias' % devname.lower()
             if isinstance(dev, DeviceAlias) and aliaskey in db:
                 dev.alias = db[aliaskey]
         # cache keys are always lowercase, while device names can be mixed,
         # so we build a map once to get fast lookup
-        lowerdevs = {d.name.lower(): d for d in itervalues(self.devices)}
+        lowerdevs = {d.name.lower(): d for d in self.devices.values()}
         umethods_to_call = []
-        for key, value in iteritems(db):
+        for key, value in db.items():
             if key.count('/') != 1:
                 continue
             dev, param = key.split('/')
@@ -454,7 +469,18 @@ class Session(object):
         If a setup file could not be read or parsed, the value for that key is
         ``None``.
         """
-        return self._setup_info.copy()
+        result = self._setup_info.copy()
+        # include also dynamically created devices
+        dyninfo = {}  # keep track of setups with dynamically created devices
+        # be careful: copy each modified dict
+        for devname, setupname in self.dynamic_devices.items():
+            devcfg = self.configured_devices.get(devname)
+            if devcfg:
+                if setupname not in dyninfo:
+                    info = result[setupname] = result[setupname].copy()
+                    dyninfo[setupname] = info['devices'] = info['devices'].copy()
+                dyninfo[setupname][devname] = devcfg
+        return result
 
     def readSetups(self):
         """Refresh the session's setup info."""
@@ -526,7 +552,7 @@ class Session(object):
         if not self._setup_info:
             self.readSetups()
 
-        if isinstance(setupnames, string_types):
+        if isinstance(setupnames, str):
             setupnames = [setupnames]
         else:
             setupnames = list(setupnames)
@@ -562,7 +588,7 @@ class Session(object):
             except Exception as err:
                 self.log.error("Exception importing '%s': %s", modname, err)
                 return
-            for name, command in iteritems(mod.__dict__):
+            for name, command in mod.__dict__.items():
                 if getattr(command, 'is_usercommand', False):
                     if name.startswith('_') and command.__name__ != name:
                         # it's a usercommand, but imported under a different
@@ -573,7 +599,7 @@ class Session(object):
                     self.export(name, command)
 
         def merge_sysconfig(old, new):
-            for key, value in iteritems(new):
+            for key, value in new.items():
                 if key == 'datasinks':
                     if not isinstance(value, list):
                         raise ConfigurationError("sysconfig entry '%s' must be"
@@ -625,7 +651,7 @@ class Session(object):
             self.configured_devices.update(info['devices'])
 
             merge_sysconfig(sysconfig, info['sysconfig'])
-            devlist.update(iteritems(info['devices']))
+            devlist.update(info['devices'].items())
             startupcode.append(info['startupcode'])
 
             for aliasname, targets in info['alias_config'].items():
@@ -671,7 +697,7 @@ class Session(object):
                 # make sure we process all initial keys
                 self.cache.waitForStartup(1)
                 # update cached cache device on all existing devices
-                for dev in itervalues(self.devices):
+                for dev in self.devices.values():
                     dev._cache = dev._getCache()
 
         self.storeSysInfo()
@@ -681,7 +707,7 @@ class Session(object):
             autocreate_devices = self.autocreate_devices
         if autocreate_devices:
             self.log.debug('autocreating devices...')
-            for devname, (_, devconfig) in sorted(iteritems(devlist)):
+            for devname, (_, devconfig) in sorted(devlist.items()):
                 try:
                     lowlevel = devconfig.get('lowlevel', False)
                     self.createDevice(devname, explicit=not lowlevel)
@@ -723,7 +749,7 @@ class Session(object):
                     try:
                         self.log.debug('executing startup code: %r', code)
                         # no local_namespace here
-                        exec_(code, self.namespace)
+                        exec(code, self.namespace)
                     except Exception:
                         self.log.exception('error running startup code, '
                                            'ignoring')
@@ -758,7 +784,7 @@ class Session(object):
         This shuts down all created devices and clears the NICOS namespace.
         """
         # shutdown according to device dependencies
-        devs = listvalues(self.devices)
+        devs = list(self.devices.values())
         already_shutdown = set()
 
         # outer loop: as long as there are devices...
@@ -786,11 +812,14 @@ class Session(object):
                 raise NicosError('Deadlock detected! Session.unloadSetup '
                                  "failed on these devices: '%s'" % devs)
 
+        already_shutdown.update(self.device_failures)
         self.deviceCallback('destroy', list(already_shutdown))
         self.setupCallback([], [])
         self.devices.clear()
+        self.device_failures.clear()
         self.device_case_map.clear()
         self.configured_devices.clear()
+        self.dynamic_devices.clear()
         self.explicit_devices.clear()
         for name in list(self._exported_names):
             self.unexport(name, warn=False)
@@ -851,7 +880,7 @@ class Session(object):
 
     def applyAliasConfig(self, new_config, prev_config):
         """Apply the desired aliases from self.alias_config."""
-        for aliasname, targets in iteritems(new_config):
+        for aliasname, targets in new_config.items():
             if aliasname not in self.devices:
                 # complain about this; setups should make sure that the device
                 # exists when configuring it
@@ -876,8 +905,8 @@ class Session(object):
                 self.log.warning("none of the desired targets for alias '%s' "
                                  'actually exist', aliasname)
 
-    def handleInitialSetup(self, setup, mode=SLAVE):
-        """Determine which setup to load, and try to become master.
+    def handleInitialSetup(self, setup, mode=SLAVE, switch_master=True):
+        """Determine which setup to load, and try to become master if wanted.
 
         Called by sessions during startup.
         """
@@ -891,14 +920,15 @@ class Session(object):
         if mode == MAINTENANCE:
             self.setMode(MAINTENANCE)
         elif mode == SLAVE:
-            # Try to become master if the setup didn't already switch modes.
-            try:
-                self.setMode(MASTER)
-            except ModeError:
-                self.log.info('could not enter master mode; remaining slave',
-                              exc=True)
-            except Exception:
-                self.log.warning('could not enter master mode', exc=True)
+            if switch_master:
+                # Try to become master if the setup didn't already switch modes.
+                try:
+                    self.setMode(MASTER)
+                except ModeError:
+                    self.log.info('could not enter master mode; remaining slave',
+                                  exc=True)
+                except Exception:
+                    self.log.warning('could not enter master mode', exc=True)
             if setup not in ('startup', ['startup']) or not self.cache:
                 return
             # If we became master, the user didn't select a specific startup
@@ -960,7 +990,7 @@ class Session(object):
         Can be overwritten in a derived session to provide other means of
         displaying help.
         """
-        if isinstance(obj, string_types):
+        if isinstance(obj, str):
             if obj in self.devices:
                 return self.showHelp(self.devices[obj])
             elif obj in self.namespace:
@@ -1017,6 +1047,10 @@ class Session(object):
         """Mark the end of a multi-create."""
         self._multi_level -= 1
         if not self._multi_level:
+            if self._failed_devices:
+                failures = {name: str(err)
+                            for (name, err) in self._failed_devices.items()}
+                self.deviceCallback('failed', failures)
             self._failed_devices = None
             self.deviceCallback('create', self._success_devices)
             self._success_devices = None
@@ -1033,7 +1067,7 @@ class Session(object):
         *replace_classes* can be used to replace configured device classes.
         If given, it is a tuple of ``(old_class, new_class, new_devconfig)``.
         """
-        if isinstance(dev, string_types):
+        if isinstance(dev, str):
             if dev in self.devices:
                 dev = self.devices[dev]
             elif dev in self.configured_devices:
@@ -1076,7 +1110,7 @@ class Session(object):
             devcls = self._nicos_import(modname, clsname)
         except (ImportError, AttributeError) as err:
             raise ConfigurationError("failed to import device class '%s': %s"
-                                     % (devclsname, err))
+                                     % (devclsname, err)) from err
         if not isinstance(devcls, DeviceMeta):
             raise ConfigurationError("configured device class '%s' is not a "
                                      'Device or derived class' % devclsname)
@@ -1100,7 +1134,7 @@ class Session(object):
             raise self._failed_devices[devname]
         if devname not in self.configured_devices:
             found_in = []
-            for sname, info in iteritems(self._setup_info):
+            for sname, info in self._setup_info.items():
                 if info is None:
                     continue
                 if devname in info['devices']:
@@ -1120,20 +1154,24 @@ class Session(object):
                 return self.devices[devname]
             self.destroyDevice(devname)
 
-        devcls, devconfig = self.importDevice(devname, replace_classes)
-        if 'description' in devconfig:
-            self.log.info("creating device '%s' (%s)... ",
-                          devname, devconfig['description'])
-        else:
-            self.log.info("creating device '%s'... ", devname)
-
         try:
+            devcls, devconfig = self.importDevice(devname, replace_classes)
+            if 'description' in devconfig:
+                self.log.info("creating device '%s' (%s)... ",
+                              devname, devconfig['description'])
+            else:
+                self.log.info("creating device '%s'... ", devname)
+
             dev = devcls(devname, **devconfig)
             self.log.debug("device '%s' created", devname)
         except Exception as err:
             if self._failed_devices is not None:
                 self._failed_devices[devname] = err
+            else:
+                self.deviceCallback('failed', {devname: str(err)})
+            self.device_failures[devname] = str(err)
             raise
+        self.device_failures.pop(devname, None)
         if self._success_devices is not None:
             self._success_devices.append(devname)
         else:
@@ -1145,6 +1183,7 @@ class Session(object):
 
     def destroyDevice(self, devname):
         """Shutdown a device and remove it from the list of created devices."""
+        self.device_failures.pop(devname, None)
         if devname not in self.devices:
             self.log.warning("device '%s' not created", devname)
             return
@@ -1250,7 +1289,7 @@ class Session(object):
         self.log = NicosLogger('nicos')
         self.log.setLevel(logging.INFO)
         self.log.parent = None
-        if console:
+        if console and sys.stdout:
             self.log.addHandler(ColoredConsoleHandler())
         self._master_handler = None
         if logfile:
@@ -1265,8 +1304,12 @@ class Session(object):
                     self.log.addHandler(self._master_handler)
                 else:
                     self.log.addHandler(NicosLogfileHandler(log_path, prefix))
-            except (IOError, OSError) as err:
+            except OSError as err:
                 self.log.error('cannot open log file: %s', err)
+
+        # add the facility-specific log handlers, if implemented and configured
+        for handler in get_facility_log_handlers(config):
+            self.log.addHandler(handler)
 
     def getLogger(self, name):
         """Return a new NICOS logger for the specified device name."""
@@ -1300,7 +1343,7 @@ class Session(object):
                 exc_info[1].device.log.error(exc_info=exc_info)
                 return
         if cut_frames:
-            etype, evalue, tb = exc_info  # pylint: disable=W0633
+            etype, evalue, tb = exc_info
             while cut_frames:
                 tb = tb.tb_next
                 cut_frames -= 1
@@ -1423,33 +1466,30 @@ class Session(object):
 
     # -- Session-specific behavior --------------------------------------------
 
-    def updateLiveData(self, tag, uid, detector, filename, dtype, nx, ny, nt,
-                       time, data):
+    def updateLiveData(self, parameters, databuffers, labelbuffers=None):
         """Send new live data to clients.
 
-        The parameters are:
+        parameters:
 
-        * tag - a string describing the type of data that is sent.  It is used
-          by clients to determine if they can display this data.
-        * uid - a unique id for the corresponding data point.
-        * detector - name of the detector device.
-        * filename - list of filenames displayed for cached data.
-        * dtype - a string describing the data array in numpy style, if it is
-          in array format.
-        * nx, ny, nt - three lists of integers giving the dimensions of the data
-          arrays,
-          if it is in array format.
-        * time - the current measurement time, for determining count rate.
-        * data - the actual data as a list of byte strings.
+          * tag - a string describing the type of data that is sent.  It is
+            used by clients to determine if they can display this data.
+          * uid - a unique id for the corresponding data point.
+          * detector - name of the detector device.
+          * time - the current measurement time, for determining count rate.
+          * datadescs - list of data descriptions
+
+        databuffers:  list of the actual data as memoryviews
+
+        labelbuffers: list of label data, if custom labels are provided.
         """
 
-    def notifyDataFile(self, tag, uid, detector, filename_or_filenames):
+    def notifyDataFile(self, ftype, uid, detector, filename_or_filenames):
         """Notify clients that a new data file has been written, which might
         be viewed by live-data views.
 
         The parameters are:
 
-        * tag - a string describing the type of data saved.  It is used
+        * ftype - a string describing the type of data saved.  It is used
           by clients to determine if they can open/display this data.
         * uid - a unique id for the corresponding data point.
         * detector - name of the detector device.

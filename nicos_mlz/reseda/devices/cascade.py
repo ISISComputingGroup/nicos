@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,15 +25,14 @@
 
 """Class for CASCADE detector measurement and readout."""
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 
-from nicos.core import ArrayDesc, Override, Param, Value, intrange, listof, \
-    oneof, tupleof, ConfigurationError, SIMULATION
+from nicos.core import SIMULATION, ArrayDesc, ConfigurationError, Override, \
+    Param, Value, intrange, listof, oneof, tupleof
 from nicos.core.data import GzipFile
-from nicos.devices.datasinks.raw import SingleRawImageSink
-from nicos.devices.tango import ImageChannel
+from nicos.devices.datasinks.raw import SingleRawImageFileReader, \
+    SingleRawImageSink, SingleRawImageSinkHandler
+from nicos.devices.tango import BaseImageChannel
 from nicos.protocols.cache import FLAG_NO_STORE
 from nicos.utils.fitting import curve_fit
 
@@ -54,7 +53,9 @@ def fit_a_sin(x, y):
         return avg + avg * contrast * np.sin(freq * x + phase)
     try:
         popt = startpar
+        # pylint: disable=unbalanced-tuple-unpacking
         popt, pcov = curve_fit(model_sin, x, y, startpar, np.sqrt(np.abs(y)))
+        # pylint: enable=unbalanced-tuple-unpacking
         perr = np.sqrt(abs(np.diagonal(pcov)))
         return popt, perr, ''
     except Exception as e:
@@ -79,14 +80,16 @@ def fit_a_sin_fixed_freq(x, y):
     def model_sin(x, avg, contrast, phase):
         return avg + avg * contrast * np.sin(freq * x + phase)
     try:
+        # pylint: disable=unbalanced-tuple-unpacking
         popt, pcov = curve_fit(model_sin, x, y, startpar, np.sqrt(np.abs(y)))
+        # pylint: enable=unbalanced-tuple-unpacking
         perr = np.sqrt(abs(np.diagonal(pcov)))
         return [popt[0], popt[1], freq, popt[2]], [perr[0], perr[1], 0, perr[2]], ''
     except Exception as e:
         return popt, perr, 'Error during fit: %s' % e
 
 
-class CascadeDetector(ImageChannel):
+class CascadeDetector(BaseImageChannel):
     """Detector channel for the CASCADE-MIEZE detector.
 
     Controls the detector via a connection to a Tango server.
@@ -95,16 +98,16 @@ class CascadeDetector(ImageChannel):
     parameters = {
         'mode':         Param('Data acquisition mode (tof or image)',
                               type=oneof('tof', 'image'), settable=True,
-                              volatile=True),
+                              volatile=True, category='presets'),
         'roi':          Param('Region of interest, given as (x1, y1, x2, y2)',
                               type=tupleof(int, int, int, int),
                               default=(-1, -1, -1, -1), settable=True),
         'tofchannels':  Param('Total number of TOF channels to use', type=int,
-                              default=128, settable=True),
+                              default=128, settable=True, category='presets'),
         'foilsorder':   Param('Usable foils, ordered by number. Must match the '
                               'number of foils configured in the server!',
                               type=listof(intrange(0, 31)), settable=False,
-                              mandatory=True),
+                              mandatory=True, category='instrument'),
         'fitfoil':      Param('Foil for contrast fitting (number BEFORE resorting)',
                               type=int, default=0, settable=True),
     }
@@ -140,7 +143,7 @@ class CascadeDetector(ImageChannel):
     _perfoil = 16
 
     def doPreinit(self, mode):
-        ImageChannel.doPreinit(self, mode)
+        BaseImageChannel.doPreinit(self, mode)
         if mode != SIMULATION:
             if self._getProperty('compact_readout') != 'True':
                 raise ConfigurationError(self, 'server must be set to '
@@ -269,6 +272,11 @@ class CascadeDetector(ImageChannel):
         return data
 
 
+class CascadePadSinkHandler(SingleRawImageSinkHandler):
+
+    filetype = 'pad'
+
+
 class CascadePadSink(SingleRawImageSink):
 
     parameter_overrides = {
@@ -276,8 +284,15 @@ class CascadePadSink(SingleRawImageSink):
                                      settable=False),
     }
 
+    handlerclass = CascadePadSinkHandler
+
     def isActiveForArray(self, arraydesc):
         return len(arraydesc.shape) == 2
+
+
+class CascadeTofSinkHandler(SingleRawImageSinkHandler):
+
+    filetype = 'tof'
 
 
 class CascadeTofSink(SingleRawImageSink):
@@ -289,5 +304,14 @@ class CascadeTofSink(SingleRawImageSink):
 
     fileclass = GzipFile
 
+    handlerclass = CascadeTofSinkHandler
+
     def isActiveForArray(self, arraydesc):
         return len(arraydesc.shape) == 3
+
+
+class CascadeImageReader(SingleRawImageFileReader):
+    filetypes = [
+        ('pad', 'PAD Image File (*.pad)'),
+        ('tof', 'TOF Image File (*.tof)'),
+    ]

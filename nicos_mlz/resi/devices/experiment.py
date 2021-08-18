@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,16 +26,12 @@
 NICOS Resi Experiment.
 """
 
-from __future__ import absolute_import, division, print_function
-
 import os
 from os import path
 
 from nicos.core import Param, UsageError
 from nicos.devices.experiment import Experiment
 from nicos.utils import disableDirectory
-
-from nicos_mlz.devices.proposaldb import queryCycle
 
 
 class ResiExperiment(Experiment):
@@ -81,14 +77,7 @@ class ResiExperiment(Experiment):
             os.unlink(self.proposalsymlink)
 
         # query new cycle
-        if 'cycle' not in kwds:
-            try:
-                cycle, _started = queryCycle()
-                kwds['cycle'] = cycle
-            except Exception:
-                self.log.warning('cannot query reactor cycle, please give a '
-                                 '"cycle" keyword to this function')
-        self.cycle = kwds['cycle']
+        self.cycle = kwds.get('cycle', 'unknown')
 
         # checks are done, set the new experiment
         Experiment.new(self, proposal, title)
@@ -111,7 +100,6 @@ class ResiExperiment(Experiment):
 
     def _handleTemplates(self, proposal, kwds):
         """hhm"""
-        pass
 
     def finish(self):
         pass

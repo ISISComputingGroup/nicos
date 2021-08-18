@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Helpers for commandlets for KWS(-1)."""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.guisupport import typedvalue
 from nicos.guisupport.qt import QCheckBox, QComboBox, QHBoxLayout, QLineEdit, \
@@ -90,7 +88,10 @@ class ChoiceElement(MeasElement):
     def createWidget(self, parent, client):
         if self.CACHE_KEY:
             values = client.getDeviceParam(*self.CACHE_KEY.split('/'))
-            values = sorted(values or [], key=self.SORT_KEY)
+            try:
+                values = sorted(values or [], key=self.SORT_KEY)
+            except TypeError:  # unsortable?
+                pass
         else:
             values = self.VALUES
         self._values = values
@@ -191,7 +192,7 @@ class Chopper(MeasElement):
 
     CACHE_KEY = 'chopper/resolutions'
     SORT_KEY = lambda self, x: num_sort(x)
-    LABEL = u'TOF dλ/λ'
+    LABEL = 'TOF dλ/λ'
 
     def createWidget(self, parent, client):
         resos = client.getDeviceParam(*self.CACHE_KEY.split('/'))

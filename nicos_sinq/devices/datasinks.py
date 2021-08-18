@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,16 +19,19 @@
 #
 # Module authors:
 #   Nikhil Biyani <nikhil.biyani@psi.ch>
+#   Mark Koennecke <mark.koennecke@psi.ch>
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
+import socket
 from os import path
 
 from nicos import session
-from nicos.core import SIMULATION, Override
+from nicos.core import SIMULATION, Attach, DataSink, DataSinkHandler, \
+    Override, Param
 from nicos.core.errors import ProgrammingError
+from nicos.devices.generic.manual import ManualSwitch
+from nicos.nexus.nexussink import NexusSink
 from nicos.utils import readFileCounter, updateFileCounter
 
 from nicos_ess.devices.datasinks.nexussink import NexusFileWriterSink, \
@@ -111,12 +114,85 @@ class SinqNexusFileSinkHandler(NexusFileWriterSinkHandler):
 
 
 class SinqNexusFileSink(NexusFileWriterSink):
-    parameter_overrides = {
-        'subdir': Override(volatile=True),
-    }
+    parameter_overrides = {'subdir': Override(volatile=True), }
 
     handlerclass = SinqNexusFileSinkHandler
 
     def doReadSubdir(self):
         counter = session.experiment.sicscounter
         return ('%3s' % int(counter / 1000)).replace(' ', '0')
+
+
+class QuieckHandler(DataSinkHandler):
+    _startdataset = None
+
+    def begin(self):
+        DataSinkHandler.begin(self)
+        if not self._startdataset:
+            self._startdataset = self.dataset
+
+    def end(self):
+        DataSinkHandler.end(self)
+        if self.dataset == self._startdataset and \
+                len(self._startdataset.filepaths) > 0:
+            message = 'QUIECK/' + self._startdataset.filepaths[0]
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as socke:
+                    socke.sendto(message.encode(),
+                                 (self.sink.host, self.sink.port))
+            except Exception:
+                # In no event shall the failure to send this message break
+                # something
+                pass
+            self._startdataset = None
+            self.sink.end()
+
+
+class QuieckSink(DataSink):
+    """
+    A simple DataSink which sends a UDP message at a specified port
+    when a file is closed. At SINQ, there is a separate Java server which
+    listens to these messages and initiates the synchronisation of data
+    files from the local disk to backuped network storage.
+
+    NICOS created a datasink for every intermediate dataset. This class
+    contains logic that in a scan, a handler is created only for the
+    first datset received.
+    """
+
+    parameters = {
+        'port': Param('Port to which UDP Messages are sent', type=int,
+                      default=2108),
+        'host': Param('Host to which to send messages', type=str,
+                      default='127.0.0.1'), }
+
+    handlerclass = QuieckHandler
+    _handlerObj = None
+
+    def createHandlers(self, dataset):
+        if not self._handlerObj:
+            self._handlerObj = self.handlerclass(self, dataset, None)
+        else:
+            self._handlerObj.dataset = dataset
+        return [self._handlerObj]
+
+    def end(self):
+        self._handlerObj = None
+
+
+class SwitchableNexusSink(NexusSink):
+    """"
+    This allows file writing to be switched on/off through a ManualSwitch
+    """
+    attached_devices = {
+        'file_switch': Attach('Switch for switching file writing on/off',
+                              ManualSwitch),
+    }
+
+    def createHandlers(self, dataset):
+        if self._attached_file_switch.read(0) == 'on':
+            return NexusSink.createHandlers(self, dataset)
+        else:
+            session.log.warning(
+                'NeXus file writing suppressed on user request')
+            return []

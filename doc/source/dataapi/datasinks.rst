@@ -1,3 +1,5 @@
+.. _data_sinks:
+
 Data sinks
 ==========
 
@@ -11,14 +13,8 @@ class implements, how the data should be written.
    :members:
 
 .. autoclass:: DataSinkHandler
-
-   .. automethod:: prepare
-   .. automethod:: begin
-   .. automethod:: putMetainfo
-   .. automethod:: putValues
-   .. automethod:: putResults
-   .. automethod:: end
-   .. automethod:: addSubset
+   :members:
+   :member-order: bysource
 
 .. autoclass:: DataFileBase
 

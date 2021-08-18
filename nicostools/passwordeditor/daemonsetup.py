@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,18 +23,16 @@
 # *****************************************************************************
 """Classes to handle the setup files."""
 
-from __future__ import absolute_import, division, print_function
-
 import redbaron
 
 
-class DaemonSetup(object):
+class DaemonSetup:
     """Class to handle the daemon setup file."""
 
     def __init__(self, filename):
         self._filename = filename
 
-        with open(filename) as f:
+        with open(filename, encoding='utf-8') as f:
             self.setup = redbaron.RedBaron(f.read())
 
         # search for the list authenticator entries
@@ -105,12 +103,12 @@ class DaemonSetup(object):
                 # check if is it a hashlib call
                 if redbaron.RedBaron(pwhash):
                     fmtstr = '(%r, %s, %r)'
-            except:  # pylint: disable=bare-except
+            except Exception:
                 pass
             pwentry = fmtstr % (user, pwhash, role)
             self.passwd.value.append(pwentry)
 
     def save(self):
         """Write the setup content to file."""
-        with open(self._filename, 'w') as f:
+        with open(self._filename, 'w', encoding='utf-8') as f:
             f.write(self.setup.dumps())

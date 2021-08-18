@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,12 +24,10 @@
 
 """Devices for the Refsans VSD."""
 
-from __future__ import absolute_import, division, print_function
-
 import struct
 
-from nicos.core import SIMULATION, Attach, Override, Param, Readable, dictof, \
-    oneof, requires, status, usermethod
+from nicos.core import ADMIN, SIMULATION, Attach, Override, Param, Readable, \
+    dictof, oneof, requires, status, usermethod
 from nicos.devices.tango import PyTangoDevice
 
 
@@ -93,14 +91,14 @@ class VSDIO(PyTangoDevice, Readable):
         value = struct.unpack('<2H', struct.pack('=I', value))
         self._dev.WriteOutputWords(tuple([self.address + addr]) + value)
 
-    @requires(level='admin')
+    @requires(level=ADMIN)
     def _load_factory(self):
-        #QAD should be
+        # QAD should be
         # pwd([0xFFFF,2])
         # write('kommando',[0xFFFF,2])
-        #see Nicos old
-        self._dev.WriteOutputWords((12338,25759,245))
-        self._dev.WriteOutputWords((12340,65535,2))
+        # see Nicos old
+        self._dev.WriteOutputWords((12338, 25759, 245))
+        self._dev.WriteOutputWords((12340, 65535, 2))
         ACK = self._dev.ReadOutputWord(12363)
         NAK = self._dev.ReadOutputWord(12364)
         self.log.info('_load_factory %d %d', ACK, NAK)

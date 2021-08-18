@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,16 +21,14 @@
 #   Georg Brandl <georg.brandl@frm2.tum.de>
 #
 # *****************************************************************************
+
 """Simulation session with support for ZeroMQ messaging."""
-
-
-from __future__ import absolute_import, division, print_function
 
 import logging
 import os
+import pickle
 import sys
 import tempfile
-import time
 from os import path
 from threading import Thread
 from time import sleep
@@ -43,7 +41,6 @@ from nicos.core.errors import NicosError
 from nicos.core.sessions import Session
 from nicos.core.sessions.utils import LoggingStdout
 from nicos.core.utils import User
-from nicos.pycompat import cPickle as pickle, exec_, iteritems
 from nicos.services.daemon.script import parseScript
 from nicos.utils import createSubprocess
 from nicos.utils.loggers import ACTION, SimDebugHandler, recordToMessage
@@ -84,7 +81,7 @@ class SimLogSender(logging.Handler):
         from nicos.core.device import DeviceAlias
         # Collect information on timing and range of all devices
         self.starttime = self.session.clock.time
-        for devname, dev in iteritems(self.session.devices):
+        for devname, dev in self.session.devices.items():
             if isinstance(dev, DeviceAlias):
                 self.aliases.append(devname)
             elif isinstance(dev, Readable):
@@ -139,7 +136,12 @@ class SimulationSession(Session):
     sessiontype = SIMULATION
 
     def begin_setup(self):
-        self.log_sender.level = logging.ERROR  # log only errors before code starts
+        # log only errors before code starts
+        self.log_sender.level = logging.ERROR
+
+    def clientExec(self, func, args):
+        # just ignore these requests, they are not vital to the measurement
+        pass
 
     @classmethod
     def run(cls, sock, uuid, setups, user, code, quiet=False, debug=False):
@@ -175,7 +177,7 @@ class SimulationSession(Session):
         session.log.info('setting up dry run...')
         session.begin_setup()
         # Handle "print" statements in the script.
-        sys.stdout = LoggingStdout(sys.stdout)
+        sys.stdout = LoggingStdout()
 
         try:
             # Initialize the session in simulation mode.
@@ -193,7 +195,7 @@ class SimulationSession(Session):
 
             # Set session to always abort on errors.
             session.experiment.errorbehavior = 'abort'
-        except:  # really *all* exceptions -- pylint: disable=W0702
+        except BaseException:
             session.log.exception('Exception in dry run setup')
             session.log_sender.finish()
             session.shutdown()
@@ -207,13 +209,13 @@ class SimulationSession(Session):
             last_clock = session.clock.time
             code, _ = parseScript(code)
             for i, c in enumerate(code):
-                exec_(c, session.namespace)
+                exec(c, session.namespace)
                 time = session.clock.time - last_clock
                 last_clock = session.clock.time
                 session.log_sender.send_block_result(i, time)
         except Abort:
             session.log.info('Dry run finished by abort()')
-        except:  # pylint: disable=W0702
+        except BaseException:
             session.log.exception('Exception in dry run')
             exception = True
         else:
@@ -249,14 +251,14 @@ class SimulationSupervisor(Thread):
 
     def __init__(self, sandbox, uuid, code, setups, user, emitter,
                  more_args=None, quiet=False):
-        Thread.__init__(self, target=self._target,
+        Thread.__init__(self, target=self._run,
                         name='SimulationSupervisor',
                         args=(sandbox, uuid, code, setups, user, emitter,
                               more_args or [], quiet))
         # "daemonize this thread" attribute, not referring to the NICOS daemon.
         self.daemon = True
 
-    def _target(self, sandbox, uuid, code, setups, user, emitter, args, quiet):
+    def _run(self, sandbox, uuid, code, setups, user, emitter, args, quiet):
         socket = nicos_zmq_ctx.socket(zmq.DEALER)
         poller = zmq.Poller()
         poller.register(socket, zmq.POLLIN)
@@ -333,16 +335,10 @@ class SimulationSupervisor(Thread):
                 break
         # wait for the process, but only for 5 seconds after the result
         # has arrived
-        wait_start = time.time()
         try:
-            # Python 3.x has a timeout argument for poll()...
-            while time.time() < wait_start + 5:
-                if proc.poll() is not None:
-                    break
-            else:
-                raise Exception('did not terminate within 5 seconds')
-        except Exception:
-            session.log.exception('Error waiting for dry run process')
+            proc.wait(5)
+        except TimeoutError:
+            raise Exception('did not terminate within 5 seconds') from None
         if sandbox:
             try:
                 os.rmdir(rootdir)

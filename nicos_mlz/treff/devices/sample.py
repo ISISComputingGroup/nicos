@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,16 +19,32 @@
 #
 # Module authors:
 #   Jens Krüger <jens.krueger@frm2.tum.de>
+#   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
 
 """TREFF mirror sample device."""
 
-from __future__ import absolute_import, division, print_function
+import glob
+from os import path
 
-from nicos.core import Param
-from nicos.core.params import floatrange, none_or
+from nicos import config
+from nicos.core import Param, oneof
+from nicos.core.params import floatrange
 from nicos.devices.sample import Sample
+
+# get paths for rflfiles (*.rfl)
+rfldir_paths = [
+    path.join(config.setup_package_path, p.strip(), 'rflfiles')
+    for p in config.setup_subdirs.split(',')
+]
+
+rfl_files = []
+for p in rfldir_paths:
+    rfl_files.extend(glob.glob(path.join(p, '*.rfl')))
+
+# map filenames to full-qualified path, later definitions overwrite earlier ones
+rfl_filenames = dict((path.basename(p), p) for p in rfl_files)
 
 
 class MirrorSample(Sample):
@@ -53,9 +69,12 @@ class MirrorSample(Sample):
                           type=floatrange(0), settable=True, userparam=True,
                           unit='deg', default=0.01),
         'rflfile': Param('Reflectivity file',
-                         type=none_or(str), settable=True, userparam=True,
-                         default=''),
+                         type=oneof(None, *rfl_filenames), settable=True,
+                         userparam=True, default=None),
     }
+
+    def getReflectivityFile(self):
+        return rfl_filenames.get(self.rflfile, None)
 
     def _applyParams(self, number, parameters):
         """Apply sample parameters.

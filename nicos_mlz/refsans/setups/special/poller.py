@@ -1,12 +1,12 @@
 description = 'setup for the poller'
 group = 'special'
 
-sysconfig = dict(cache = 'refsansctrl.refsans.frm2.tum.de')
+sysconfig = dict(cache = 'localhost')
 
 devices = dict(
     Poller = device('nicos.services.poller.Poller',
         alwayspoll = ['memograph'],
-        neverpoll = ['qmesydaq'],
+        neverpoll = [],  # 'qmesydaq'],
         blacklist = []
     ),
 )

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,14 +24,10 @@
 
 """Utilities for uploading files to a ftp-server."""
 
-from __future__ import absolute_import, division, print_function
-
 import time
 from ftplib import FTP
 from hashlib import md5
 from os import path
-
-from nicos.pycompat import to_utf8
 
 #
 # hard-coded constants
@@ -52,7 +48,7 @@ def ftpUpload(filename, logger=None):
     returns a http download link for download purposes.
     """
     # we like to obscure the data at least a little bit.
-    subdir = md5(to_utf8(filename + str(time.time()))).hexdigest()
+    subdir = md5((filename + str(time.time())).encode()).hexdigest()
     basename = path.basename(filename)
 
     try:

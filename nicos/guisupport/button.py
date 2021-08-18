@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,14 +22,11 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import ast
 
 from nicos.guisupport.led import ClickableOutputLed
 from nicos.guisupport.qt import Qt
 from nicos.guisupport.widget import PropDef
-from nicos.pycompat import string_types
 
 
 class PushButton(ClickableOutputLed):
@@ -74,7 +71,7 @@ class SinglePushButton(PushButton):
         PushButton.propertyUpdated(self, pname, value)
 
         if pname == 'toState':
-            if isinstance(value, string_types):
+            if isinstance(value, str):
                 self._stateTo = value
             else:
                 self._stateTo = ast.literal_eval(value) if value else 1

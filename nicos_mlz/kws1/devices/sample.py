@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,12 +24,9 @@
 
 """KWS sample object."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos import session
 from nicos.core import ConfigurationError, Param, anytype, dictof, multiWait, \
     tupleof
-from nicos.pycompat import iteritems
 
 from nicos_mlz.devices.sample import Sample
 
@@ -87,7 +84,7 @@ class KWSSample(Sample):
             ap.opmode = 'offcentered'  # to be sure
             ap.move(self.aperture)
             waitdevs.append(ap)
-        for devname, devpos in iteritems(self.position):
+        for devname, devpos in self.position.items():
             dev = session.getDevice(devname)
             dev.move(devpos)
             waitdevs.append(dev)

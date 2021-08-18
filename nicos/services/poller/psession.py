@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Session class used with the NICOS poller."""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import POLLER, Device, DeviceAlias, Override
 from nicos.core.sessions.simple import NoninteractiveSession
@@ -79,7 +77,13 @@ class PollerSession(NoninteractiveSession):
     cache_class = PollerCacheClient
     sessiontype = POLLER
 
-    # pylint: disable=W0102
+    @classmethod
+    def _notify_systemd(cls, appname, msg):
+        # can only notify systemd from the main poller process
+        if appname == 'poller':
+            NoninteractiveSession._notify_systemd(appname, msg)
+
+    # pylint: disable=dangerous-default-value
     def getDevice(self, dev, cls=None, source=None,
                   replace_classes=[(DeviceAlias, PollerCacheReader, {})]):
         """Override device creation for the poller.

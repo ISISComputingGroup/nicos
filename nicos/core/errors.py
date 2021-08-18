@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,10 +23,6 @@
 # *****************************************************************************
 
 """Exception classes for usage in NICOS."""
-
-from __future__ import absolute_import, division, print_function
-
-from nicos.pycompat import string_types
 
 
 class NicosError(Exception):
@@ -54,7 +50,7 @@ class NicosError(Exception):
         if nargs:
             if args[0] is None:
                 del args[0]
-            elif not isinstance(args[0], string_types):
+            elif not isinstance(args[0], str):
                 self.device = args[0]
                 prefix = '[%s] ' % args[0].name
                 if nargs > 1 and args[1].startswith(prefix):

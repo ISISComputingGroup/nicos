@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,7 @@
 
 """KWS file format saver"""
 
-from __future__ import absolute_import, division, print_function
-
+from io import TextIOWrapper
 from os import path
 from time import localtime, strftime
 
@@ -104,7 +103,7 @@ Selector Monitor_1 Monitor_2 Monitor_3
 
 class KWSFileSinkHandler(SingleFileSinkHandler):
 
-    filetype = 'KWS'
+    filetype = 'kws'
     accept_final_images_only = True
 
     def getDetectorPos(self):
@@ -123,7 +122,8 @@ class KWSFileSinkHandler(SingleFileSinkHandler):
         _collslit = 'aperture_%02d' % session.getDevice('coll_guides').read()
         _exposuretime = session.getDevice('timer').read(0)[0]
 
-        w = fp.write
+        textfp = TextIOWrapper(fp, encoding='utf-8')
+        w = textfp.write
 
         # sample envs
         sample_env = ['Temperature dummy line'] * 4
@@ -193,7 +193,8 @@ class KWSFileSinkHandler(SingleFileSinkHandler):
         if len(image.shape) == 2:
             self._writedet_standard(w, image)
         else:
-            self._writedet_tof(w, image, fp)
+            self._writedet_tof(w, image, textfp)
+        textfp.detach()
 
     def _writedet_standard(self, w, image):
         w('(* Detector Data *)\n')

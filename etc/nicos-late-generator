@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,8 +28,6 @@ service.
 
 All units are then added as dependencies to nicos.target.
 """
-
-from __future__ import print_function
 
 import os
 import socket
@@ -65,8 +63,7 @@ sys.path.insert(0, nicos_root)
 
 def printerr(*args, **kwargs):
     kwargs.pop('file', None)
-    print(*args, file=sys.stderr, **kwargs)
-    sys.stderr.flush()
+    print(*args, file=sys.stderr, flush=True, **kwargs)
 
 
 if path.isfile(_DEFAULT) and 'INSTRUMENT' not in os.environ:
@@ -78,7 +75,7 @@ if path.isfile(_DEFAULT) and 'INSTRUMENT' not in os.environ:
                     if sep:
                         key = key.replace('export', '').strip()
                         os.environ[key] = value.rstrip()
-    except IOError as e:
+    except OSError as e:
         printerr('  ERROR:', e)
         printerr('WARNING: Ignoring defaults in %s.' % _DEFAULT)
 
@@ -95,7 +92,7 @@ def wait_for_hostname():
     while time.time() < timeout:
         try:
             hostname = socket.getfqdn().split('.')[0]
-        except socket.error as err:
+        except OSError as err:
             last_err = err
         if hostname != 'localhost':
             return hostname
@@ -140,7 +137,7 @@ def main():
                 'name': name,
                 'root': config.nicos_root,
                 'proc': procname,
-                'instopt': ' -S ' + instname if instname else '',
+                'instopt': ' -S ' + procname + '-' + instname if instname else '',
                 'depends': depends,
                 'user': config.user or 'root',
                 'group': config.group or 'root',

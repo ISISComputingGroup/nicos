@@ -2,7 +2,8 @@ description = "DoubleSlit [slit k1] between nok6 and nok7"
 
 group = 'lowlevel'
 
-includes = ['nok_ref', 'nokbus3']
+includes = ['nok_ref', 'zz_absoluts']
+
 instrument_values = configdata('instrument.values')
 showcase_values = configdata('cf_showcase.showcase_values')
 optic_values = configdata('cf_optic.optic_values')
@@ -20,14 +21,14 @@ devices = dict(
     zb3r = device(code_base + 'slits.SingleSlit',
         # length: 13.0 mm
         description = 'ZB3 slit, reactor side',
-        motor = 'zb3r_motor',
+        motor = 'zb3r_axis',
         nok_start = 8856.5, # 8837.5,
         nok_end = 8869.5, # 8850.5,
         nok_gap = 1.0,
         masks = {
-            'slit': -0.3,
-            'point': 0,
-            'gisans': -110 * optic_values['gisans_scale'],
+            'slit': -1.8,  # 2021-03-17 16:05:10 TheoMH -0.3,
+            'point': -1.8,  # 2021-03-17 16:05:10 TheoMH -0.3,
+            'gisans': -110.15 * optic_values['gisans_scale'],
         },
         unit = 'mm',
         lowlevel = True,
@@ -35,47 +36,33 @@ devices = dict(
     zb3s = device(code_base + 'slits.SingleSlit',
         # length: 13.0 mm
         description = 'ZB3 slit, sample side',
-        motor = 'zb3s_motor',
+        motor = 'zb3s_axis',
         nok_start = 8856.5, # 8837.5,
         nok_end = 8869.5, # 8850.5,
         nok_gap = 1.0,
         masks = {
-            'slit': 1.7,
-            'point': 0,
-            'gisans': 0,
+            'slit': 0.3,  # 2021-03-17 16:05:10 TheoMH -1.4
+            'point': 0.3,  # 2021-03-17 16:05:10 TheoMH -1.4
+            'gisans': 0.3,  # 2021-03-17 16:05:10 TheoMH -1.4
         },
         unit = 'mm',
         lowlevel = True,
     ),
-    zb3r_motor = device(code_base + 'ipc.NOKMotorIPC',
-        description = 'IPC controlled Motor of ZB3, reactor side',
-        abslimits = (-221.0, 95.0),
-        bus = 'nokbus3',
-        addr = 0x57,
-        slope = 800.0,
-        speed = 50,
-        accel = 50,
-        confbyte = 32,
-        ramptype = 2,
-        microstep = 1,
-        refpos = 72.774,
-        zerosteps = int(677.125 * 800),
-        lowlevel = showcase_values['hide_poti'] and showcase_values['NOreference'],
+    zb3r_axis = device('nicos.devices.generic.Axis',
+        description = 'ZB3 slit, reactor side for backlash',
+        motor = 'zb3r_motor',
+        backlash = -0.5,
+        precision = optic_values['precision_ipcsms'],
+        unit = 'mm',
+        lowlevel = True,
     ),
-    zb3s_motor = device(code_base + 'ipc.NOKMotorIPC',
-        description = 'IPC controlled Motor of ZB3, sample side',
-        abslimits = (-106.0, 113.562),
-        bus = 'nokbus3',
-        addr = 0x58,
-        slope = 800.0,
-        speed = 50,
-        accel = 50,
-        confbyte = 32,
-        ramptype = 2,
-        microstep = 1,
-        refpos = 105.837,
-        zerosteps = int(644.562 * 800),
-        lowlevel = showcase_values['hide_poti'] and showcase_values['NOreference'],
+    zb3s_axis = device('nicos.devices.generic.Axis',
+        description = 'ZB3 slit, sample side for backlash',
+        motor = 'zb3s_motor',
+        backlash = -0.5,
+        precision = optic_values['precision_ipcsms'],
+        unit = 'mm',
+        lowlevel = True,
     ),
     zb3r_acc = device(code_base + 'nok_support.MotorEncoderDifference',
          description = 'calc error Motor and poti',

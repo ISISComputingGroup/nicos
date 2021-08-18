@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,11 +25,8 @@
 """Tree widget for displaying devices/params.
 """
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.guisupport.qt import QTreeWidget, QTreeWidgetItem
 from nicos.guisupport.widget import NicosWidget, PropDef
-from nicos.pycompat import iteritems
 
 
 class BaseDeviceParamTree(QTreeWidget):
@@ -62,8 +59,8 @@ class BaseDeviceParamTree(QTreeWidget):
         devname = item.text(0)
         if self._showparams:
             paraminfo = self.client.getDeviceParamInfo(devname)
-            for param, value in sorted(iteritems(
-                    self.client.getDeviceParams(devname))):
+            for param, value in sorted(
+                    self.client.getDeviceParams(devname).items()):
                 if not self.param_predicate(param, value,
                                             paraminfo.get(param)):
                     continue

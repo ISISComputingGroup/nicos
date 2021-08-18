@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,8 +29,6 @@ Module for utility user commands.
 This module contains utility functions that are of general interest for user
 scripts, e.g different list generators and other helper functions.
 """
-
-from __future__ import absolute_import, division, print_function
 
 import math
 
@@ -126,7 +124,7 @@ def floatrange(start, end, step=None, **kw):
         try:
             num = int(kw.get('num'))
         except TypeError:
-            raise UsageError('Please give either step or num.')
+            raise UsageError('Please give either step or num.') from None
         if num < 2:
             raise UsageError('The number of steps should be greater than 1.')
         return RangeListByCount(start, end, num)
@@ -186,4 +184,4 @@ def RangeListGeneral(start, end, num=10, func=identity, funcinv=None):
         ufuncinv = numpy.frompyfunc(funcinv, 1, 1)
         return ufuncinv(res).astype(numpy.float64).tolist()
     except Exception as e:
-        raise RuntimeError(str(e))
+        raise RuntimeError(str(e)) from e

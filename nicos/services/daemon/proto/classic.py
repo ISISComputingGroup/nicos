@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,19 +24,17 @@
 
 """Implementation of the "classic" daemon protocol: pickling, plain sockets."""
 
-from __future__ import absolute_import, division, print_function
-
+import queue
 import socket
+import socketserver
 import threading
 import time
 import weakref
 
-from nicos.protocols.daemon import DAEMON_EVENTS, CloseConnection, \
-    ProtocolError, Server as BaseServer, \
-    ServerTransport as BaseServerTransport
+from nicos.protocols.daemon import CloseConnection, ProtocolError, \
+    Server as BaseServer, ServerTransport as BaseServerTransport
 from nicos.protocols.daemon.classic import ACK, ENQ, LENGTH, NAK, \
     PROTO_VERSION, READ_BUFSIZE, STX, code2command, event2code
-from nicos.pycompat import get_thread_id, queue, socketserver
 from nicos.services.daemon.handler import ConnectionHandler
 from nicos.utils import closeSocket, createThread
 
@@ -64,12 +62,11 @@ class Server(BaseServer, socketserver.TCPServer):
     def close(self):
         self.server_close()
 
-    def emit(self, event, data, handler=None):
-        if DAEMON_EVENTS[event][0]:
-            data = self.serializer.serialize_event(event, data)
+    def emit(self, event, data, blobs, handler=None):
+        data = self.serializer.serialize_event(event, data)
         for hdlr in (handler,) if handler else self.handlers.values():
             try:
-                hdlr.event_queue.put((event, data), True, 0.1)
+                hdlr.event_queue.put((event, data, blobs), True, 0.1)
             except queue.Full:
                 # close event socket to let the connection get
                 # closed by the handler
@@ -84,7 +81,7 @@ class Server(BaseServer, socketserver.TCPServer):
         # overwritten to support passing client_id to process_request
         try:
             request, client_address = self.get_request()
-        except socket.error:
+        except OSError:
             return
         client_id = self.verify_request(request, client_address)
         if client_id is not None:
@@ -94,7 +91,6 @@ class Server(BaseServer, socketserver.TCPServer):
                 self.handle_error(request, client_address)
                 self.close_request(request)
 
-    # pylint: disable=W0221
     def process_request(self, request, client_address, client_id):
         """Process a "request", that is, a client connection."""
         # mostly copied from ThreadingMixIn but without the import,
@@ -158,12 +154,12 @@ class Server(BaseServer, socketserver.TCPServer):
             self.pending_clients[host, client_id] = handler
             self.handler_ident += 1
             handler.setIdent(self.handler_ident)
-            self.handlers[get_thread_id()] = handler
+            self.handlers[threading.get_ident()] = handler
 
     def unregister_handler(self, ident):
         """Remove a handler from the handlers dictionary."""
         with self.handler_ident_lock:
-            del self.handlers[get_thread_id()]
+            del self.handlers[threading.get_ident()]
 
 
 class ServerTransport(ConnectionHandler, BaseServerTransport,
@@ -243,9 +239,10 @@ class ServerTransport(ConnectionHandler, BaseServerTransport,
             except Exception as err:
                 self.send_error_reply('invalid command or garbled data')
                 raise ProtocolError('recv_command: invalid command or '
-                                    'garbled data')
-        except socket.error as err:
-            raise ProtocolError('recv_command: connection broken (%s)' % err)
+                                    'garbled data') from err
+        except OSError as err:
+            raise ProtocolError('recv_command: connection broken (%s)' %
+                                err) from err
 
     def send_ok_reply(self, payload):
         try:
@@ -254,25 +251,33 @@ class ServerTransport(ConnectionHandler, BaseServerTransport,
             else:
                 try:
                     data = self.serializer.serialize_ok_reply(payload)
-                except Exception as err:
-                    raise ProtocolError('send_ok_reply: could not serialize')
+                except Exception:
+                    raise ProtocolError(
+                        'send_ok_reply: could not serialize') from None
                 self.sock.sendall(STX + LENGTH.pack(len(data)) + data)
-        except socket.error as err:
-            raise ProtocolError('send_ok_reply: connection broken (%s)' % err)
+        except OSError as err:
+            raise ProtocolError('send_ok_reply: connection broken (%s)' %
+                                err) from err
 
     def send_error_reply(self, reason):
         try:
             data = self.serializer.serialize_error_reply(reason)
-        except Exception as err:
-            raise ProtocolError('send_error_reply: could not serialize')
+        except Exception:
+            raise ProtocolError(
+                'send_error_reply: could not serialize') from None
         try:
             self.sock.sendall(NAK + LENGTH.pack(len(data)) + data)
-        except socket.error as err:
-            raise ProtocolError('send_error_reply: connection broken (%s)' % err)
+        except OSError as err:
+            raise ProtocolError('send_error_reply: connection broken (%s)' %
+                                err) from err
 
-    def send_event(self, evtname, payload):
-        # payload is already serialized if necessary!
-        self.event_sock.sendall(STX + event2code[evtname] +
+    def send_event(self, evtname, payload, blobs):
+        self.event_sock.sendall(STX +
+                                event2code[evtname] +
+                                (b'%c' % len(blobs)) +
                                 LENGTH.pack(len(payload)))
         # send data separately to avoid copying lots of data
         self.event_sock.sendall(payload)
+        for blob in blobs:
+            self.event_sock.sendall(LENGTH.pack(len(blob)))
+            self.event_sock.sendall(blob)

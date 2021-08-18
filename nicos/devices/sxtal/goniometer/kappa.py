@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -30,8 +30,6 @@ All angle move clockwise for positive values.
 
 to allow conversions, the kappa-angle alpha needs to be known
 '''
-
-from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
@@ -80,7 +78,9 @@ class Kappa(PositionBase):
 
             Keep the same reflection active in the center of the detector.
         """
-        return self.With(theta=-self.theta, omega=self.omega + np.rad2deg(180) - 2 * self.theta)
+        return self.With(theta=-self.theta,
+                         omega=self.omega + np.deg2rad(180) - 2 * self.theta,
+                         _rad=True)
 
     def asG(self, _wavelength=None):
         """ Conversion. Part of Position subclass protocol.

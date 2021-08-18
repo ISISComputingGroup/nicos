@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import os
 import re
 from os import path
@@ -36,7 +34,6 @@ from sphinx.util.docstrings import prepare_docstring
 from sphinx.util.nodes import nested_parse_with_titles
 
 from nicos.core.sessions.setups import readSetup
-from nicos.pycompat import listvalues
 from nicos.utils.files import findSetupRoots, iterSetups
 
 EXCLUDE_PARAMS = set(['description', 'passwd', 'target'])
@@ -162,7 +159,7 @@ class SetupDirective(Directive):
             # logging will be done by readSetup
             return None
 
-        info = listvalues(setups)[0]
+        info = list(setups.values())[0]
         info['uniqueid'] = uniqueId
         info['setupname'] = self._setupName
         info['shortsetuppath'] = self._shortSetupPath
@@ -381,7 +378,7 @@ def setupdoc_builder_inited(app):
                 except OSError:
                     # ignore already existent dirs
                     pass
-                with open(rstname, 'w') as f:
+                with open(rstname, 'w', encoding='utf-8') as f:
                     f.write(RST_SETUP_FILE %
                             {'facility': facility, 'instr': instr,
                              'setupname': setup})
