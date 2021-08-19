@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,15 +24,12 @@
 
 """Module for RESEDA tunewavetable specific commands."""
 
-from __future__ import absolute_import, division, print_function
-
 import csv
 from os import path
 
 from nicos import session
 from nicos.commands import usercommand
 from nicos.commands.output import printerror, printinfo
-from nicos.pycompat import iteritems, itervalues
 
 __all__ = ['ExportTuning', 'ImportTuning']
 
@@ -59,7 +56,7 @@ def ExportTuning(mode, wavelength, filename='tuning'):
                    ', '.join(map(str, tables)))
 
     # build list of devices
-    it = itervalues(table)
+    it = iter(table.values())
     devices = sorted(it.next())
     for otherdevs in it:
         devices.extend(set(otherdevs) - set(devices))
@@ -70,10 +67,10 @@ def ExportTuning(mode, wavelength, filename='tuning'):
     if path.exists(filename):
         printerror('File already exists. Please select another name.')
         return
-    with open(filename, 'w') as fp:
+    with open(filename, 'w', encoding='utf-8') as fp:
         writer = csv.writer(fp)
         writer.writerow(['echotime'] + devices)
-        for (etime, devs) in iteritems(table):
+        for (etime, devs) in table.items():
             writer.writerow([repr(etime)] + [repr(devs.get(d)) for d in devices])
     printinfo('Done.')
 
@@ -100,9 +97,9 @@ def ImportTuning(mode, wavelength, filename='tuning'):
         printerror('File does not exist. Please select another name.')
         return
     newtable = {}
-    with open(filename, 'r') as fp:
+    with open(filename, 'r', encoding='utf-8') as fp:
         reader = iter(csv.reader(fp))
-        headers = reader.next()
+        headers = reader.__next__()
         if headers[0] != 'echotime':
             printerror('This does not appear to be a tuning table.')
             return

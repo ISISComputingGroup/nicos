@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,16 +21,15 @@
 #   Jens Krüger <jens.krueger@frm2.tum.de>
 #
 # *****************************************************************************
-"""NICOS GUI PGAI collision calculations."""
 
-from __future__ import absolute_import, division, print_function
+"""NICOS GUI PGAI collision calculations."""
 
 import math
 
 import numpy as np
 
 
-class Object2D(object):
+class Object2D:
     """2D base class."""
 
     def __init__(self, x, y):
@@ -121,7 +120,7 @@ class Square(Rectangle):
         Rectangle.__init__(self, x, y, w, w, rotation)
 
 
-class Cylinder(object):
+class Cylinder:
     """Cylinder class."""
 
     def __init__(self, x, y, r, height):
@@ -129,7 +128,7 @@ class Cylinder(object):
         self.circle = Circle(x, y, height)
 
 
-class Cuboid(object):
+class Cuboid:
     """Cuboid class."""
 
     def __init__(self, x, y, z, width, thickness, height):
@@ -144,8 +143,8 @@ class Cuboid(object):
 class Cube(Cuboid):
     """Cube class."""
 
-    def __init__(self, x, y, length):
-        Cuboid.__init__(self, x, y, length, length, length)
+    def __init__(self, x, y, z, length):
+        Cuboid.__init__(self, x, y, z, length, length, length)
 
 
 def circle_values(r, cl=3, space=2):

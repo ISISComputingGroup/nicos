@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,14 +25,12 @@
 
 """Common parts of the "classic" daemon protocol."""
 
-from __future__ import absolute_import, division, print_function
-
 import json
+import pickle
 import struct
 
 from nicos.protocols.daemon import DAEMON_COMMANDS, DAEMON_EVENTS, \
     Serializer as BaseSerializer
-from nicos.pycompat import PY2, cPickle as pickle
 
 # default port for the daemon
 
@@ -41,11 +39,11 @@ DEFAULT_PORT = 1301
 # protocol version, increment this whenever making changes to command
 # arguments or adding new commands
 
-PROTO_VERSION = 19
+PROTO_VERSION = 21
 
 # old versions with which the client is still compatible
 
-COMPATIBLE_PROTO_VERSIONS = [18]
+COMPATIBLE_PROTO_VERSIONS = []
 
 # to encode payload lengths as network-order 32-bit unsigned int
 LENGTH = struct.Struct('>I')
@@ -83,7 +81,7 @@ for _name, _number in DAEMON_COMMANDS.items():
     code2command[_enc] = _name
 
 event2code, code2event = {}, {}
-for _name, (_, _number) in DAEMON_EVENTS.items():
+for _name, (_number, _) in DAEMON_EVENTS.items():
     _enc = _codefmt.pack(_number)
     event2code[_name] = _enc
     code2event[_enc] = _name
@@ -109,31 +107,16 @@ class ClassicSerializer(BaseSerializer):
 
     # deserializing
 
-    if not PY2:
-        # try to support messages coming from Python 2 daemons
+    def deserialize_cmd(self, data, cmdname=None):
+        return cmdname, pickle.loads(data, encoding='latin1')
 
-        def deserialize_cmd(self, data, cmdname=None):
-            return cmdname, pickle.loads(data, encoding='latin1')
+    def deserialize_reply(self, data, success=None):
+        assert success is not None
+        data = pickle.loads(data, encoding='latin1') if data else None
+        return success, data
 
-        def deserialize_reply(self, data, success=None):
-            assert success is not None
-            data = pickle.loads(data, encoding='latin1') if data else None
-            return success, data
-
-        def deserialize_event(self, data, evtname=None):
-            return evtname, pickle.loads(data, encoding='latin1')
-
-    else:
-        def deserialize_cmd(self, data, cmdname=None):
-            return cmdname, pickle.loads(data)
-
-        def deserialize_reply(self, data, success=None):
-            assert success is not None
-            data = pickle.loads(data) if data else None
-            return success, data
-
-        def deserialize_event(self, data, evtname=None):
-            return evtname, pickle.loads(data)
+    def deserialize_event(self, data, evtname=None):
+        return evtname, pickle.loads(data, encoding='latin1')
 
 
 class JsonSerializer(BaseSerializer):

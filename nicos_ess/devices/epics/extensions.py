@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -20,16 +20,15 @@
 # Module authors:
 #   Nikhil Biyani <nikhil.biyani@psi.ch>
 #   Michael Wedel <michael.wedel@esss.se>
+#   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
 
 """
 This module contains ESS specific EPICS developments.
 """
-from __future__ import absolute_import, division, print_function
-
-from nicos.core import Device, DeviceMixinBase, Param, anytype, dictwith, \
-    pvname, usermethod
+from nicos.core import CanDisable, ConfigurationError, Device, Param, \
+    anytype, dictwith, pvname, usermethod
 from nicos.devices.abstract import MappedMoveable
 
 from nicos_ess.devices.epics.base import EpicsDeviceEss, \
@@ -41,6 +40,12 @@ class EpicsMappedMoveable(MappedMoveable, EpicsDigitalMoveableEss):
     EPICS based implementation of MappedMoveable. Useful for PVs that contain
     enums or bools.
     """
+
+    parameters = {
+        'ignore_stop': Param(
+            'Whether to do anything when stop is called',
+            type=bool, default=False, userparam=False),
+    }
 
     def doInit(self, mode):
         EpicsDigitalMoveableEss.doInit(self, mode)
@@ -61,41 +66,47 @@ class EpicsMappedMoveable(MappedMoveable, EpicsDigitalMoveableEss):
     def _startRaw(self, target):
         EpicsDigitalMoveableEss.doStart(self, target)
 
+    def doStop(self):
+        if not self.ignore_stop:
+            EpicsDigitalMoveableEss.doStop(self)
+
 
 class EpicsMappedFloatMoveable(EpicsMappedMoveable):
     valuetype = float
     relax_mapping = True
 
 
-class HasSwitchPv(DeviceMixinBase):
+class HasDisablePv(CanDisable):
     """
     A mixin that can be used with EPICS based devices.
 
     Devices that inherit this mixin get a new property that indicates
-    whether the device is switched on (that may mean different things
+    whether the device is enabled (that may mean different things
     in different devices):
 
-        dev.isSwitchedOn
+        dev.isEnabled
 
-    To switch the device on or off, use the provided methods:
+    To enable or disable, use the provided methods:
 
-        dev.switchOn()
-        dev.switchOff()
+        dev.enable()
+        dev.disable()
 
     The link to EPICS is configured via the switchpvs and switchstates
     parameters. The former defines which PV to read for the status
     information as well as which one to write to when using the methods.
-    The latter defines what values the PV accepts for on and off
+    The latter defines what values the PV accepts for enable and disable
     respectively.
     """
 
     parameters = {
-        'switchstates': Param('Map of boolean switch states to underlying type',
-                              type=dictwith(on=anytype, off=anytype),
-                              userparam=False),
-        'switchpvs': Param('Read and write pv for switching device on and off.',
-                           type=dictwith(read=pvname, write=pvname),
-                           userparam=False)
+        'switchstates':
+            Param('Map of boolean states to underlying type',
+                  type=dictwith(enable=anytype, disable=anytype),
+                  userparam=False),
+        'switchpvs':
+            Param('Read and write pv for enabling and disabling the device',
+                  type=dictwith(read=pvname, write=pvname),
+                  userparam=False)
     }
 
     def _get_pv_parameters(self):
@@ -103,7 +114,7 @@ class HasSwitchPv(DeviceMixinBase):
         # PVs specified in EpicsDevice.param
         switch_pvs = {'switchpv:' + pv for pv in self.switchpvs}
 
-        return super(HasSwitchPv, self)._get_pv_parameters() | switch_pvs
+        return super()._get_pv_parameters() | switch_pvs
 
     def _get_pv_name(self, pvparam):
         components = pvparam.split(':', 1)
@@ -111,44 +122,42 @@ class HasSwitchPv(DeviceMixinBase):
         if len(components) == 2 and components[0] == 'switchpv':
             return self.switchpvs[components[1]]
 
-        return super(HasSwitchPv, self)._get_pv_name(pvparam)
+        return super()._get_pv_name(pvparam)
 
     @property
-    def isSwitchedOn(self):
+    def isEnabled(self):
         """
         True if the device is switched on.
         """
         raw_value = self._get_pv('switchpv:read')
 
         if raw_value not in self.switchstates.values():
-            self.log.warning('State by attached switch device not recognized. '
-                             'Returning raw value.')
+            raise ConfigurationError('State by attached switch device not '
+                                     'recognized.')
 
-            return raw_value
-
-        return raw_value == self.switchstates['on']
+        return raw_value == self.switchstates['enable']
 
     @usermethod
-    def switchOn(self):
+    def enable(self):
         """
-        Switch the device on (writes the 'on' of switchstates map to the
+        Switch the device on (writes the 'enable' of switchstates map to the
         write-pv specified in switchpvs).
         """
-        if not self.isSwitchedOn:
-            self._put_pv('switchpv:write', self.switchstates['on'])
+        if not self.isEnabled:
+            self._put_pv('switchpv:write', self.switchstates['enable'])
         else:
             self.log.info('Device is already switched on')
 
     @usermethod
-    def switchOff(self):
+    def disable(self):
         """
-        Switch the device off (writes the 'off' of switchstates map to the
+        Switch the device off (writes the 'disable' of switchstates map to the
         write-pv specified in switchpvs).
         """
-        if self.isSwitchedOn:
-            self._put_pv('switchpv:write', self.switchstates['off'])
+        if self.isEnabled:
+            self._put_pv('switchpv:write', self.switchstates['disable'])
         else:
-            self.log.info('Device is already switched off')
+            self.log.info('Device is already disabled')
 
 
 class EpicsCommandReply(EpicsDeviceEss, Device):
@@ -186,6 +195,7 @@ class EpicsCommandReply(EpicsDeviceEss, Device):
 
         return pvs
 
+    @usermethod
     def execute(self, command):
         """
         Issue and execute the provided command

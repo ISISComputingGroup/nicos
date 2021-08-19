@@ -8,6 +8,7 @@ set -x
 set +e
 
 PYFILESCHANGED=$(~/tools2/bin/changedfiles --py)
+
 if [[ -n "$PYFILESCHANGED" ]] ; then
     set -o pipefail
     PYTHONPATH=.:${PYTHONPATH} pylint --rcfile=./pylintrc $PYFILESCHANGED | tee pylint_all.txt

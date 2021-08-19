@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,8 +27,6 @@
 Utility script for reformatting NICOS setup files via yapf
 (https://github.com/google/yapf).
 """
-
-from __future__ import absolute_import, division, print_function
 
 import argparse
 import difflib
@@ -75,14 +73,14 @@ def parseArgv(argv):
 def reformatFile(fn, inplace=False, diff=False):
     logging.debug('Reformatting %s ...', fn)
 
-    with open(fn, 'rb') as f:
-        origin = f.read().decode('utf-8')
+    with open(fn, 'r', encoding='utf-8') as f:
+        origin = f.read()
 
     result = format_setup_text(origin)
 
     if inplace:
-        with open(fn, 'wb') as f:
-            f.write(result.encode('utf-8'))
+        with open(fn, 'w', encoding='utf-8') as f:
+            f.write(result)
     if diff:
         diff = difflib.unified_diff(origin.splitlines(), result.splitlines())
         # TODO: this diff is not very helpful, another format may be better

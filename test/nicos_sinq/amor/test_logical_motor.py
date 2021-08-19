@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,13 +19,14 @@
 #
 # Module authors:
 #   Nikhil Biyani <nikhil.biyani@psi.ch>
+#   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import sys
 import time
+from unittest import TestCase
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -117,7 +118,7 @@ test_targets = {
 
 
 @pytest.mark.skipif('--sinq' not in sys.argv, reason='Only valid for SINQ')
-class TestLogicalMotor(object):
+class TestLogicalMotor:
     m2t = None
     s2t = None
     ath = None
@@ -192,7 +193,6 @@ class TestLogicalMotor(object):
         assert raises(ErrorLogged, motor, hlm - 0.1)
         assert motor.target == approx(motor.read())
 
-    #  pylint: disable=dict-keys-not-iterating
     @pytest.mark.parametrize("targets", test_targets.keys())
     def test_motor_has_correct_targets(self, targets, session):
         # Move the motors to targets
@@ -222,3 +222,38 @@ class TestLogicalMotor(object):
         for slavename, target in test_targets[(0.100, 0.100, 0.000)]:
             slave = session.getDevice(slavename)
             assert slave.read() == approx(target, abs=1e-2)
+
+
+def create_method_patch(reason, obj, name, replacement):
+    patcher = patch.object(obj, name, replacement)
+    thing = patcher.start()
+    reason.addCleanup(patcher.stop)
+    return thing
+
+
+def return_value_wrapper(value):
+    def return_value(*args, **kwargs):
+        return value
+    return return_value
+
+
+class TestDetectorAngleMotor(TestCase):
+
+    @pytest.fixture(autouse=True)
+    def initialize_devices(self, session):
+        self.session = session
+
+    def test_do_start(self):
+        nu = self.session.getDevice('nu')
+        nu._attached_com = Mock()
+        nu._attached_coz = Mock()
+
+        target = 45
+        expected_coz = 1 * nu.coz_scale_factor
+
+        nu.start(target)
+        coz_target = nu._attached_coz.start.call_args[0]
+        com_target = nu._attached_com.start.call_args[0]
+
+        assert com_target[0] == -target
+        assert coz_target[0] == approx(expected_coz, abs=0.01)

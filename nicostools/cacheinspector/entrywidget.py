@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import time
 from os import path
 
@@ -32,7 +30,7 @@ from nicos.guisupport.qt import QCheckBox, QColor, QDialog, QLineEdit, \
     uic
 from nicos.guisupport.utils import setBackgroundColor
 
-from .editdlg import EntryEditDialog
+from nicostools.cacheinspector.editdlg import EntryEditDialog
 
 ttlColor = QColor(0xff, 0xfa, 0x66)
 expiredColor = QColor(0xce, 0x9b, 0x9b)

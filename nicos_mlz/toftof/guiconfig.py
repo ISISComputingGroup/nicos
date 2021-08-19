@@ -9,7 +9,17 @@ main_window = docked(
     ),
     ('NICOS devices',
      panel('nicos.clients.gui.panels.devices.DevicesPanel', icons=True,
-           dockpos='right',),
+           dockpos='right',
+           param_display={
+               'lv0': ['temperature'],
+               'lv1': ['temperature'],
+               'lv2': ['temperature'],
+               'lv3': ['temperature'],
+               'lv4': ['temperature'],
+               'lv5': ['temperature'],
+               'lv6': ['temperature'],
+               'lv7': ['temperature'],
+           }),
     ),
     ('Safety system',
      panel('nicos_mlz.toftof.gui.safetypanel.SafetyPanel'),
@@ -26,7 +36,7 @@ main_window = docked(
 windows = [
     window('Editor', 'editor',
         vsplit(
-#           panel('nicos.clients.gui.panels.scriptbuilder.CommandsPanel'),
+            panel('nicos.clients.gui.panels.scriptbuilder.CommandsPanel'),
             panel('nicos.clients.gui.panels.editor.EditorPanel',
                   tools = [
 #                     tool('Scan Generator',
@@ -62,8 +72,6 @@ windows = [
 
 tools = [
     tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
-         receiver='f.carsughi@fz-juelich.de',
-         mailserver='smtp.frm2.tum.de',
          sender='toftof@frm2.tum.de',
         ),
     tool('Calculator', 'nicos.clients.gui.tools.calculator.CalculatorTool'),

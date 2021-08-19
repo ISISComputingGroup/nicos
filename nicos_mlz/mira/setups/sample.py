@@ -2,6 +2,7 @@ description = 'sample table'
 group = 'lowlevel'
 
 includes = ['alias_sth']
+excludes = ['sample_ext']
 
 tango_base = 'tango://miractrl.mira.frm2:10000/mira/'
 
@@ -148,6 +149,22 @@ devices = dict(
         coder = 'co_sgy',
         fmtstr = '%.2f',
         precision = 0.01,
+    ),
+    vg1 = device('nicos.devices.tas.VirtualGonio',
+        description = 'Gonio along orient1 reflex',
+        cell = 'Sample',
+        gx = 'sgx',
+        gy = 'sgy',
+        axis = 1,
+        unit = 'deg',
+    ),
+    vg2 = device('nicos.devices.tas.VirtualGonio',
+        description = 'Gonio along orient2 reflex',
+        cell = 'Sample',
+        gx = 'sgx',
+        gy = 'sgy',
+        axis = 2,
+        unit = 'deg',
     ),
 )
 

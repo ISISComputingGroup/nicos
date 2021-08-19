@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,12 +24,11 @@
 
 """File data sink classes for PUMA."""
 
-from __future__ import absolute_import, division, print_function
+from io import TextIOWrapper
 
 from nicos.core import INFO_CATEGORIES, Override, Param
 from nicos.core.errors import ConfigurationError
 from nicos.devices.datasinks.image import ImageSink, SingleFileSinkHandler
-from nicos.pycompat import TextIOWrapper, iteritems
 
 
 class PolarizationFileSinkHandler(SingleFileSinkHandler):
@@ -39,13 +38,13 @@ class PolarizationFileSinkHandler(SingleFileSinkHandler):
 
     def writeHeader(self, fp, metainfo, image):
         fp.seek(0)
-        wrapper = TextIOWrapper(fp)
+        wrapper = TextIOWrapper(fp, encoding='utf-8')
         wrapper.write('\n%s PUMA Polarisation File Header V2.0\n' %
                       (self.sink.commentchar * 3))
         # XXX(dataapi): add a utility function to convert metainfo to old
         # by-category format
         bycategory = {}
-        for (device, key), (_, val, unit, category) in iteritems(metainfo):
+        for (device, key), (_, val, unit, category) in metainfo.items():
             if category:
                 bycategory.setdefault(category, []).append(
                     ('%s_%s' % (device, key), (val + ' ' + unit).strip()))
@@ -63,7 +62,7 @@ class PolarizationFileSinkHandler(SingleFileSinkHandler):
 
     def writeData(self, fp, image):
         """Write the image data part of the file (second part)."""
-        wrapper = TextIOWrapper(fp)
+        wrapper = TextIOWrapper(fp, encoding='utf-8')
         for i, l in enumerate(image.T):
             fmtstr = '\t'.join(['%d'] * (1 + len(l))) + '\n'
             wrapper.write(fmtstr % ((i,) + tuple(l.tolist())))

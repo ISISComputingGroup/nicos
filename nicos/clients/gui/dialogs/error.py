@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,8 @@
 
 """Dialog for showing (potentially multiple) error messages."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.clients.gui.utils import loadUi
 from nicos.guisupport.qt import QDialog, QStyle
-from nicos.pycompat import from_maybe_utf8
 
 
 class ErrorDialog(QDialog):
@@ -44,7 +41,6 @@ class ErrorDialog(QDialog):
 
     def addMessage(self, message):
         existing = self.errorText.text()
-        message = from_maybe_utf8(message)
         if existing:
             # limit the amount of displayed lines
             new = existing.splitlines()[-20:] + [message]

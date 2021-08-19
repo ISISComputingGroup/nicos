@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,11 +26,9 @@
 Plotting tools for triple-axis spectrometers.
 """
 
-from __future__ import absolute_import, division, print_function
-
 import os
 import time
-from fractions import gcd
+from math import gcd
 
 from numpy import arctan2, array, cos, cross, delete, linspace, mat, sin, sqrt
 
@@ -65,7 +63,7 @@ def pylab_key_handler(event):
         pylab.close()
 
 
-class SpaceMap(object):
+class SpaceMap:
 
     def __init__(self, resmat, tasinfo, E=0, ki=None, kf=None, scan=None, **kwds):
         self.resmat = resmat

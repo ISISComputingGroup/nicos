@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,8 +27,6 @@
 Memographs are the logging system for 'cooling water' related data in the
 neutron guide hall of the FRM II.
 """
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import CommunicationError, ConfigurationError, NicosError, \
     Override, Param, Readable, status
@@ -78,11 +76,10 @@ class MemographValue(Readable):
             raise
         except Exception as err:
             raise CommunicationError(self, 'Memograph not responding or '
-                                     'changed format: %s' % err)
+                                     'changed format: %s' % err) from None
 
     def doReadUnit(self):
-        return self._getRaw().split()[1].encode('utf-8').decode('utf-8').\
-            replace(u'°', 'deg')
+        return self._getRaw().split()[1].replace('°', 'deg')
 
     def doRead(self, maxage=0):
         return float(self._getRaw().split()[0].replace(',', '.'))

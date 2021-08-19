@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,18 +23,15 @@
 # *****************************************************************************
 """Application main window."""
 
-# icons: https://launchpad.net/elementaryicons
-
-from __future__ import absolute_import, division, print_function
+# icons: https://github.com/elementary/icons
 
 import inspect
 import logging
+import os
 from os import path
 
-from nicos import config
 from nicos.guisupport.qt import QApplication, QFileDialog, QIcon, QLabel, \
     QMainWindow, QMessageBox, Qt, QTreeWidgetItem, uic
-from nicos.pycompat import iteritems, string_types
 
 from . import classparser, setupcontroller
 from ..utils import format_setup_text
@@ -42,11 +39,9 @@ from .devicewidget import DeviceWidget
 from .setupwidget import SetupWidget
 from .utilities.utilities import ItemTypes, getNicosDir, getResDir
 
-config.apply()
-
 
 class MainWindow(QMainWindow):
-    def __init__(self, parent=None):
+    def __init__(self, facility, instrument, parent=None):
         QMainWindow.__init__(self, parent)
         uic.loadUi(path.join(path.dirname(path.abspath(__file__)),
                              'ui', 'mainwindow.ui'), self)
@@ -54,7 +49,8 @@ class MainWindow(QMainWindow):
         logging.basicConfig()
         self.log = logging.getLogger()
 
-        setupcontroller.init(self.log)
+        setupcontroller.init(
+            os.path.join(getNicosDir(), 'nicos_%s' % facility), self.log)
         classparser.init(self.log)
 
         # dictionary of absolute path to a setup - setupWidget
@@ -95,8 +91,8 @@ class MainWindow(QMainWindow):
             instrumentAction = self.instrumentMenu.addAction(directory)
             instrumentAction.triggered.connect(
                 self.treeWidget.setInstrumentMode)
-        if config.instrument and config.instrument not in ('jcns', 'demo'):
-            self.treeWidget.setSingleInstrument(config.instrument)
+        if instrument:
+            self.treeWidget.setSingleInstrument(instrument)
 
     def loadSetup(self, setup, instrument):
         # load a previously not loaded setup's data and initialize their
@@ -110,7 +106,7 @@ class MainWindow(QMainWindow):
         self.setupWidgets[setup.abspath] = setupWidget
         # initialize device widgets dictionary for this setup
         self.deviceWidgets[setup.abspath] = {}
-        for deviceName, device in iteritems(setup.devices):
+        for deviceName, device in setup.devices.items():
             deviceWidget = DeviceWidget(setupWidget)
             deviceWidget.editedDevice.connect(self.editedSetupSlot)
             deviceWidget.loadDevice(device)
@@ -213,7 +209,7 @@ class MainWindow(QMainWindow):
         if setupItem.setup.abspath not in self.setupWidgets.keys():
             self.loadSetup(setupItem.setup, setupItem.parent().text(0))
         else:
-            for deviceName, device in iteritems(setupItem.setup.devices):
+            for deviceName, device in setupItem.setup.devices.items():
                 if deviceName == newDeviceName:
                     deviceWidget = DeviceWidget(self.setupWidgets[
                         setupItem.setup.abspath])
@@ -228,9 +224,8 @@ class MainWindow(QMainWindow):
 
     def aboutSetupFileTool(self):
         QMessageBox.information(
-            self,
-            'About SetupFileTool', 'A tool designed to optimize editing' +
-            ' setup files for NICOS.')
+            self, 'About SetupFileTool',
+            'A tool designed to optimize editing setup files for NICOS.')
 
     def closeEvent(self, event):
         # Find all setups that have been edited
@@ -316,7 +311,7 @@ class MainWindow(QMainWindow):
         add(self.saveDevices(setupItem))
         add(self.saveStartupcode(setupData))
 
-        with open(setupPath, 'w') as outputFile:
+        with open(setupPath, 'w', encoding='utf-8') as outputFile:
             outputStringWithNewlines = ''.join(output)
             outputStringListWithNewLines = \
                 outputStringWithNewlines.splitlines()
@@ -394,7 +389,7 @@ class MainWindow(QMainWindow):
         output = []
         if setupData.treeWidgetSysconfig.topLevelItemCount() > 0:
             output.append('sysconfig = dict(\n')
-            for key, value in iteritems(setupData.treeWidgetSysconfig.getData()):
+            for key, value in setupData.treeWidgetSysconfig.getData().items():
                 output.append('    ' + key + ' = ' + repr(value) + ',\n')
             output.append(')\n\n')
             return ''.join(output)
@@ -412,15 +407,15 @@ class MainWindow(QMainWindow):
             return ''
 
         output.append('devices = dict(\n')
-        for name, info in iteritems(self.deviceWidgets[setupItem.setup.abspath]):
+        for name, info in self.deviceWidgets[setupItem.setup.abspath].items():
             output.append('    ' + name + ' = device(')
             # class string must be first parameter. Also mustn't have a key.
             output.append(repr(info.parameters['Class'].getValue()) + ',\n')
             indent = len(name) + 14
-            for _, params in iteritems(info.parameters):
+            for _, params in info.parameters.items():
                 # skip class as it has already been added
                 if not params.param == 'Class':
-                    if isinstance(params.getValue(), string_types):
+                    if isinstance(params.getValue(), str):
                         prepend = indent * ' ' + str(params.param) + ' = '
                         if params.isUnknownValue:
                             param = str(params.getValue()) + ',\n'

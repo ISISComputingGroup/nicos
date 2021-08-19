@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,13 +22,12 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from time import sleep
 
 import kafka
 
 from nicos.core import DeviceMixinBase, Param, host, listof
+from nicos.core.constants import SIMULATION
 from nicos.core.errors import ConfigurationError
 from nicos.utils import createThread
 
@@ -42,14 +41,17 @@ class KafkaSubscriber(DeviceMixinBase):
     parameters = {
         'brokers': Param('List of kafka hosts to be connected',
                          type=listof(host(defaultport=9092)),
-                         default=['localhost'], preinit=True, userparam=False)
+                         mandatory=True, preinit=True, userparam=False)
     }
 
     def doPreinit(self, mode):
-        self._consumer = kafka.KafkaConsumer(
-            bootstrap_servers=self.brokers,
-            auto_offset_reset='latest'  # start at latest offset
-        )
+        if mode != SIMULATION:
+            self._consumer = kafka.KafkaConsumer(
+                bootstrap_servers=self.brokers,
+                auto_offset_reset='latest'  # start at latest offset
+            )
+        else:
+            self._consumer = None
 
         # Settings for thread to fetch new message
         self._stoprequest = True
@@ -60,7 +62,8 @@ class KafkaSubscriber(DeviceMixinBase):
             self._stoprequest = True
             if self._updater_thread.is_alive():
                 self._updater_thread.join()
-            self._consumer.close()
+            if self._consumer:
+                self._consumer.close()
 
     @property
     def consumer(self):
@@ -92,21 +95,27 @@ class KafkaSubscriber(DeviceMixinBase):
         while not self._stoprequest:
             sleep(self._long_loop_delay)
 
-            messages = {}
+            messages = []
             data = self._consumer.poll(5)
             for records in data.values():
                 for record in records:
-                    messages[record.timestamp] = record.value
+                    messages.append((record.timestamp, record.value))
 
             if messages:
                 self.new_messages_callback(messages)
             else:
                 self.no_messages_callback()
+        self.log.debug("KafkaSubscriber thread finished")
 
     def new_messages_callback(self, messages):
         """This method is called whenever a new messages appear on
         the topic. The subclasses should define this method if
         a callback is required when new messages appear.
-        :param messages: dict of timestamp and raw message
+        :param messages: list of tuples of timestamp and raw message
         """
-        pass
+
+    def no_messages_callback(self):
+        """This method is called if no messages are on the topic.
+        Subclasses should define this method if they are interested
+        in this.
+        """

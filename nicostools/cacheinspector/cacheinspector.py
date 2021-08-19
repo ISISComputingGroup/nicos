@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import sys
 from logging import ERROR, INFO, WARNING, Handler
 
@@ -32,8 +30,8 @@ from nicos.core.sessions.simple import SingleDeviceSession
 from nicos.guisupport.qt import QApplication, QIcon, QPalette, Qt
 from nicos.utils.loggers import ColoredConsoleHandler, NicosLogger
 
-from .cacheclient import CICacheClient
-from .mainwindow import MainWindow
+from nicostools.cacheinspector.cacheclient import CICacheClient
+from nicostools.cacheinspector.mainwindow import MainWindow
 
 
 class StatusBarHandler(Handler):

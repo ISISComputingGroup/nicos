@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,19 +19,17 @@
 #
 # Module authors:
 #   Nikhil Biyani <nikhil.biyani@psi.ch>
+#   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from nicos import session
 from nicos.core import ConfigurationError, NicosError
-from nicos.pycompat import iteritems, string_types
 
 from nicos_ess.nexus.placeholder import DeviceValuePlaceholder, PlaceholderBase
 
 
-class NexusElementBase(object):
+class NexusElementBase:
     """ Interface class to define nexus elements. All NeXus elements define
     a method which represents the dict of this element.
     """
@@ -82,7 +80,7 @@ class NXDataset(NexusElementBase):
         self.value = value
         self.dtype = dtype
         self.attrs = {}
-        for key, val in iteritems(attr):
+        for key, val in attr.items():
             if not isinstance(val, NXAttribute):
                 val = NXAttribute(val)
             self.attrs[key] = val
@@ -118,14 +116,14 @@ class NXDataset(NexusElementBase):
             if isinstance(self.value, list) and self.value:
                 if isinstance(self.value[0], int):
                     self.dtype = "int32"
-                elif isinstance(self.value[0], long):
-                    self.dtype = "int64"
+                    if self.value[0].bit_length > 32:
+                        self.dtype = "int64"
                 elif isinstance(self.value[0], float):
                     self.dtype = "double"
-                elif isinstance(self.value[0], string_types):
+                elif isinstance(self.value[0], str):
                     self.dtype = "string"
 
-            if isinstance(self.value, string_types):
+            if isinstance(self.value, str):
                 self.dtype = 'string'
 
         # Add the 'dtype' if specified
@@ -146,7 +144,7 @@ class NXDataset(NexusElementBase):
         # Add the attributes if present
         if self.attrs:
             attr_dict = {}
-            for attr_name, attr in iteritems(self.attrs):
+            for attr_name, attr in self.attrs.items():
                 # It is important to check if the type is of NXAttribute
                 # Subclasses can directly change the self.attrs dict
                 if isinstance(attr, NXAttribute):
@@ -182,7 +180,7 @@ class NXGroup(NexusElementBase):
 
         # Add the children
         if self.children:
-            for ename, entry in iteritems(self.children):
+            for ename, entry in self.children.items():
                 if isinstance(entry, NexusElementBase):
                     for child_dict in entry.structure(ename, metainfo):
                         if child_dict:
@@ -193,7 +191,7 @@ class NXGroup(NexusElementBase):
         # Add the attributes
         if self.attrs:
             attr_dict = {}
-            for attr_name, attr in iteritems(self.attrs):
+            for attr_name, attr in self.attrs.items():
                 # It is important to check if the type is of NXAttribute
                 # Subclasses can directly change the self.attrs dict
                 if isinstance(attr, NXAttribute):
@@ -228,9 +226,19 @@ class KafkaStream(NexusElementBase):
     The defined properties of the stream can be set. The FileWriter
     using these properties fills up the data in the files using messages
     from Kafka.
+
+    * broker: Kafka broker to use for data
+    * topic: Kafka topic where the data can be found
+    * source: name of the data source
+    * writer_module: one of the flatbuffer schemas defined in [https://github.com/ess-dmsc/streaming-data-types]
+    * type: data type
+    * array_size: dimension of the array
+    * store_latest_into: where to write latest LogData value
+    * chunk_size:  chunk size in nr of elements
     """
+
     stream_keys = ['broker', 'topic', 'source', 'writer_module', 'type',
-                   'array_size', 'store_latest_into']
+                   'array_size', 'store_latest_into', 'chunk_size']
 
     def __init__(self, **attr):
         self.stream = {}
@@ -238,7 +246,7 @@ class KafkaStream(NexusElementBase):
             self.stream[key] = None
 
         self.stream_attrs = {}
-        for key, val in iteritems(attr):
+        for key, val in attr.items():
             if not isinstance(val, NXAttribute):
                 val = NXAttribute(val)
             self.stream_attrs[key] = val
@@ -258,13 +266,13 @@ class KafkaStream(NexusElementBase):
     def structure(self, name, metainfo):
         stream_dict = {
             "type": "stream",
-            "stream": {k: v for k, v in iteritems(self.stream) if v}
+            "stream": {k: v for k, v in self.stream.items() if v}
         }
 
         # Add the attributes
         if self.stream_attrs:
             attr_dict = {}
-            for attr_name, attr in iteritems(self.stream_attrs):
+            for attr_name, attr in self.stream_attrs.items():
                 if isinstance(attr, NXAttribute):
                     for attr_structure in attr.structure(attr_name, metainfo):
                         if attr_structure:
@@ -272,6 +280,57 @@ class KafkaStream(NexusElementBase):
 
             stream_dict["attributes"] = attr_dict
         return [stream_dict]
+
+
+class CacheStream(DeviceValuePlaceholder, KafkaStream):
+    """Streams NICOS cache data"""
+
+    def __init__(self, device, dtype, separate_log=False,
+                 parameter='value', **attr):
+        KafkaStream.__init__(self, **attr)
+        DeviceValuePlaceholder.__init__(self, device, parameter)
+        self.set('type', dtype)
+        self.set('writer_module', 'ns10')
+        self.separate_log = separate_log
+
+    def structure(self, name, metainfo):
+        try:
+            nx = session.getDevice('NexusDataSink')
+        except ConfigurationError:
+            session.log.warning("NexusDataSink not found!! Can't track device "
+                                "%s..", self.device)
+            return
+        self.set('broker', nx.brokers[0])
+        self.set('topic', nx.cachetopic)
+        key = 'nicos/' + self.device + '/' + self.parameter
+        self.set('source', key)
+
+        # Add the attributes
+        self.stream_attrs["nicos_name"] = NXAttribute(self.device)
+        self.stream_attrs["nicos_param"] = NXAttribute(self.parameter)
+        self.stream_attrs["source_name"] = NXAttribute(key)
+
+        info = self.fetch_info(metainfo)
+        if info:
+            self.stream_attrs["units"] = NXAttribute(info[2])
+
+        if self.separate_log:
+            self.store_latest_into(name)
+            gname = name + '_log'
+        else:
+            gname = name
+
+        group_dict = NXGroup('NXlog').structure(gname, metainfo)[0]
+        stream_dicts = KafkaStream.structure(self, name, metainfo)
+        group_dict["children"] += stream_dicts
+
+        struct = [group_dict]
+
+        if self.separate_log:
+            link = NXLink(gname + '/' + name).structure(name, metainfo)
+            struct += link
+
+        return struct
 
 
 class DeviceStream(DeviceValuePlaceholder, KafkaStream):
@@ -362,14 +421,15 @@ class EventStream(KafkaStream):
     """ Stream that provides event data from Kafka
     """
 
-    def __init__(self, topic, source, broker, mod='ev42', dtype='uint64',
-                 **attr):
+    def __init__(self, topic, source, mod='ev42', dtype='uint64',
+                 chunk_size=None, **attr):
         KafkaStream.__init__(self, **attr)
         self.set('topic', topic)
         self.set('source', source)
-        self.set('broker', broker)
         self.set('writer_module', mod)
         self.set('type', dtype)
+        if chunk_size:
+            self.set('chunk_size', chunk_size)
 
 
 class DeviceAttribute(NXAttribute):

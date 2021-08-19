@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,10 +24,8 @@
 
 """Base file data sink class for NICOS."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.core.data import DataSink
-from nicos.core.params import Param, listof, subdir
+from nicos.core.params import Param, intrange, listof, none_or, subdir
 
 TEMPLATE_DESC = '''Templates must contain percent-style placeholders
 (e.g. ``%(proposal)s_%(pointcounter)08d``) with the following keys:
@@ -62,4 +60,8 @@ class FileSink(DataSink):
                                   ext_desc=TEMPLATE_DESC, type=listof(str),
                                   default=['%(pointcounter)08d.dat'],
                                   settable=False, prefercache=False),
+        'filemode':         Param('File access rights after closing the file, '
+                                  "if set to 'none' (default) the OS defaults "
+                                  'will be used',
+                                  type=none_or(intrange(0o000, 0o777),)),
     }

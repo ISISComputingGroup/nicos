@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,15 +22,13 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from time import time as currenttime
 
 from nicos.core import Override, Param, pvname, status
 from nicos.core.errors import PositionError
 from nicos.devices.abstract import MappedMoveable
 
-from nicos_ess.devices.epics.base import EpicsDeviceEss
+from nicos_ess.devices.epics.base import EpicsDeviceEss, EpicsReadable
 
 
 class SpsSwitch(EpicsDeviceEss, MappedMoveable):
@@ -82,18 +80,20 @@ class SpsSwitch(EpicsDeviceEss, MappedMoveable):
 
         now = currenttime()
         if self.lasttarget is not None and \
-                self.lasttarget != self._readRaw(maxage) and \
-                now > self.lasttoggle+10:
-            return (status.WARN, '%s not reached!'
-                                 % self._inverse_mapping[self.lasttarget])
+                self.lasttarget != self._readRaw(maxage):
+            if now > self.lasttoggle+10:
+                return (status.WARN, '%s not reached!'
+                        % self._inverse_mapping[self.lasttarget])
+            return status.BUSY, ''
         return status.OK, ''
 
-    def doIsAtTarget(self, pos):
+    def doIsAtTarget(self, pos, target):
         # Don't check if it reached the target
         return True
 
     def _readBit(self, byte, bit):
-        raw = self._get_pv('readpv')
+        raw = self._pvs['readpv'].get(timeout=self.epicstimeout,
+                                      count=self.byte+1)
         if byte > len(raw):
             raise PositionError('Byte specified is out of bounds')
 
@@ -154,3 +154,28 @@ class AmorShutter(SpsSwitch):
             return super_status
 
         return status.OK, 'Enabled'
+
+
+class SpsBit(EpicsReadable):
+    """
+    A class for reading a single bit from a SINQ SPS S5
+    """
+
+    parameters = {
+        'byte': Param('Byte number representing the state of this unit',
+                      type=int, mandatory=True, userparam=False,
+                      settable=False),
+        'bit': Param('Bit number from the byte representing the state',
+                     type=int, mandatory=True, userparam=False,
+                     settable=False),
+    }
+
+    def doRead(self, maxage=0):
+        raw = self._pvs['readpv'].get(timeout=self.epicstimeout,
+                                      count=self.byte+1)
+
+        if self.byte > len(raw):
+            raise PositionError('Byte specified is out of bounds')
+
+        powered = 1 << self.bit
+        return raw[self.byte] & powered == powered

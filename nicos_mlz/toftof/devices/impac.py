@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,18 +25,12 @@
 
 """IMPAC Pyrometer IGAR 12-LO"""
 
-from __future__ import absolute_import, division, print_function
-
-from IO import StringIO
-
 from nicos.core import Override, Param, Readable, intrange, status
-from nicos.devices.taco.core import TacoDevice
+from nicos.devices.tango import PyTangoDevice
 
 
-class TemperatureSensor(TacoDevice, Readable):
+class TemperatureSensor(PyTangoDevice, Readable):
     """The temperature readout device of the IMPAC pyrometer."""
-
-    taco_class = StringIO
 
     parameters = {
         'address': Param('Device address',
@@ -52,8 +46,8 @@ class TemperatureSensor(TacoDevice, Readable):
 
     def doRead(self, maxage=0):
         # return current temperature
-        what = ('%02d' % self.address) + 'ms'
-        temp = float(self._taco_guard(self._dev.communicate, what))
+        what = '%02dms' % self.address
+        temp = float(self._dev.Communicate(what))
         if temp > 77769:
             temp = -0
         else:

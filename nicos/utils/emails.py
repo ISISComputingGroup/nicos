@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """Utilities for sending E-Mails."""
 
-from __future__ import absolute_import, division, print_function
-
 import smtplib
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
@@ -34,12 +32,8 @@ from email.utils import formatdate
 from os import path
 
 from nicos.core.params import mailaddress
-from nicos.pycompat import string_types
 
 # do not call this file email.py !
-
-
-
 
 
 def sendMail(mailserver, receiverlist, mailsender, topic, body,
@@ -58,7 +52,7 @@ def sendMail(mailserver, receiverlist, mailsender, topic, body,
     """
     # try to check parameters
     errors = []
-    if isinstance(receiverlist, string_types):
+    if isinstance(receiverlist, str):
         receiverlist = receiverlist.replace(',', ' ').split()
     try:
         mailaddress(mailsender)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2018-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2018-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.core import CommunicationError
 from nicos.core.constants import FINAL, SLAVE
 from nicos.core.params import Value
@@ -35,7 +33,7 @@ class PyDs_PythonError(CommunicationError):
 
 
 # TODO: Remove code duplication and fix MRO issues when inheriting
-#       from `nicos_mlz.jcns.devices.detector.ImageChannel` and
+#       from `nicos.devices.tango.ImageChannel` and
 #       `BaseAndor2LimaCCD` which both inherit from `ImageChannelMixin`
 class Andor2LimaCCD(BaseAndor2LimaCCD):
     """Andor SDK2 based camera which returns sum of all counts."""
@@ -50,7 +48,7 @@ class Andor2LimaCCD(BaseAndor2LimaCCD):
 
     def doReadArray(self, quality):
         narray = BaseAndor2LimaCCD.doReadArray(self, quality)
-        self.readresult = [narray.sum()]
+        self.readresult = [narray.sum() if narray is not None else 0]
         return narray
 
     def valueInfo(self):

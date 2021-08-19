@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,9 +24,8 @@
 
 """NICOS data handlers test suite."""
 
-from __future__ import absolute_import, division, print_function
-
 import os
+import pickle
 import time
 from os import path
 
@@ -34,7 +33,6 @@ import pytest
 
 from nicos import config
 from nicos.commands.scan import scan
-from nicos.pycompat import cPickle as pickle
 from nicos.utils import readFile, updateFileCounter
 
 from test.utils import raises
@@ -97,7 +95,7 @@ def setup_module(session):
     yield
 
 
-class TestSinks(object):
+class TestSinks:
 
     def test_sink_class(self, session):
         scansink = session.getDevice('testsink1')
@@ -240,6 +238,7 @@ class TestSinks(object):
     def test_fits_sink(self, session):
         fitsfile = path.join(session.experiment.datapath, '00000168.fits')
         assert path.isfile(fitsfile)
+        assert ('%o' % os.stat(fitsfile).st_mode)[2:] == '0444'
         with pyfits.open(fitsfile) as ffile:
             hdu = ffile[0]
             assert hdu.data.shape == (128, 128)

@@ -6,12 +6,13 @@ tango_base = 'tango://phytron02.nectar.frm2.tum.de:10000/'
 
 devices = dict(
     drum_c = device('nicos.devices.tango.Sensor',
-        tangodevice = tango_base + 'box/phytron7/enc',
+        tangodevice = tango_base + 'box/channel7/enc',
         lowlevel = True,
     ),
     drum_m = device('nicos.devices.tango.Motor',
-        tangodevice = tango_base + 'box/phytron7/mot',
+        tangodevice = tango_base + 'box/channel7/mot',
         abslimits = (-10, 370),
+        precision = 0.05,
         unit = 'deg',
         lowlevel = True,
     ),
@@ -26,11 +27,12 @@ devices = dict(
         precision = 0.01,
         moveable = 'drum',
         mapping = {
-            '1': 0,
-            '2': 90,
-            '3': 180,
-            '4': 270,
+            '800': 0,
+            '400': 90,
+            '600': 180,
+            '200': 270,
         },
         fallback = '-',
+        unit = 'L/D',
     ),
 )

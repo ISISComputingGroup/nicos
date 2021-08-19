@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 import PyTango
 
@@ -37,6 +35,7 @@ from nicos.devices.generic.detector import ActiveChannel, Detector, \
 from nicos.devices.generic.virtual import VirtualImage
 from nicos.devices.tango import PyTangoDevice
 
+from nicos_mlz.jcns.devices.detector import calculateRate
 from nicos_mlz.jcns.devices.fpga_new import FPGATimerChannel
 
 RTMODES = ('standard', 'tof', 'realtime', 'realtime_external')
@@ -59,6 +58,7 @@ class KWSImageChannel(ImageChannelMixin, PyTangoDevice, ActiveChannel):
     }
 
     def doInit(self, mode):
+        self._rate_data = [0, 0]
         if mode != SIMULATION:
             self._resolution = tuple(self._dev.detectorSize)
         else:
@@ -147,31 +147,12 @@ class KWSImageChannel(ImageChannelMixin, PyTangoDevice, ActiveChannel):
                       errors='sqrt', unit='cts'),
                 Value(name='rate', type='monitor', fmtstr='%.1f', unit='cps'))
 
-    _last = None
-
     def doReadArray(self, quality):
         shape = self.arraydesc.shape
         arr = self._dev.GetBlock([0, int(np.product(shape))])
-        cur = arr.sum(), self._attached_timer.read(0)[0]
-
-        # for final images, calculate overall rate on detector
-        if quality in (FINAL, INTERRUPTED):
-            self.readresult = [cur[0], cur[0] / cur[1] if cur[1] else 0]
-            return np.asarray(arr, np.uint32).reshape(shape)
-
-        # for live measurements, calculate live rate on detector
-        if cur[1] == 0:
-            rate = 0.0
-        elif self._last is None or self._last[1] > cur[1]:
-            rate = cur[0] / cur[1]
-        elif self._last[1] == cur[1]:
-            rate = 0.0
-        else:
-            rate = (cur[0] - self._last[0]) / (cur[1] - self._last[1])
-
-        self._last = cur
-        self.readresult = [cur[0], rate]
-
+        cts, seconds = arr.sum(), self._attached_timer.read(0)[0]
+        rate = calculateRate(self._rate_data, quality, cts, seconds)
+        self.readresult = [cts, rate]
         return np.asarray(arr, np.uint32).reshape(shape)
 
 
@@ -202,7 +183,7 @@ class VirtualKWSImageChannel(VirtualImage):
     def _configure(self, tofsettings):
         if self.mode == 'standard':
             self.slices = []
-            self.arraydesc = ArrayDesc('data', self.sizes, np.uint32)
+            self.arraydesc = ArrayDesc('data', self.sizes[::-1], np.uint32)
         else:
             # set timing of TOF slices
             channels, interval, q, custom = tofsettings
@@ -215,7 +196,7 @@ class VirtualKWSImageChannel(VirtualImage):
                 for i in range(channels):
                     times.append(times[-1] + int(interval * q**i))
             self.slices = times
-            self.arraydesc = ArrayDesc('data', (channels,) + self.sizes,
+            self.arraydesc = ArrayDesc('data', (channels,) + self.sizes[::-1],
                                        np.uint32)
 
     def doReadArray(self, quality):

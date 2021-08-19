@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from gzip import GzipFile as StdGzipFile
 
 import numpy
@@ -31,13 +29,13 @@ import numpy
 from nicos.core.data.sink import GzipFile
 from nicos.devices.datasinks.image import ImageFileReader, ImageSink, \
     MultipleFileSinkHandler
-from nicos.pycompat import File
+from nicos.utils import File
 
 
 class NPImageSinkHandler(MultipleFileSinkHandler):
     """Numpy text format filesaver using `numpy.savetxt`"""
 
-    filetype = "TXT"
+    filetype = "txt"
 
     def writeData(self, fp, image):
         numpy.savetxt(fp, numpy.asarray(image), fmt="%u")
@@ -59,7 +57,7 @@ class NPImageFileReader(ImageFileReader):
 class NPGZImageSinkHandler(NPImageSinkHandler):
     """Compressed Numpy text format filesaver using `numpy.savetxt`"""
 
-    filetype = "NPGZ"
+    filetype = "npgz"
     fileclass = GzipFile
 
     def writeData(self, fp, image):

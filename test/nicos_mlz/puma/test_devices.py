@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Module to test custom specific modules."""
-
-from __future__ import absolute_import, division, print_function
 
 import pytest
 
@@ -102,7 +100,7 @@ def test_mtt_axis(session, log):
     #     assert raises(MoveError, ax.maw, (ax.polypos - 1))
 
 
-class TestCad(object):
+class TestCad:
     """Test class for the PUMA coupled axis device."""
 
     @pytest.fixture(scope='function', autouse=True)

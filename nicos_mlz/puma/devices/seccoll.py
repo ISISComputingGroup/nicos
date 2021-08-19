@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 #
 # *****************************************************************************
 """PUMA device classes for the secondary collimator changer."""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos import session
 from nicos.core import Attach, Moveable, Override, Param, Readable, intrange, \
@@ -200,7 +198,7 @@ class PumaSecCollLift(HasTimeout, BlockingSequencer):
 
     def _generateSequence(self, target):
         seq = []
-        if not self.isAtTarget(self.doRead(0)):
+        if not self.isAtTarget():
             # The limited space at some positions requires a folding of the
             # instrument
             st_target = 60. if self.angle > -85. else 109.
@@ -292,11 +290,12 @@ class PumaSecCollPair(HasTimeout, BlockingSequencer):
 
     def _generateSequence(self, target):
         seq = []
-        if not self.isAtTarget(self.read(0)):
+        if not self.isAtTarget():
             # self.reset()
             # session.delay(2)
             # switch on hardware
-            if True or self.autoonoff:  # ask why on/off automatic is needed
+            # ask why on/off automatic is needed
+            if True or self.autoonoff:  # pylint: disable=condition-evals-to-constant
                 seq.append(SeqDev(self._attached_a2_powvalunit, 1))
                 seq.append(SeqSleep(2))
                 seq.append(SeqDev(self._attached_a2_lgon, 1))
@@ -370,7 +369,7 @@ class PumaSecondaryCollimator(HasTimeout, BlockingSequencer):
 
     def _generateSequence(self, target):
         seq = []
-        if not self.isAtTarget(self.read(0)):
+        if not self.isAtTarget():
             position = None
             for i, val in enumerate(self._switchlist[0]):
                 if target == val:
@@ -388,7 +387,7 @@ class PumaSecondaryCollimator(HasTimeout, BlockingSequencer):
             # ask for changing the devices pair 1-3
             for i in range(3):
                 if self._pairs[i]:  # Ignore pair1 if not used
-                    if (position & (1 << i)):
+                    if position & (1 << i):
                         self.log.debug('switching to frame: %s',
                                        self._pairs[i])
                         seq.append(SeqDev(self._pairs[i], 'frame'))

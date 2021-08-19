@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """Dataset classes."""
 
-from __future__ import absolute_import, division, print_function
-
 from math import sqrt
 from threading import Lock
 from time import localtime, time as currenttime
@@ -34,8 +32,7 @@ from uuid import uuid4
 from nicos.core.acquire import DevStatistics
 from nicos.core.constants import BLOCK, POINT, SCAN, SUBSCAN, UNKNOWN
 from nicos.core.errors import ProgrammingError
-from nicos.pycompat import iteritems, number_types
-from nicos.utils import lazy_property
+from nicos.utils import lazy_property, number_types
 
 SETTYPES = (POINT, SCAN, SUBSCAN, BLOCK)
 
@@ -55,7 +52,7 @@ class finish_property(lazy_property):
         return result
 
 
-class BaseDataset(object):
+class BaseDataset:
     """Base class for scan and point datasets."""
 
     settype = UNKNOWN
@@ -136,14 +133,17 @@ class BaseDataset(object):
 
     @lazy_property
     def devvalueinfo(self):
+        """Device value info list."""
         return sum((dev.valueInfo() for dev in self.devices), ())
 
     @lazy_property
     def envvalueinfo(self):
+        """Environment value info list."""
         return sum((dev.valueInfo() for dev in self.environment), ())
 
     @lazy_property
     def detvalueinfo(self):
+        """Detector value info info."""
         return sum((dev.valueInfo() for dev in self.detectors), ())
 
 
@@ -165,16 +165,16 @@ class PointDataset(BaseDataset):
         # More stats about "interesting" devices (to allow statistics).
         self._valuestats = {}
 
-        # Instrument metainfo ("header data").
-        # A dictionary of (devname, key) -> (value, str_value, unit, category).
-        # Keys are usually parameters or 'value', 'status'.
+        #: Instrument metainfo ("header data").
+        #: A dictionary of (devname, key) -> (value, str_value, unit, category).
+        #: Keys are usually parameters or 'value', 'status'.
         self.metainfo = {}
 
         BaseDataset.__init__(self, **kwds)
 
     def _addvalues(self, values):
         with self._statslock:
-            for devname, (timestamp, value) in iteritems(values):
+            for devname, (timestamp, value) in values.items():
                 self.values[devname] = value
                 if timestamp is None:
                     self.canonical_values[devname] = value
@@ -219,12 +219,18 @@ class PointDataset(BaseDataset):
         """Trim objects that are not required to be kept after finish()."""
         BaseDataset.trimResult(self)
         # remove arrays from memory in cached datasets
-        for (key, value) in iteritems(self.results):
+        for (key, value) in self.results.items():
             if value is not None:
                 self.results[key] = (value[0], [])
 
     @property
     def valuestats(self):
+        """Value statistics.
+
+        The value statistics is a dictionary where the key is the device name
+        and the value is a tuple of mean value, standard deviation, minimum value
+        and maximum value.
+        """
         res = {}
         with self._statslock:
             for devname in self._valuestats:
@@ -240,14 +246,29 @@ class PointDataset(BaseDataset):
 
     @finish_property
     def devvaluelist(self):
+        """List of all device values.
+
+        The order of the values is the same as in the ``devvalueinfo`` list, so
+        mapping between device and value can be made..
+        """
         return self._reslist(self.devices, self.canonical_values)
 
     @finish_property
     def envvaluelist(self):
+        """List of values of all devices in the ``session.experiment.envlist`` list.
+
+        The order of the values is the same as in the ``envvalueinfo`` list, so
+        mapping between environment device and value can be made..
+        """
         return self._reslist(self.environment, self.values)
 
     @finish_property
     def detvaluelist(self):
+        """List of values of all devices in the ``session.experiment.detectors`` list.
+
+        The order of the values is the same as in the ``detvalueinfo`` list, so
+        mapping between detector device and value can be made..
+        """
         return self._reslist(self.detectors, self.results, 0)
 
 
@@ -287,23 +308,26 @@ class ScanDataset(BaseDataset):
 
     @property
     def metainfo(self):
-        # The metainfo is the same as for the first datapoint / subscan.
+        """The metainfo is the same as for the first datapoint or subscan."""
         if not self.subsets:
             raise ProgrammingError('metainfo is not available without points')
         return self.subsets[0].metainfo
 
     @property
     def devvaluelists(self):
+        """List of all subset devvaluelist. """
         return [subset.devvaluelist for subset in self.subsets
                 if subset.finished]
 
     @property
     def envvaluelists(self):
+        """List of all subset envvaluelist. """
         return [subset.envvaluelist for subset in self.subsets
                 if subset.finished]
 
     @property
     def detvaluelists(self):
+        """List of all subset detvaluelist. """
         return [subset.detvaluelist for subset in self.subsets
                 if subset.finished]
 
@@ -325,7 +349,7 @@ class BlockDataset(BaseDataset):
         BaseDataset.__init__(self, **kwds)
 
 
-class ScanData(object):
+class ScanData:
     """Simplified object containing scan data for serialized transfer to the
     GUI/ELog.
     """
@@ -387,7 +411,7 @@ class ScanData(object):
             self.headerinfo = {}
             if dataset.subsets:
                 for (devname, key), (_, val, unit, category) in \
-                        iteritems(dataset.metainfo):
+                        dataset.metainfo.items():
                     catlist = self.headerinfo.setdefault(category, [])
                     catlist.append((devname, key, (val + ' ' + unit).strip()))
 

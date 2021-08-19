@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,14 +24,11 @@
 
 """NICOS GUI watch variable panel component."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.utils import loadUi
 from nicos.guisupport.qt import QInputDialog, QMessageBox, QTreeWidgetItem, \
     pyqtSlot
 from nicos.guisupport.utils import setBackgroundColor
-from nicos.pycompat import iteritems
 
 
 class WatchPanel(Panel):
@@ -66,7 +63,7 @@ class WatchPanel(Panel):
     def on_client_watch(self, data):
         values = data
         names = set()
-        for name, val in iteritems(values):
+        for name, val in values.items():
             name = name[:name.find(':')]
             if name in self.watch_items:
                 self.watch_items[name].setText(1, str(val))

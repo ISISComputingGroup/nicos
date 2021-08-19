@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 # *****************************************************************************
 
 """Toni-protocol device classes."""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import ADMIN, Attach, CommunicationError, Moveable, Override, \
     Param, intrange, oneofdict, requires, status
@@ -71,7 +69,8 @@ class ToniBus(StringIO):
             try:
                 value = int(resp, 16)
             except ValueError:
-                raise CommunicationError(self, 'invalid hex number: %r' % resp)
+                raise CommunicationError(
+                    self, 'invalid hex number: %r' % resp) from None
             return value
         return resp
 
@@ -116,16 +115,19 @@ class LVPower(Moveable):
     """Toni TOFTOF-type low-voltage power supplies."""
 
     attached_devices = {
-        'bus':  Attach('Toni communication bus', ToniBus),
+        'bus': Attach('Toni communication bus', ToniBus),
     }
 
     parameters = {
-        'addr':  Param('Bus address of the supply controller',
-                       type=intrange(0xF0, 0xFF), mandatory=True),
+        'addr': Param('Bus address of the supply controller',
+                      type=intrange(0xF0, 0xFF), mandatory=True),
+        'temperature': Param('Temperature of the module',
+                             type=int, settable=False, volatile=True,
+                             unit='degC', fmtstr='%d'),
     }
 
     parameter_overrides = {
-        'unit':  Override(mandatory=False, default=''),
+        'unit': Override(mandatory=False, default=''),
     }
 
     valuetype = oneofdict({1: 'on', 0: 'off'})
@@ -134,10 +136,27 @@ class LVPower(Moveable):
         sval = self._attached_bus.communicate('S?', self.addr, expect_hex=2)
         return 'on' if sval >> 7 else 'off'
 
+    def doReadTemperature(self):
+        return self._attached_bus.communicate('T?', self.addr, expect_hex=2)
+
     def doStatus(self, maxage=0):
         sval = self._attached_bus.communicate('S?', self.addr, expect_hex=2)
-        tval = self._attached_bus.communicate('T?', self.addr, expect_hex=2)
-        return status.OK, 'status=%d, temperature=%d' % (sval, tval)
+        if sval in (0x0, 0x80):
+            return status.OK, ''
+        msg = []
+        if sval & 0x1:
+            msg.append('undervoltage +5V')
+        if sval & 0x2:
+            msg.append('overvoltage +5V')
+        if sval & 0x4:
+            msg.append('undervoltage -5V')
+        if sval & 0x8:
+            msg.append('overvoltage -5V')
+        if sval & 0x10:
+            msg.append('undervoltage +12V')
+        if sval & 0x20:
+            msg.append('overvoltage +12V')
+        return status.ERROR, ', '.join(msg)
 
     @requires(level=ADMIN)
     def doStart(self, target):

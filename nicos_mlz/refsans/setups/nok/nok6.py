@@ -2,7 +2,7 @@ description = "neutronguide sideMirror noMirror"
 
 group = 'lowlevel'
 
-includes = ['nok_ref', 'nokbus4', 'nokbus3']
+includes = ['nok_ref', 'zz_absoluts']
 
 instrument_values = configdata('instrument.values')
 showcase_values = configdata('cf_showcase.showcase_values')
@@ -25,10 +25,10 @@ devices = dict(
         nok_motor = [6137.0, 7357.0],
         precision = 0.0,
         masks = {
-            'ng': optic_values['ng'],
-            'rc': optic_values['ng'],
-            'vc': optic_values['vc'],
-            'fc': optic_values['fc'],
+            'ng': -0.5 + optic_values['ng'],  # 2021-03-18 11:52:07 TheoMH 0.0
+            'rc': -0.5 + optic_values['ng'],  # 2021-03-18 11:52:07 TheoMH 0.0
+            'vc': -0.5 + optic_values['vc'],  # 2021-03-18 11:52:07 TheoMH 0.0
+            'fc': -0.5 + optic_values['fc'],  # 2021-03-18 11:52:07 TheoMH 0.0
         },
     ),
     nok6r_axis = device('nicos.devices.generic.Axis',
@@ -36,26 +36,10 @@ devices = dict(
         motor = 'nok6r_motor',
         # obs = ['nok6r_analog'],
         backlash = -0.5,
-        precision = 0.0,
+        precision = optic_values['precision_ipcsms'],
         unit = 'mm',
         lowlevel = True,
     ),
-    nok6r_motor = device(code_base + 'ipc.NOKMotorIPC',
-        description = 'IPC controlled Motor of NOK6, reactor side nasty!',
-        abslimits = (-66.2, 96.59125),
-        bus = 'nokbus4',
-        addr = 0x63,
-        slope = 2000.0,
-        speed = 100,
-        accel = 100,
-        confbyte = 48,
-        ramptype = 2,
-        microstep = 1,
-        refpos = 45.51,
-        zerosteps = int(704.638 * 800),
-        lowlevel = showcase_values['hide_poti'],
-    ),
-
     nok6r_acc = device(code_base + 'nok_support.MotorEncoderDifference',
          description = 'calc error Motor and poti',
          motor = 'nok6r_motor',
@@ -63,49 +47,31 @@ devices = dict(
          lowlevel = showcase_values['hide_acc'],
          unit = 'mm'
     ),
-
     nok6r_analog = device(code_base + 'nok_support.NOKPosition',
         description = 'Position sensing for NOK6, reactor side',
         reference = 'nok_refb2',
         measure = 'nok6r_poti',
-        poly = [3.823914, 997.832 / 3.846],
+        # 2020-04-20 13:51:20 poly = [3.823914, 997.832 / 3.846],
+        poly = [3.223914, 997.832 / 3.846],
         serial = 7538,
         length = 250.0,
         lowlevel = showcase_values['hide_poti'],
     ),
-
     nok6r_poti = device(code_base + 'nok_support.NOKMonitoredVoltage',
         description = 'Poti for NOK6, reactor side',
         tangodevice = tango_base + 'test/wb_b/2_1',
         scale = -1,  # mounted from top
         lowlevel = True,
     ),
-
     nok6s_axis = device('nicos.devices.generic.Axis',
         description = 'Axis of NOK6, sample side',
         motor = 'nok6s_motor',
         # obs = ['nok6s_analog'],
         backlash = -0.5,
-        precision = 0.0,
+        precision = optic_values['precision_ipcsms'],
         unit = 'mm',
         lowlevel = True,
     ),
-    nok6s_motor = device(code_base + 'ipc.NOKMotorIPC',
-        description = 'IPC controlled Motor of NOK6, sample side',
-        abslimits = (-81.0, 110.875),
-        bus = 'nokbus3',
-        addr = 0x51,
-        slope = 800.0,
-        speed = 40,
-        accel = 40,
-        confbyte = 48,
-        ramptype = 2,
-        microstep = 1,
-        refpos = 46.67,
-        zerosteps = int(703.5 * 800),
-        lowlevel = showcase_values['hide_poti'],
-    ),
-
     nok6s_acc = device(code_base + 'nok_support.MotorEncoderDifference',
          description = 'calc error Motor and poti',
          motor = 'nok6s_motor',
@@ -113,17 +79,16 @@ devices = dict(
          lowlevel = showcase_values['hide_acc'],
          unit = 'mm'
     ),
-
     nok6s_analog = device(code_base + 'nok_support.NOKPosition',
         description = 'Position sensing for NOK6, sample side',
         reference = 'nok_refb2',
         measure = 'nok6s_poti',
-        poly = [16.273013, 999.674 / 3.834],
+        # 2020-04-20 13:51:36 poly = [16.273013, 999.674 / 3.834],
+        poly = [16.003013, 999.674 / 3.834],
         serial = 7537,
         length = 250.0,
         lowlevel = showcase_values['hide_poti'],
     ),
-
     nok6s_poti = device(code_base + 'nok_support.NOKMonitoredVoltage',
         description = 'Poti for NOK6, sample side',
         tangodevice = tango_base + 'test/wb_b/2_2',

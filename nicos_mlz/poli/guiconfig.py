@@ -42,16 +42,13 @@ main_window = tabbed(
 
 windows = [
     window('Camera', 'live',
-           panel('nicos.clients.gui.panels.liveqwt.LiveDataPanel',
-                 instrument='poli')),
+           panel('nicos.clients.gui.panels.live.LiveDataPanel')),
     window('PLC', 'table',
            panel('nicos_mlz.gui.plcpanel.PlcDeviceControlPanel')),
 ]
 
 tools = [
     tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
-         receiver='f.carsughi@fz-juelich.de',
-         mailserver='smtp.frm2.tum.de',
          sender='poli@frm2.tum.de'),
     tool('Sample environment logbooks',
          'nicos.clients.gui.tools.website.WebsiteTool',

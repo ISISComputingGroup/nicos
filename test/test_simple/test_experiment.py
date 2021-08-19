@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """NICOS device class test suite."""
-
-from __future__ import absolute_import, division, print_function
 
 import os
 import sys
@@ -65,7 +63,7 @@ def test_experiment(session, cleanup):
 
     # setup test scenario
     exp._setROParam('dataroot', path.join(runtime_root, 'data'))
-    exp.proposal = 'service'
+    exp._setROParam('proposal', 'service')
     exp._setROParam('proptype', 'service')
     # if there is no exp.new, we need to adjust proposalpath ourselfs!
     exp.proposalpath = exp.proposalpath_of(exp.proposal)
@@ -107,7 +105,7 @@ def test_experiment(session, cleanup):
     assert exp.title == 'etitle'
     assert exp.localcontact == 'me <m.e@me.net>'
     assert exp.users == 'you'
-    assert exp.remark == ''  #pylint: disable=compare-to-empty-string
+    assert exp.remark == ''  # pylint: disable=compare-to-empty-string
 
     # check that directories have been created
     assert path.isdir(datapath('p999'))
@@ -117,16 +115,16 @@ def test_experiment(session, cleanup):
     # check that templating works
     assert path.isfile(datapath('p999', 'scripts', 'start_p999.py'))
     run('start_p999.py')
-    assert exp.remark == 'proposal p999 started by you; sample is unknown'
+    assert exp.remark == 'proposal p999 started now; sample is unknown'
 
     # try a small scan; check for data file written
-    scan(session.getDevice('axis'), 0, 1, 5, 0.01, u'Meßzeit')
+    scan(session.getDevice('axis'), 0, 1, 5, 0.01, 'Meßzeit')
     assert path.isfile(datapath('..', 'counters'))
     nr = readFileCounter(datapath('..', 'counters'), 'scan')
     fn = datapath('p999', 'data', 'p999_%08d.dat' % nr)
     assert path.isfile(fn)
-    with open(fn, 'rb') as fp:
-        assert u'Meßzeit'.encode('utf-8') in fp.read()
+    with open(fn, 'r') as fp:
+        assert 'Meßzeit' in fp.read()
 
     # now, finish the experiment
     thd = exp.finish()
@@ -142,7 +140,7 @@ def test_experiment(session, cleanup):
     # switch back to proposal (should re-enable directory)
     exp.new('p999', localcontact=exp.localcontact)
     assert os.access(datapath('p999'), os.X_OK)
-    assert exp.users == ''  #pylint: disable=compare-to-empty-string
+    assert exp.users == ''  # pylint: disable=compare-to-empty-string
     # has the zip file been created?
     assert path.isfile(datapath('p999', 'p999.zip'))
 
@@ -150,18 +148,15 @@ def test_experiment(session, cleanup):
 
     assert exp.users == 'A User'
     exp.addUser('Another User', 'another.user@experiment.com')
-    assert exp.users == 'A User, Another User <another.user@experiment.com>'
+    assert exp.users == 'A User, Another User'
     exp.addUser('Athird User', 'athird.user@experiment.com',
                 'An Institute, Anywhere street, 12345 Anywhere')
-    assert exp.users == 'A User, Another User <another.user@experiment.com>, '\
-                        'Athird User <athird.user@experiment.com> ' \
-                        '(An Institute, Anywhere street, 12345 Anywhere)'
+    assert exp.users == 'A User, Another User, Athird User '\
+        '(An Institute, Anywhere street, 12345 Anywhere)'
 
-    exp.users = 'Jülich'
-    exp.users = u'Jülich'
+    exp.update(users=[{'name': 'Jülich'}])
 
     exp.scripts = ['Test ümlauts']
-    exp.scripts = [u'Test ümlauts']
     assert exp.scripts == ['Test ümlauts']
 
     # and back to service

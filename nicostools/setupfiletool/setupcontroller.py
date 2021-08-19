@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,8 +28,6 @@ A Setup object represents a setup file.
 Setups are distinguishable by their absolute path.
 """
 
-from __future__ import absolute_import, division, print_function
-
 import os
 from copy import copy
 from os import path
@@ -37,10 +35,6 @@ from os import path
 from nicos.core.sessions.setups import readSetup
 from nicos.utils.files import findSetupRoots, iterSetups
 
-from .utilities.utilities import getNicosDir
-
-# root directory containing all the setups or subdirs with setups.
-setup_root = os.path.join(getNicosDir(), 'nicos_mlz')
 setup_directories = {}
 
 log = None
@@ -58,9 +52,8 @@ def __walkForSetups(log, previousDir, newDir, listOfSetups):
     for item in os.listdir(os.path.join(previousDir, newDir)):
         if item.endswith('.py'):
             try:
-                listOfSetups.append(Setup(os.path.join(previousDir,
-                                                       newDir,
-                                                       item), log))
+                listOfSetups.append(
+                    Setup(os.path.join(previousDir, newDir, item), log))
             except RuntimeError as e:
                 log.warning(e.message)
         elif os.path.isdir(os.path.join(previousDir, newDir, item)):
@@ -72,11 +65,11 @@ def addSetup(setupDir, abspath):
     setup_directories[setupDir].append(Setup(abspath, log))
 
 
-def init(logger):
+def init(setup_root, logger):
     setup_directories.clear()
     log = logger
     for item in os.listdir(setup_root):
-        if os.path.isdir(os.path.join(setup_root, item)):
+        if os.path.isdir(os.path.join(setup_root, item, 'setups')):
             setup_directories[item] = []
 
     for setup_directory in list(setup_directories):
@@ -90,7 +83,7 @@ def init(logger):
         setup_directories[setup_directory] = setups
 
 
-class Setup(object):
+class Setup:
     def __init__(self, abspath, log):
         info = {}
         setup_roots = findSetupRoots(abspath)
@@ -105,7 +98,7 @@ class Setup(object):
         self.abspath = abspath
         if not info:
             raise RuntimeError('Could not load setup ' + abspath)
-        self.name = info.keys()[0]
+        self.name = next(iter(info.keys()))
         self.edited = False
 
         self.extended = copy(info[self.name]['extended'])
@@ -117,6 +110,9 @@ class Setup(object):
         self.group = copy(info[self.name]['group'])
         self.modules = copy(info[self.name]['modules'])
         self.startupcode = copy(info[self.name]['startupcode'])
+        self.display_order = copy(info[self.name]['display_order'])
+        self.monitor_blocks = copy(info[self.name]['monitor_blocks'])
+        self.watch_conditions = copy(info[self.name]['watch_conditions'])
         self.devices = {}
         devs = info[self.name]['devices']
         for deviceName in devs:
@@ -126,7 +122,7 @@ class Setup(object):
                                         )
 
 
-class Device(object):
+class Device:
     def __init__(self, name, classString='', parameters=None):
         if parameters is None:
             parameters = {}

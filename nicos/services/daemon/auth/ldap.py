@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,12 +24,9 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import ldap3  # pylint: disable=import-error
 
 from nicos.core import ACCESS_LEVELS, Param, User, dictof, oneof
-from nicos.pycompat import iteritems
 from nicos.services.daemon.auth import AuthenticationError, \
     Authenticator as BaseAuthenticator
 
@@ -85,19 +82,23 @@ class Authenticator(BaseAuthenticator):
 
     def doInit(self, mode):
         self._access_levels = {value: key
-                               for key, value in iteritems(ACCESS_LEVELS)}
+                               for key, value in ACCESS_LEVELS.items()}
 
     def authenticate(self, username, password):
         userdn = self._get_user_dn(username)
 
         # first of all: try a bind to check user existence and password
+        error = None
         try:
             connection = ldap3.Connection(self.uri, user=userdn,
                                           password=password,
                                           auto_bind=self.BIND_METHODS[
                                               self.bindmethod])
-        except ldap3.core.exceptions.LDAPException as e:
-            raise AuthenticationError('LDAP connection failed (%s)' % e)
+        except ldap3.core.exceptions.LDAPException as err:
+            # this avoids leaking credential details via tracebacks
+            error = str(err)
+        if error:
+            raise AuthenticationError('LDAP connection failed (%s)' % error)
 
         userlevel = -1
 

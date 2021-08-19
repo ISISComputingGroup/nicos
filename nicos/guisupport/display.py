@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,9 +26,7 @@
 NICOS value display widget.
 """
 
-from __future__ import absolute_import, division, print_function
-
-from cgi import escape
+import html
 from os.path import getmtime, isfile
 from time import time as currenttime
 
@@ -41,7 +39,6 @@ from nicos.guisupport.squeezedlbl import SqueezedLabel
 from nicos.guisupport.utils import setBackgroundColor, setBothColors, \
     setForegroundColor
 from nicos.guisupport.widget import NicosWidget, PropDef
-from nicos.pycompat import from_maybe_utf8, text_type
 from nicos.utils import findResource
 
 defaultColorScheme = {
@@ -150,7 +147,7 @@ class ValueLabel(SqueezedLabel):
         SqueezedLabel.__init__(self, parent, designMode, **kwds)
         if designMode:
             self.setText('(value display)')
-        self._callback = lambda value, strvalue: from_maybe_utf8(strvalue)
+        self._callback = lambda value, strvalue: strvalue
 
     def setFormatCallback(self, callback):
         self._callback = callback
@@ -326,10 +323,9 @@ class ValueDisplay(NicosWidget, QWidget):
         self._lastvalue = value
         self._lastchange = currenttime()
         if self.props['maxlen'] > -1:
-            self.valuelabel.setText(from_maybe_utf8(
-                strvalue[:self.props['maxlen']]))
+            self.valuelabel.setText(strvalue[:self.props['maxlen']])
         else:
-            self.valuelabel.setText(from_maybe_utf8(strvalue))
+            self.valuelabel.setText(strvalue)
         if self._expired:
             setBothColors(self.valuelabel, (self._colorscheme['fore'][UNKNOWN],
                                             self._colorscheme['expired']))
@@ -370,9 +366,9 @@ class ValueDisplay(NicosWidget, QWidget):
     def update_namelabel(self):
         name = self.props['name'] or self.props['dev'] or self.props['key']
         self.namelabel.setText(
-            escape(text_type(name)) +
+            html.escape(str(name)) +
             ' <font color="#888888">%s</font><font color="#0000ff">%s</font> '
-            % (escape(self.props['unit'].strip()), self._isfixed))
+            % (html.escape(self.props['unit'].strip()), self._isfixed))
 
     def _label_entered(self, widget, event, from_mouse=True):
         infotext = '%s = %s' % (self.props['name'] or self.props['dev']

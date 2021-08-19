@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,7 @@
 
 """The NICOS cache collector daemon."""
 
-from __future__ import absolute_import, division, print_function
-
+import queue
 import re
 
 from nicos.core import Attach, Override, Param
@@ -36,7 +35,6 @@ from nicos.core.params import dictof, listof, oneof
 from nicos.devices.cacheclient import BaseCacheClient
 from nicos.protocols.cache import OP_TELL, OP_TELLOLD
 from nicos.utils import createThread
-from nicos.pycompat import queue
 
 try:
     import requests

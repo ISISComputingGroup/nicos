@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,29 +26,22 @@
 Python interface to the _pyctl module, to control the execution of Python
 code via a C trace function.
 """
-from __future__ import absolute_import, division, print_function
-
 import threading
 import traceback
 
 from nicos.protocols.daemon import STATUS_INBREAK, STATUS_RUNNING
 
-__all__ = ['LINENO_ALL', 'LINENO_TOPLEVEL', 'LINENO_NAME',
-           'Controller', 'ControlStop']
-
-
-
-# import logic here - please do not change this order:
-#    1) try the in-package version (for inplace builds)
-#    2) try version from platform specific directory (no package prefix)
 try:
     from nicospyctl.pyctl import ControlStop, Controller as _Controller
 except ImportError:
     ControlStop = BaseException
 
-    class _Controller(object):
+    class _Controller:
         def __init__(self, *args, **kwds):
             raise ImportError('Please install the nicos-pyctl package.')
+
+__all__ = ['LINENO_ALL', 'LINENO_TOPLEVEL', 'LINENO_NAME',
+           'Controller', 'ControlStop']
 
 # defines from the C module
 LINENO_ALL      = 0   # trace all line numbers
@@ -125,7 +118,6 @@ class Controller(_Controller):
     - lineno: current line number (in which frame, see lineno_behavior)
     """
 
-    # pylint: disable=W0231
     def __init__(self, break_only_in_toplevel=False,
                  break_only_in_filename=None, lineno_behavior=None):
         if lineno_behavior is None:

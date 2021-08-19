@@ -1,7 +1,7 @@
 # - * - encoding: utf-8 - * -
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Detector class for the laue PSL detector via the windows server."""
-
-from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
@@ -66,7 +64,7 @@ class PSLDetector(ImageChannelMixin, ActiveChannel):
             try:
                 data = self._communicate('GetSize')
                 iwstr, ihstr = data.split(';')
-            except IOError:
+            except OSError:
                 self.log.warning('Error during init', exc=1)
                 iwstr, ihstr = '2000', '1598'
         self._setROParam('imagewidth', int(iwstr))

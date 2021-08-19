@@ -90,8 +90,8 @@ column1 = Column(primary, sample, detector, camera)
 cryos = []
 cryosupps = []
 cryoplots = []
-cryodict = dict(cci3he1='3He-insert', cci3he2='3He-insert', cci3he3='3He-insert',
-                ccidu1='Dilution-insert', ccidu2='Dilution-insert')
+cryodict = dict(cci3he01='3He-insert', cci3he02='3He-insert', cci3he03='3He-insert',
+                ccidu01='Dilution-insert', ccidu02='Dilution-insert')
 for cryo, name in cryodict.items():
     cryos.append(
         Block('%s %s' % (name, cryo.title()), [
@@ -161,7 +161,7 @@ for i in range(10, 22 + 1):
                 Field(key='t_ccr%d/d' % i, name='D', width=6),
             ),
             ],
-            setups='ccr%d and not cci3he*' % i,
+            setups='ccr%d and not cci3he0*' % i,
         )
     )
     ccrsupps.append(
@@ -280,7 +280,7 @@ column4 = Column(*cryoplots) + Column(*ccrplots)
 devices = dict(
     Monitor = device('nicos.services.monitor.html.Monitor',
         title = 'POLI Status monitor',
-        filename = '/policontrol/webroot/index.html',
+        filename = '/control/webroot/index.html',
         interval = 10,
         loglevel = 'info',
         cache = 'phys.poli.frm2',
@@ -290,6 +290,7 @@ devices = dict(
         fontsize = 17,
         layout = [[_expcolumn],
                   [column1, column2, column3],
-                  [column4]]
+                  [column4]],
+        noexpired = True,
     ),
 )

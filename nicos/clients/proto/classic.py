@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,18 +23,14 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
-import socket
 import uuid
 
 import numpy as np
 
-from nicos.protocols.daemon import DAEMON_EVENTS, \
-    ClientTransport as BaseClientTransport, ProtocolError
+from nicos.protocols.daemon import ClientTransport as BaseClientTransport, \
+    ProtocolError
 from nicos.protocols.daemon.classic import ACK, ENQ, LENGTH, NAK, \
-    READ_BUFSIZE, SERIALIZERS, STX, code2event, command2code
-from nicos.pycompat import memory_buffer
+    READ_BUFSIZE, STX, code2event, command2code
 from nicos.utils import closeSocket, tcpSocket
 
 
@@ -58,7 +54,7 @@ class ClientTransport(BaseClientTransport):
         # connect to event port
         try:
             self.event_sock = tcpSocket(conndata.host, conndata.port)
-        except socket.error as err:
+        except OSError as err:
             msg = err.args[1]
             self.signal('failed', 'Event connection failed: %s.' % msg, err)
             return
@@ -97,45 +93,53 @@ class ClientTransport(BaseClientTransport):
                 raise ProtocolError('connection broken')
             buf += read
 
-        if not self.serializer:  # determine serializer class automatically
-            for serializercls in SERIALIZERS.values():
-                try:
-                    candidate = serializercls()
-                    candidate.deserialize_reply(buf, start[0:1] == STX)
-                except Exception:
-                    continue
-                self.serializer = candidate
-                break
-            else:  # no serializer found
-                raise ProtocolError('no serializer found for this connection')
+        if not self.serializer:
+            self.serializer = self.determine_serializer(buf, start[0:1] == STX)
         # XXX: handle errors
         return self.serializer.deserialize_reply(buf, start[0:1] == STX)
 
-    def recv_event(self):
-        # receive STX (1 byte) + eventcode (2) + length (4)
+    def _recv_blob(self):
         start = b''
-        while len(start) < 7:
-            data = self.event_sock.recv(7 - len(start))
+        while len(start) < 4:
+            data = self.event_sock.recv(4 - len(start))
             if not data:
                 raise ProtocolError('read: event connection broken')
             start += data
-        if start[0:1] != STX:
-            raise ProtocolError('wrong event header')
-        length, = LENGTH.unpack(start[3:])
+        length, = LENGTH.unpack(start)
         got = 0
-        # read into a pre-allocated buffer to avoid copying lots of data
-        # around several times
         buf = np.zeros(length, 'c')  # Py3: replace with bytearray+memoryview
         while got < length:
             read = self.event_sock.recv_into(buf[got:], length - got)
             if not read:
                 raise ProtocolError('read: event connection broken')
             got += read
+        return buf
+
+    def recv_event(self):
+        # receive STX (1 byte) + eventcode (2) + nblobs(1) + length (4)
+        start = b''
+        while len(start) < 8:
+            data = self.event_sock.recv(8 - len(start))
+            if not data:
+                raise ProtocolError('read: event connection broken')
+            start += data
+        if start[0:1] != STX:
+            raise ProtocolError('wrong event header')
+        nblobs = ord(start[3:4])
+        length, = LENGTH.unpack(start[4:])
+        got = 0
+        # read into a pre-allocated buffer to avoid copying lots of data
+        # around several times
+        buf = bytearray(length)
+        buf_view = memoryview(buf)
+        while got < length:
+            read = self.event_sock.recv_into(buf_view[got:], length - got)
+            if not read:
+                raise ProtocolError('read: event connection broken')
+            got += read
         # XXX: error handling
         event = code2event[start[1:3]]
-        # serialized or raw event data?
-        if DAEMON_EVENTS[event][0]:
-            data = self.serializer.deserialize_event(buf.tostring(), event)
-        else:
-            data = event, memory_buffer(buf)
-        return data
+
+        data = self.serializer.deserialize_event(buf, event)
+        blobs = [self._recv_blob() for _ in range(nblobs)]
+        return data + (blobs,)

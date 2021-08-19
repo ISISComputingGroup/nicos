@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,8 +21,6 @@
 #   Jens Krüger <jens.krueger@frm2.tum.de>
 #
 # *****************************************************************************
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.utils import loadUi
@@ -116,7 +114,9 @@ class ResolutionPanel(NicosWidget, Panel):
         self.phase6.setText('%.2f deg' % angles[5])
 
         nperiods = self.periods.value()
-        self.ttd.plot(speed, angles, nperiods, disk2, D)
+        sc2_mode = 'normal_mode' if self.SC2_mode.currentIndex() == 0 else \
+            'virtual_disc2_pos_6'
+        self.ttd.plot(speed, angles, nperiods, disk2, D, sc2_mode)
 
     @pyqtSlot('QAbstractButton *')
     def createScript(self, button):

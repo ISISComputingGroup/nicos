@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """MARIA specific 2 theta unit tests."""
 
-from __future__ import absolute_import, division, print_function
-
 session_setup = "t2t"
 
 
@@ -37,7 +35,8 @@ def test_maria_t2t(session):
     target = 2
     slavepos = t2t.scale * target
     t2t.maw(target)
-    assert t2t.read(0) == [target, slavepos]
+    pos = t2t.read(0)
+    assert pos == [target, slavepos]
     assert omega.read(0) == target
     assert detarm.read(0) == slavepos
-    assert t2t.isAtTarget(target)
+    assert t2t.isAtTarget(pos[0], target)

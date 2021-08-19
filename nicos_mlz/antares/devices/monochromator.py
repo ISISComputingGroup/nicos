@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,14 +24,11 @@
 
 """Antares Monochromator"""
 
-from __future__ import absolute_import, division, print_function
-
 from math import asin, degrees, radians, sin, tan
 
 from nicos.core import Attach, HasLimits, Moveable, Override, Param, \
     PositionError, anytype, dictof, floatrange, none_or, oneof, status
 from nicos.core.utils import multiStatus
-from nicos.pycompat import listitems
 from nicos.utils import lazy_property
 
 
@@ -98,7 +95,7 @@ class Monochromator(HasLimits, Moveable):
         try:
             return abs(2 * self.dvalue1 * sin(radians(phi1)))
         except Exception:
-            raise PositionError('can not determine lambda!')
+            raise PositionError('can not determine lambda!') from None
 
     def _moveToParkingpos(self):
         for dev, target in self.parkingpos.items():
@@ -118,7 +115,7 @@ class Monochromator(HasLimits, Moveable):
             d.start(v)
 
     def doStatus(self, maxage=0):
-        st = multiStatus(listitems(self._adevs), maxage)
+        st = multiStatus(list(self._adevs.items()), maxage)
         if st[0] == status.OK:
             # check position
             try:

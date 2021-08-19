@@ -2,8 +2,12 @@
 
 main_window = docked(
     vsplit(
+        panel('nicos.clients.gui.panels.cmdbuilder.CommandPanel',
+              modules=['nicos.clients.gui.cmdlets'],
+        ),
         panel('nicos.clients.gui.panels.status.ScriptStatusPanel'),
-        panel('nicos.clients.gui.panels.console.ConsolePanel'),
+        panel('nicos.clients.gui.panels.console.ConsolePanel',
+              hasinput=False),
     ),
     ('NICOS devices',
      panel('nicos.clients.gui.panels.devices.DevicesPanel', icons=True,
@@ -16,7 +20,10 @@ main_window = docked(
 
 windows = [
     window('Editor', 'editor',
-           panel('nicos.clients.gui.panels.editor.EditorPanel')),
+        vsplit(
+           panel('nicos.clients.gui.panels.scriptbuilder.CommandsPanel'),
+           panel('nicos.clients.gui.panels.editor.EditorPanel',
+           ))),
     window('Scans', 'plotter',
            panel('nicos.clients.gui.panels.scans.ScansPanel')),
     window('History', 'find',
@@ -32,17 +39,17 @@ windows = [
 ]
 
 tools = [
-    tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
+    # tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
          # If you are not at the FRM II facility you have to change this
          # reporting address
-         receiver='f.carsughi@fz-juelich.de',
+         # receiver='useroffice@mlz-garching.de',
          # If you are not at FRM II facility you have to change your mail
          # server
-         mailserver='smtp.frm2.tum.de',
+         # mailserver='smtp.frm2.tum.de',
          # Please change the sender address to a valid, instrument specific
          # address
-         sender='demo@frm2.tum.de',
-        ),
+    #      sender='demo@frm2.tum.de',
+    #     ),
     tool('Calculator', 'nicos.clients.gui.tools.calculator.CalculatorTool'),
     tool('Neutron cross-sections',
          'nicos.clients.gui.tools.website.WebsiteTool',

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2018-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2018-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,32 +22,29 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
-from nicos.core.constants import FINAL, INTERRUPTED, SLAVE
+from nicos.core.constants import FINAL, INTERRUPTED
 from nicos.core.device import Measurable
 from nicos.core.params import Attach, Value
-from nicos.devices.tango import ImageChannel as BaseImageChannel
+from nicos.devices.tango import BaseImageChannel
 
 
-class ImageChannel(BaseImageChannel):
-    """Subclass of the Tango image channel that automatically returns the
-    sum of all counts as a scalar value.
+def calculateRate(store, quality, cts, seconds):
+    """Calculate counts/second rate from given data.
+
+    While the detector is counting, an instantaneous rate is calculated from
+    the difference between the current and last values.  When finished, the
+    rate is calculated over the whole counting time.
     """
-
-    def doInit(self, mode):
-        BaseImageChannel.doInit(self, mode)
-        if mode != SLAVE:
-            self.readArray(FINAL)  # update readresult at startup
-
-    def doReadArray(self, quality):
-        narray = BaseImageChannel.doReadArray(self, quality)
-        self.readresult = [narray.sum()]
-        return narray
-
-    def valueInfo(self):
-        return Value(name=self.name, type='counter', fmtstr='%d',
-                     errors='sqrt', unit='cts'),
+    rate = 0
+    if seconds > 1e-8:
+        if quality in (FINAL, INTERRUPTED) or seconds <= store[1]:
+            # rate for full detector / time
+            rate = cts / seconds
+        elif seconds > store[1]:
+            # live rate on detector (using deltas)
+            rate = (cts - store[0]) / (seconds - store[1])
+    store[:] = [cts, seconds]
+    return rate
 
 
 class RateImageChannel(BaseImageChannel):
@@ -59,24 +56,16 @@ class RateImageChannel(BaseImageChannel):
         'timer': Attach('The timer channel', Measurable),
     }
 
-    _cts_seconds = [0, 0]
+    def doInit(self, mode):
+        BaseImageChannel.doInit(self, mode)
+        self._rate_data = [0, 0]
 
     def doReadArray(self, quality):
         narray = BaseImageChannel.doReadArray(self, quality)
         seconds = self._attached_timer.read(0)[0]
         cts = narray.sum()
-        cts_per_second = 0
-
-        if seconds > 1e-8:
-            if quality in (FINAL, INTERRUPTED) or seconds <= \
-                    self._cts_seconds[1]:  # rate for full detector / time
-                cts_per_second = cts / seconds
-            else:  # live rate on detector (using deltas)
-                cts_per_second = (cts - self._cts_seconds[0]) / (
-                    seconds - self._cts_seconds[1])
-        self._cts_seconds = [cts, seconds]
-
-        self.readresult = [cts, cts_per_second]
+        rate = calculateRate(self._rate_data, quality, cts, seconds)
+        self.readresult = [cts, rate]
         return narray
 
     def valueInfo(self):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,16 +19,17 @@
 #
 # Module authors:
 #   Alexander Lenz <alexander.lenz@frm2.tum.de>
+#   Petr Cermak <cermak@mag.mff.cuni.cz>
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
+import html
 
-import slackclient
+from slack import WebClient as slackwebclient
+from slack.errors import SlackApiError
 
 from nicos.core import ConfigurationError, Override, Param
 from nicos.devices.notifiers import Notifier
-from nicos.pycompat import escape_html
 from nicos.utils.credentials.keystore import nicoskeystore
 
 
@@ -53,27 +54,22 @@ class Slacker(Notifier):
     }
 
     def doInit(self, mode):
-        if slackclient is None:
-            raise ConfigurationError('slackclient package is missing')
-
-        token = nicoskeystore.getCredential(self.keystoretoken)
-        if not token:
+        secret_token = nicoskeystore.getCredential(self.keystoretoken)
+        if not secret_token:
             raise ConfigurationError('Slack API token missing in keyring')
-        self._slack = slackclient.SlackClient(token)
+        self._slack = slackwebclient(secret_token)
 
     def send(self, subject, body, what=None, short=None, important=True):
-        message = escape_html('*%s*\n\n```%s```' % (subject, body), False)
+        message = html.escape('*%s*\n\n```%s```' % (subject, body), False)
 
         for entry in self._getAllRecipients(important):
-            self.log.debug('sending slack message to %s' % entry)
+            self.log.debug(f'sending slack message to {entry}')
             try:
-                reply = self._slack.api_call('chat.postMessage', channel=entry,
-                                             text=message)
-                if reply['ok']:
+                response = self._slack.chat_postMessage(channel=entry,
+                                                        text=message)
+                if response['ok']:
                     continue
-                error = reply['error']
-            except Exception as e:
-                error = str(e)
+            except SlackApiError as e:
+                error = e.response['error']
 
-            self.log.warning('Could not send slack message to %s: %s' %
-                             (entry, error))
+            self.log.warning(f'Could not send slack message to {entry}: {error}')

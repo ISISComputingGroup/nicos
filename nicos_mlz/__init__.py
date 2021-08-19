@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """MLZ specific NICOS package."""
 
-from __future__ import absolute_import, division, print_function
-
 import socket
 from os import path
 
@@ -35,10 +33,17 @@ def determine_instrument(setup_package_path):
     try:
         # Take the second part of the domain name (machine.instrument.frm2
         # or new-style machine.instrument.frm2.tum.de)
-        domain = socket.getfqdn().split('.')[1].replace('-', '_')
-    except (ValueError, IndexError, socket.error):
+        hostname = socket.gethostname()
+        # can't use nicos.utils.getfqdn due to import dependency
+        if '.' not in hostname:
+            hostname = socket.getfqdn(hostname)
+        hostparts = hostname.split('.')
+        instrument = hostparts[1].replace('-', '_')
+        if instrument == 'jcns' and hostparts[0] == 'jcnsmon':
+            instrument = 'jcnsmon'
+    except (ValueError, IndexError, OSError):
         pass
     else:
         # ... but only if a subdir exists for it
-        if path.isdir(path.join(setup_package_path, domain)):
-            return domain
+        if path.isdir(path.join(setup_package_path, instrument)):
+            return instrument

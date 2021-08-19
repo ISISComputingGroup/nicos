@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,6 @@
 
 """NICOS tests for nicos.commands.scan and nicos.core.scan modules."""
 
-from __future__ import absolute_import, division, print_function
-
 import warnings
 
 import pytest
@@ -34,8 +32,8 @@ import pytest
 from nicos.commands.analyze import checkoffset
 from nicos.commands.imaging import tomo
 from nicos.commands.measure import SetEnvironment, avg, count, live, minmax
-from nicos.commands.scan import appendscan, contscan, cscan, manualscan, \
-    scan, sweep, timescan, twodscan
+from nicos.commands.scan import appendscan, contscan, cscan, gridscan, \
+    manualscan, scan, sweep, timescan, twodscan
 from nicos.core import CommunicationError, ModeError, NicosError, \
     PositionError, UsageError
 from nicos.core.acquire import CountResult
@@ -118,6 +116,30 @@ def test_scan(session, log):
 
     finally:
         session.experiment.envlist = []
+        session.experiment.detlist = []
+
+
+def test_gridscan(session):
+    m = session.getDevice('motor')
+    m2 = session.getDevice('motor2')
+    session.experiment.setDetectors([session.getDevice('det')])
+    dataman = session.experiment.data
+
+    try:
+        # grid scan
+        gridscan((m, m2), (0, 0), (1, 2), (2, 3), t=0.)
+        dataset = dataman.getLastScans()[-1]
+        assert dataset.devvaluelists == [[0, 0], [1, 0],
+                                         [0, 2], [1, 2],
+                                         [0, 4], [1, 4]]
+        assert raises(UsageError, gridscan, (m, m2), (0, 0), (1, 2), 1, t=0.)
+        assert raises(UsageError, gridscan, (m, m2), (0, 0), 1, (2, 3), t=0.)
+        assert raises(UsageError, gridscan, (m, m2), 0, (1, 2), (2, 3), t=0.)
+        assert raises(UsageError, gridscan, (m, m2), (0, 0, 0), (1, 2), (2, 3), t=0.)
+        assert raises(UsageError, gridscan, (m, m2), (0, 0), (1, 2, 3), (2, 3), t=0.)
+        assert raises(UsageError, gridscan, (m, m2), (0, 0), (1, 2), (2, 3, 4), t=0.)
+        assert raises(UsageError, gridscan, (m, m2), (0, 0), (1, 2), t=0.)
+    finally:
         session.experiment.detlist = []
 
 
@@ -276,6 +298,12 @@ def test_sweeps(session):
     sweep(m, 1, 5)
     dataset = dataman.getLastScans()[-1]
     assert dataset.envvaluelists[-1][0] == 5
+
+    sweep(m, 1, 5, minstep=1)
+    sweep(m, 1, 5, delay=1)
+    sweep(m, 1, 5, minstep=1, delay=1)
+
+    assert raises(UsageError, sweep, m, 1, 5, minstep=[1, 1])
 
 
 def test_contscan(session):

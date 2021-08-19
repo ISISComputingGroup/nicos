@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,8 +21,6 @@
 #   Tobias Weber <tobias.weber@frm2.tum.de>
 #
 # *****************************************************************************
-
-from __future__ import absolute_import, division, print_function
 
 import subprocess
 
@@ -53,8 +51,9 @@ def txtplot(x, y, xlab, ylab, xterm_mode=False):
             cmd.append('%s %s' % xy)
         cmd.append('e\n')
 
-        out = gnuplot.communicate('\n'.join(cmd))[0]
-        lines = [line for line in out.splitlines() if line]
+        cmd = '\n'.join(cmd).encode()
+        out = gnuplot.communicate(cmd)[0]
+        lines = [line for line in out.decode().splitlines() if line]
         if xterm_mode:
             lines += ['Plotting in xterm Tektronix window.',
                       '\x1b_If you can only see a lot of incomprehensible '
@@ -63,4 +62,4 @@ def txtplot(x, y, xlab, ylab, xterm_mode=False):
         return lines
 
     except OSError:
-        raise RuntimeError('Could execute gnuplot for text plot')
+        raise RuntimeError('Could execute gnuplot for text plot') from None

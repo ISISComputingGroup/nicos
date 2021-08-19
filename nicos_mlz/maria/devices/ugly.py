@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2018-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2018-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,8 +21,6 @@
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.devices.tango import StringIO as BaseStringIO
 
@@ -61,11 +59,9 @@ class StringIO(BaseStringIO):
     @property
     def availablechars(self):
         if self._dev:
-            # pylint: disable=too-many-function-args
             return BaseStringIO.availablechars.__get__(self)
 
     @property
     def availablelines(self):
         if self._dev:
-            # pylint: disable=too-many-function-args
             return BaseStringIO.availablelines.__get__(self)

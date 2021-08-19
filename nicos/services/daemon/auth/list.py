@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,12 +23,9 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import hashlib
 
 from nicos.core import GUEST, USER, Param, User, listof, oneof
-from nicos.pycompat import from_maybe_utf8, to_utf8
 from nicos.services.daemon.auth import AuthenticationError, \
     Authenticator as BaseAuthenticator
 from nicos.services.daemon.auth.params import UserPassLevelAuthEntry
@@ -73,11 +70,10 @@ class Authenticator(BaseAuthenticator):
     }
 
     def _hash(self, password):
-        password = to_utf8(from_maybe_utf8(password))
         if self.hashing == 'sha1':
-            password = hashlib.sha1(password).hexdigest()
+            password = hashlib.sha1(password.encode()).hexdigest()
         elif self.hashing == 'md5':
-            password = hashlib.md5(password).hexdigest()
+            password = hashlib.md5(password.encode()).hexdigest()
         return password
 
     def authenticate(self, username, password):

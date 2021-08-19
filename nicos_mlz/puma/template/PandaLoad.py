@@ -1,7 +1,5 @@
 # pylint: skip-file
 
-from __future__ import absolute_import, division, print_function
-
 import ast
 import math
 import os
@@ -268,7 +266,7 @@ def shortlist(l):
         i = i + 1
     return ', '.join(r)
 
-class Mapping(object):
+class Mapping:
     ''' handles all necessary stuff for mappings '''
     #DONT USE! It#s not working (yet)
     fit = None
@@ -457,7 +455,6 @@ def NicosLoad(prefix, filenum=-1, **kwargs):
             elif v[0] == '"' and v.rfind('"') > 0:
                 return v[1:v.rfind('"') - 1]
             return float(v)
-            return int(v)  # pylint: disable=W0101
         except Exception:
             return v
     valid_units = 'T K meV A A-1 THz mm deg % m mK s min cts rlu r.l.u. bar mbar'.split()
@@ -586,7 +583,7 @@ def NicosLoad(prefix, filenum=-1, **kwargs):
     #~ header = True
     #~ tableheader = False
     #~ table = False
-    with open(filename, 'rU') as f:   # open file and ignore different line-endings
+    with open(filename, 'rU', encoding='utf-8') as f:   # open file and ignore different line-endings
         l = f.readline()  # read first line
         if l.startswith('filename     : '):
             fileformat = 'old'
@@ -605,7 +602,7 @@ def NicosLoad(prefix, filenum=-1, **kwargs):
         while l:
             #~ print('%r %r'%(process[0], l),)
             # process data
-            r = process[0](data, l)  # pylint: disable=E1111
+            r = process[0](data, l)
             #~ print(r)
             if not r:
                 process.pop(0)  #remove sectionparser
@@ -658,7 +655,7 @@ def NicosLoad(prefix, filenum=-1, **kwargs):
 
 # this only works for old format !
 def PandaLoad(filename):
-    class PandaScan(object):
+    class PandaScan:
         import re
         header = {}
         _filename = None
@@ -702,7 +699,7 @@ def PandaLoad(filename):
             else:
                 print("Loading file %s" % filename)
             self._filename = filename
-            with open(filename, 'r') as f:
+            with open(filename, 'r', encoding='utf-8') as f:
                 line = '***'
                 while line != '':
                     line = f.readline()
@@ -810,7 +807,7 @@ def PandaLoad(filename):
 
 #
 if __name__ == '__main__':
-    import gtk  # pylint: disable=W0611
+    import gtk
 
     import matplotlib
     matplotlib.use('GTKAgg')

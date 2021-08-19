@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,35 +25,32 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.core import ACCESS_LEVELS
-from nicos.pycompat import itervalues, string_types
 
 
 def _access_level_list():
-    return ', '.join(repr(l) for l in itervalues(ACCESS_LEVELS))
+    return ', '.join(repr(l) for l in ACCESS_LEVELS.values())
 
 
 def UserPassLevelAuthEntry(val=None):
-    """Provide a 3-tuple of user, level and password
+    """Provide a 3-tuple of user, password, and level
 
         * user: string
+        * password: string
         * level: oneof(ACCESS_LEVELS)
            currently: GUEST, USER, ADMIN
-        * password: string
     """
     val = list(val)
     if len(val) != 3:
         raise ValueError('UserPassLevelAuthEntry entry needs to be '
                          'a 3-tuple (name, password, accesslevel)')
-    if not isinstance(val[0], string_types):
+    if not isinstance(val[0], str):
         raise ValueError('user name must be a string')
     val[0] = val[0].strip()
-    if not isinstance(val[1], string_types):
+    if not isinstance(val[1], str):
         raise ValueError('user password must be a string')
     val[1] = val[1].strip()
-    if isinstance(val[2], string_types):
+    if isinstance(val[2], str):
         for i, name in ACCESS_LEVELS.items():
             if name == val[2].strip():
                 val[2] = i
@@ -79,5 +76,6 @@ def UserLevelAuthEntry(val=None):
     if len(val) != 2:
         raise ValueError('UserLevelAuthEntry entry needs to be a 2-tuple '
                          '(name, accesslevel)')
+    # pylint: disable=unbalanced-tuple-unpacking
     user, _p, level = UserPassLevelAuthEntry((val[0], '', val[1]))
     return tuple((user, level))

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,6 @@
 # *****************************************************************************
 
 """DNS file format saver for the new YAML based format."""
-
-from __future__ import absolute_import, division, print_function
 
 import quickyaml
 
@@ -53,7 +51,7 @@ class YAMLFileSinkHandler(YAMLBaseFileSinkHandler):
         # TODO: one we have a better sample object
         # sample = meas['sample']['description']
         # sample['kind'] = 'Vanadium' etc.
-        # sample['unit_cell'] = from_maybe_utf8(expdev.sample.description)
+        # sample['unit_cell'] = expdev.sample.description
         # sample['spacegroup'] = 'not looked up'
 
         temp = meas['sample']['temperature']
@@ -138,8 +136,8 @@ class YAMLFileSinkHandler(YAMLBaseFileSinkHandler):
             det1['is_in_place'] = True
             if tofchan.timechannels > 1:
                 timechannels = tofchan.timechannels
-                chanwidth = tofchan.divisor / 10000000.
-                tofdelay = tofchan.delay / 10000000.
+                chanwidth = tofchan.timeinterval / 1e9
+                tofdelay = tofchan.delay / 1e9
                 det1['axes'] = self._flowlist(['tube', 'time'])
             else:
                 det1['axes'] = self._flowlist(['tube'])

@@ -26,7 +26,7 @@ def create_epics_magnet(device_id):
                   switchpvs={
                       'read': 'SQ:AMOR:' + device_id + ':PowerStatusRBV',
                       'write': 'SQ:AMOR:' + device_id + ':PowerStatus'},
-                  switchstates={'on': 1, 'off': 0},
+                  switchstates={'enable': 1, 'disable': 0},
                   precision=0.1,
                   timeout=None,
                   window=5.0,
@@ -37,13 +37,12 @@ def create_epics_asyn_controller(device_id):
     """
     Creates an asyn controller with the given device id
     """
-    return device(
-        'nicos_sinq.devices.epics.extensions.EpicsAsynController',
-        epicstimeout=3.0,
-        description='Asyn controller for motors in serial1',
-        commandpv='SQ:AMOR:' + device_id + '.AOUT',
-        replypv='SQ:AMOR:' + device_id + '.AINP',
-    )
+    return device('nicos_sinq.devices.epics.extensions.EpicsAsynController',
+                  epicstimeout=3.0,
+                  description='Asyn controller for motors in serial1',
+                  commandpv='SQ:AMOR:' + device_id + '.AOUT',
+                  replypv='SQ:AMOR:' + device_id + '.AINP',
+                  )
 
 
 devices = dict(

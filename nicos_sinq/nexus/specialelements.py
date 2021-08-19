@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,10 +27,13 @@
 #
 # *****************************************************************************
 
-from nicos import session
-from nicos.pycompat import iteritems
+import numpy as np
 
-from nicos_sinq.nexus.elements import NexusElementBase, NXAttribute
+from nicos import session
+from nicos.core.errors import ConfigurationError
+from nicos.nexus.elements import NexusElementBase, NXAttribute
+
+from nicos_sinq.devices.sinqhm.configurator import HistogramConfArray
 
 
 class TwoThetaArray(NexusElementBase):
@@ -39,7 +42,7 @@ class TwoThetaArray(NexusElementBase):
         self.step = step
         self.length = length
         self.attrs = {}
-        for key, val in iteritems(attrs):
+        for key, val in attrs.items():
             if not isinstance(val, NXAttribute):
                 val = NXAttribute(val, 'string')
                 self.attrs[key] = val
@@ -57,4 +60,58 @@ class TwoThetaArray(NexusElementBase):
         dset = h5parent.create_dataset(name, (self.length,), 'float32')
         for i in range(self.length):
             dset[i] = start + i * self.step
+        self.createAttributes(dset, sinkhandler)
+
+
+class FixedArray(NexusElementBase):
+    def __init__(self, start, step, length, **attrs):
+        self._start = start
+        self._step = step
+        self._len = length
+        self.attrs = {}
+        for key, val in attrs.items():
+            if not isinstance(val, NXAttribute):
+                val = NXAttribute(val, 'string')
+                self.attrs[key] = val
+        NexusElementBase.__init__(self)
+
+    def create(self, name, h5parent, sinkhandler):
+        dset = h5parent.create_dataset(name, (self._len,), 'float32')
+        for i in range(self._len):
+            dset[i] = self._start + i * self._step
+        self.createAttributes(dset, sinkhandler)
+
+
+class ConfArray(NexusElementBase):
+    """
+    Store data from a Sinqhm configuration array
+    """
+
+    def __init__(self, array_name, **attrs):
+        self._scale = 1.
+        self._array_name = array_name
+        self.attrs = {}
+        for key, val in attrs.items():
+            if key == 'scale':
+                self._scale = float(val)
+            if not isinstance(val, NXAttribute):
+                val = NXAttribute(val, 'string')
+                self.attrs[key] = val
+        NexusElementBase.__init__(self)
+
+    def create(self, name, h5parent, sinkhandler):
+        try:
+            array = session.getDevice(self._array_name)
+            if not isinstance(array, HistogramConfArray):
+                raise ConfigurationError('%s is no HistogramConfArray' %
+                                         self._array_name)
+        except ConfigurationError:
+            session.log.warning('Array %s not found, NOT stored',
+                                self._array_name)
+            return
+        dset = h5parent.create_dataset(name, tuple(array.dim), 'float32')
+        if self._scale != 1.:
+            dset[...] = np.array(array.data, dtype='float32') * self._scale
+        else:
+            dset[...] = array.data
         self.createAttributes(dset, sinkhandler)

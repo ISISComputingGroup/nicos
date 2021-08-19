@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """Logging utilities specific to NICOS."""
 
-from __future__ import absolute_import, division, print_function
-
 import os
 import sys
 import time
@@ -35,7 +33,6 @@ from logging import DEBUG, ERROR, INFO, WARNING, Formatter, Handler, Logger, \
 from os import path
 
 from nicos import session
-from nicos.pycompat import binary_type, from_maybe_utf8, text_type
 from nicos.utils import colorize, formatExtendedTraceback
 
 LOGFMT = '%(asctime)s : %(levelname)-7s : %(name)s: %(message)s'
@@ -58,6 +55,11 @@ class NicosLogger(Logger):
     def exception(self, *msgs, **kwds):
         kwds['exc'] = True
         self.error(*msgs, **kwds)
+
+    def setLevel(self, level):
+        if hasattr(self, '_cache'):
+            self._cache.clear()
+        Logger.setLevel(self, level)
 
     def _process(self, msgs, kwds):
         # standard logging keyword arg
@@ -86,17 +88,12 @@ class NicosLogger(Logger):
             msg = ''
             args = ()
         else:
-            msg = msgs[0]
-            if isinstance(msg, binary_type):
-                msg = from_maybe_utf8(msg)
-            else:
-                msg = text_type(msg)
+            msg = str(msgs[0])
             args = msgs[1:]
         if extramsgs:
             if msg:
                 msg += ' '
-            msg += ' '.join(from_maybe_utf8(msg) if isinstance(msg, binary_type)
-                            else text_type(msg) for msg in extramsgs)
+            msg += ' '.join(map(str, extramsgs))
         return msg, args, exc_info
 
     def error(self, *msgs, **kwds):
@@ -201,7 +198,7 @@ class NicosLogfileFormatter(Formatter):
 
     def formatException(self, ei):
         if self.extended_traceback:
-            s = formatExtendedTraceback(*ei)
+            s = formatExtendedTraceback(ei[1])
         else:
             s = ''.join(traceback.format_exception(ei[0], ei[1], ei[2],
                                                    sys.maxsize))
@@ -232,13 +229,10 @@ class StreamHandler(Handler):
         finally:
             self.release()
 
-    def emit(self, record, fs='%s\n'):  # pylint: disable=W0221
+    def emit(self, record, fs='%s\n'):
         try:
             msg = self.format(record)
-            try:
-                self.stream.write(fs % msg)
-            except UnicodeEncodeError:
-                self.stream.write(fs % msg.encode('utf-8'))
+            self.stream.write(fs % msg)
             self.flush()
         except Exception:
             self.handleError(record)
@@ -285,14 +279,19 @@ class NicosLogfileHandler(StreamHandler):
             # should happen at most once per installation....
             pass
         if hasattr(os, 'symlink'):
-            os.symlink(path.basename(self.baseFilename), self._currentsymlink)
+            try:
+                os.symlink(path.basename(self.baseFilename),
+                           self._currentsymlink)
+            except Exception:
+                if os.name != 'nt':
+                    raise
         # finally open the new logfile....
-        return open(self.baseFilename, self.mode)
+        return open(self.baseFilename, self.mode, encoding='utf-8')
 
     def filter(self, record):
         return not self.disabled
 
-    def emit(self, record):  # pylint: disable=W0221
+    def emit(self, record):
         if record.levelno == ACTION:
             # do not write ACTIONs to logfiles, they're only informative
             return
@@ -351,12 +350,9 @@ class ColoredConsoleHandler(StreamHandler):
         self.setFormatter(NicosConsoleFormatter(
             datefmt=DATEFMT, colorize=colorize))
 
-    def emit(self, record):  # pylint: disable=W0221
+    def emit(self, record):
         msg = self.format(record)
-        try:
-            self.stream.write(msg)
-        except UnicodeEncodeError:
-            self.stream.write(msg.encode('utf-8'))
+        self.stream.write(msg)
         self.stream.flush()
 
 
@@ -410,3 +406,21 @@ def recordToMessage(record, reqid):
 def initLoggers():
     addLevelName(ACTION, 'ACTION')
     addLevelName(INPUT, 'INPUT')
+
+
+def get_facility_log_handlers(config):
+    """
+    Imports the nicos_FACILYTY.device.logger module, if present
+    :param config: as defined in nicos.configmod
+    :return:
+    """
+    try:
+        setup_package_mod = __import__(config.setup_package)
+    except ImportError as err:
+        raise RuntimeError(
+            'Setup package %r does not exist.' % config.setup_package) from err
+
+    if not hasattr(setup_package_mod, 'get_log_handlers'):
+        return []
+
+    return setup_package_mod.get_log_handlers(config)

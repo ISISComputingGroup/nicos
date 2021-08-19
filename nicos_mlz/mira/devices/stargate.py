@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -39,8 +39,6 @@ Festo uses Modbus, and the 22 needed output bits are distributed in the lower 8
 bits of three consecutive 16-bit holding registers (offset_out).  Readback is
 done in three different holding registers with addresses n, n+2, n+4.
 """
-
-from __future__ import absolute_import, division, print_function
 
 from time import time as currenttime
 
@@ -125,11 +123,11 @@ class Stargate(tango.DigitalOutput):
         for curidx in range(len(self.chevron_att_angles)):
             maxmin = self.chevron_att_angles[curidx]
 
-            if(len(maxmin) < 2):
+            if len(maxmin) < 2:
                 chevrons.append(0)
                 continue
 
-            if(att < maxmin[0] and att > maxmin[1]):
+            if maxmin[1] < att < maxmin[0]:
                 chevrons.append(1)
             else:
                 chevrons.append(0)

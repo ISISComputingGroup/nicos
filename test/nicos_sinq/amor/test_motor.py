@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -31,8 +31,6 @@ of a motor. The real, hardware,  position of a  motor is
 hpos = sign*(val +zero)
 """
 
-from __future__ import absolute_import, division, print_function
-
 import pytest
 
 from nicos.core import status
@@ -45,7 +43,7 @@ from .utils import is_at_target, unit_value
 session_setup = 'sinq_amor_movable'
 
 
-class TestEpicsMotor(object):
+class TestEpicsMotor:
     device = None
 
     asyn_dev_slot_mapping = {

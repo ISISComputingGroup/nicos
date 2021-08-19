@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,8 +21,6 @@
 #   Nikhil Biyani <nikhil.biyani@psi.ch>
 #
 # *****************************************************************************
-
-from __future__ import absolute_import, division, print_function
 
 import h5py
 import numpy
@@ -47,7 +45,7 @@ class AmorNexusUpdater(NexusFileWriterStatus):
         filename = dataset.filepaths[0]
         try:
             nxfile = h5py.File(filename, 'r+')
-        except (ValueError, IOError):
+        except (ValueError, OSError):
             self.log.error('Unable to edit file for dataset #%d!',
                            dataset.counter)
             return

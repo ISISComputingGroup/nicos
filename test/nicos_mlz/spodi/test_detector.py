@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """SPODI specific detector tests."""
 
-from __future__ import absolute_import, division, print_function
-
 import pytest
 
 from nicos.commands.measure import count
@@ -41,7 +39,7 @@ def adet(session):
     # Check correct detector configuration
     basedet = session.getDevice('basedet')
     assert len(basedet._attached_timers) == 1
-    assert len(basedet._attached_counters) == 0  #pylint: disable=len-as-condition
+    assert len(basedet._attached_counters) == 0
     assert len(basedet._attached_monitors) == 1
     assert len(basedet._attached_images) == 1
     adet = session.getDevice('adet')

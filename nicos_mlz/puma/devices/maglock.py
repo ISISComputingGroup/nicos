@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,6 @@
 
 """Magnetic Lock."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos import session
 from nicos.core import Attach, Moveable, NicosError, Param, Readable, listof, \
     oneof, status
@@ -36,7 +34,7 @@ class MagLock(Moveable):
     """Puma specific magnetic lock device."""
 
     attached_devices = {
-        'magazin': Attach('The monochromator magazin', Moveable),
+        'magazine': Attach('The monochromator magazine', Moveable),
         'io_open': Attach('readout for the status', Readable),
         'io_closed': Attach('readout for the status', Readable),
         'io_set': Attach('output to set', Moveable),
@@ -123,7 +121,7 @@ class MagLock(Moveable):
 
     @property
     def _magpos(self):
-        s = self._attached_magazin.read(0)
+        s = self._attached_magazine.read(0)
         for i, k in enumerate(self.states):
             if s == k:
                 return i

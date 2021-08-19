@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,9 +23,6 @@
 # *****************************************************************************
 """PUMA multi analyser class."""
 
-from __future__ import absolute_import, division, print_function
-
-import sys
 from contextlib import contextmanager
 
 from numpy import sign
@@ -38,7 +35,6 @@ from nicos.core.errors import MoveError, PositionError
 from nicos.core.utils import filterExceptions, multiWait
 from nicos.devices.abstract import CanReference
 from nicos.devices.generic.sequence import BaseSequencer, SeqMethod
-from nicos.pycompat import reraise
 
 
 class PumaMultiAnalyzer(CanReference, IsController, HasTimeout, BaseSequencer):
@@ -69,8 +65,8 @@ class PumaMultiAnalyzer(CanReference, IsController, HasTimeout, BaseSequencer):
                                type=floatrange(0, None), unit='AA',
                                category='general', default=3.354),
         'raildistance': Param('Distance between the rails of the crystals',
-                              type=floatrange(0, None), default = 20,
-                              unit = 'mm', category='general'),
+                              type=floatrange(0, None), default=20,
+                              unit='mm', category='general'),
     }
 
     parameter_overrides = {
@@ -83,7 +79,7 @@ class PumaMultiAnalyzer(CanReference, IsController, HasTimeout, BaseSequencer):
 
     stoprequest = 0
 
-    valuetype = tupleof(*(float for i in range(2 * _num_axes)))
+    valuetype = tupleof(*(float,) * 2 * _num_axes)
 
     _allowed_called = False
 
@@ -155,15 +151,16 @@ class PumaMultiAnalyzer(CanReference, IsController, HasTimeout, BaseSequencer):
                     if r:
                         ll, hl = self._rotlimits(dt)
                         if not ll <= r <= hl:
-                            self.log.info('(%s): %s, %s, %s', target, ll, r, hl)
+                            self.log.info('(%s): %s, %s, %s', target, ll, r,
+                                          hl)
                             self.log.info('%r, %r; %r', trans, rot, tdelta)
                             return False, 'neighbour distance: %.3f; cannot ' \
                                 'move translation to : %.3f!' % (dt, target)
                 # elif -13 < dc < 0 and dt < 0:
                 #     # self.log.info('It is critical')
                 #     if (r is not None and r < -23.33) or rot[1] < -23.33:
-                #         return False, 'Path %s to %s is not free. One of the '\
-                #             'mirrors would hit another one. (%s, %s)' % (
+                #         return False, 'Path %s to %s is not free. One of ' \
+                #             'the mirrors would hit another one. (%s, %s)' % (
                 #                 trans[1], target, r, rot[1])
             else:
                 # Passing another translation device
@@ -223,7 +220,7 @@ class PumaMultiAnalyzer(CanReference, IsController, HasTimeout, BaseSequencer):
         It takes account into the different origins of the analyzer blades.
         """
         # check if requested positions already reached within precision
-        if self.isAtTarget(target):
+        if self.isAtTarget(target=target):
             self.log.debug('device already at position, nothing to do!')
             return []
 
@@ -234,7 +231,7 @@ class PumaMultiAnalyzer(CanReference, IsController, HasTimeout, BaseSequencer):
 
     def _move_translations(self, target):
         # first check for translation
-        mvt = self._checkPositionReachedTrans(target)
+        mvt = self._checkPositionReachedTrans(self.doRead(0), target)
         if mvt:
             self.log.debug('The following translation axes start moving: %r',
                            mvt)
@@ -250,13 +247,13 @@ class PumaMultiAnalyzer(CanReference, IsController, HasTimeout, BaseSequencer):
                     dev.move(target[i])
             self._hw_wait(self._translation)
 
-            if self._checkPositionReachedTrans(target):
+            if self._checkPositionReachedTrans(self.doRead(0), target):
                 raise PositionError(self, 'Translation drive not successful')
             self.log.debug('translation movement done')
 
     def _move_rotations(self, target):
         # Rotation Movement
-        mvr = self._checkPositionReachedRot(target)
+        mvr = self._checkPositionReachedRot(self.doRead(0), target)
         if mvr:
             self.log.debug('The following rotation axes start moving: %r', mvr)
             for i in mvr:
@@ -268,7 +265,7 @@ class PumaMultiAnalyzer(CanReference, IsController, HasTimeout, BaseSequencer):
                 with self._allowed():
                     self._rotation[i].move(target[self._num_axes + i])
             self._hw_wait([self._rotation[i] for i in mvr])
-            if self._checkPositionReachedRot(target):
+            if self._checkPositionReachedRot(self.doRead(0), target):
                 raise PositionError(self, 'Rotation drive not successful: '
                                     '%r' % ['%s' % d for d in mvr])
             self.log.debug('rotation movement done')
@@ -306,9 +303,9 @@ class PumaMultiAnalyzer(CanReference, IsController, HasTimeout, BaseSequencer):
             for dev in devlist[:]:
                 try:
                     done = dev.doStatus(0)[0]
-                except Exception:
+                except Exception as exc:
                     dev.log.exception('while waiting')
-                    final_exc = filterExceptions(sys.exc_info(), final_exc)
+                    final_exc = filterExceptions(exc, final_exc)
                     # remove this device from the waiters - we might still
                     # have its subdevices in the list so that _hw_wait()
                     # should not return until everything is either OK or
@@ -327,7 +324,7 @@ class PumaMultiAnalyzer(CanReference, IsController, HasTimeout, BaseSequencer):
             if devlist:
                 session.delay(self._base_loop_delay)
         if final_exc:
-            reraise(*final_exc)
+            raise final_exc
 
     def _reference(self, devlist):
         if self.stoprequest == 0:
@@ -393,33 +390,34 @@ class PumaMultiAnalyzer(CanReference, IsController, HasTimeout, BaseSequencer):
                        trans + 1, trans, delta, rmin, rmax)
         return rmin, rmax
 
-    def _checkPositionReachedTrans(self, position):
-        mv = []
-        request = self.doRead(0)[0:self._num_axes]
-
-        for i in range(len(self._translation)):
-            if abs(position[i] - request[i]) > self._translation[i].precision:
+    def _checkPositionReachedTrans(self, position, target=None):
+        if target is None:
+            return []
+        mv = [i for i, (t, p, trans) in enumerate(
+              zip(target[0:self._num_axes], position[0:self._num_axes],
+                  self._translation)) if abs(t - p) > trans.precision]
+        for i in range(self._num_axes):
+            if i in mv:
                 self.log.debug('xx%2d translation start moving', i + 1)
-                mv.append(i)
             else:
                 self.log.debug('xx%2d translation: nothing to do', i + 1)
         return mv
 
-    def _checkPositionReachedRot(self, position):
-        mv = []
-        request = self.doRead(0)[self._num_axes:2 * self._num_axes]
-
-        for i in range(len(self._rotation)):
-            if abs(position[i + self._num_axes] - request[i]) > \
-               self._rotation[i].precision:
+    def _checkPositionReachedRot(self, position, target=None):
+        if target is None:
+            return []
+        mv = [i for i, (t, p, rot) in enumerate(
+              zip(target[self._num_axes:2 * self._num_axes],
+                  position[self._num_axes:2 * self._num_axes],
+                  self._rotation)) if abs(t - p) > rot.precision]
+        for i in range(self._num_axes):
+            if i in mv:
                 self.log.debug('xx%2d rotation start moving', i + 1)
-                mv.append(i)
             else:
                 self.log.debug('xx%2d rotation: nothing to do', i + 1)
         return mv
 
-    def doIsAtTarget(self, target):
-        self._printPos()
-        mvt = self._checkPositionReachedTrans(target)
-        mvr = self._checkPositionReachedRot(target)
+    def doIsAtTarget(self, pos, target):
+        mvt = self._checkPositionReachedTrans(pos, target)
+        mvr = self._checkPositionReachedRot(pos, target)
         return not mvt and not mvr

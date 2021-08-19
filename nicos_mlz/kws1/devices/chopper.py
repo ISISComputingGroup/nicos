@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Class for KWS chopper control."""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import MASTER, Attach, HasPrecision, Moveable, Override, \
     Param, PositionError, floatrange, intrange, listof, oneof, status, \
@@ -110,9 +108,9 @@ class ChopperParams(Moveable):
         opening = 90.0 - (p2 - p1)
         return (freq, opening)
 
-    def doIsAtTarget(self, pos):
+    def doIsAtTarget(self, pos, target):
         # take precision into account
-        tfreq, topen = self.target
+        tfreq, topen = target
         rfreq, ropen = pos
         return abs(tfreq - rfreq) < self._attached_freq1.precision and \
             abs(topen - ropen) < self._attached_phase1.precision
@@ -238,8 +236,9 @@ class Chopper(Moveable):
             det_z = self._attached_det_pos.presets[sel_target][det_target]['z']
             det_offset = self._attached_det_pos.offsets[det_z]
         except KeyError:
-            raise PositionError(self, 'cannot calculate chopper settings: '
-                                'selector or detector device not at preset')
+            raise PositionError(
+                self, 'cannot calculate chopper settings: selector or '
+                'detector device not at preset') from None
 
         self.log.debug('chopper calc inputs: reso=%f, lam=%f, spread=%f, '
                        'det_z=%f', reso, lam, spread, det_z)

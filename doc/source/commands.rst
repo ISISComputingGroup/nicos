@@ -128,6 +128,7 @@ Measuring commands
 .. autofunction:: AddEnvironment
 .. autofunction:: ListDetectors
 .. autofunction:: ListEnvironment
+.. autofunction:: ListDatasinks
 .. autofunction:: avg
 .. autofunction:: minmax
 
@@ -142,8 +143,8 @@ Scanning commands
 .. autofunction:: sweep
 .. autofunction:: contscan
 .. autofunction:: appendscan
-
 .. autofunction:: manualscan
+.. autofunction:: gridscan
 
 On-line analysis commands
 -------------------------
@@ -191,6 +192,7 @@ one of your loaded setups.  Additionally, your experiment device has to be an
 .. module:: nicos.commands.imaging
 
 .. autofunction:: tomo
+.. autofunction:: grtomo
 
 .. module:: nicos_mlz.frm2.commands.imaging
 
@@ -220,3 +222,4 @@ Simple parameter mode
 .. _spm:
 
 .. automodule:: nicos.core.spm
+   :no-members:

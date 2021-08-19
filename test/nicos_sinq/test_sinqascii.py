@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -56,7 +56,7 @@ def setup_module(session):
     exp._setROParam('dataroot', dataroot)
     exp.new(1234, user='testuser', localcontact=exp.localcontact)
     exp.sample.new({'name': 'mysample'})
-    exp.title = 'TomatenOxid'
+    exp.update(title='TomatenOxid')
     assert path.abspath(exp.datapath) == path.abspath(
         path.join(config.nicos_root, datadir, year, 'p1234', 'data'))
     m = session.getDevice('motor2')

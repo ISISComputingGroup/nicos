@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """CARESS histogram file format."""
 
-from __future__ import absolute_import, division, print_function
-
 from time import strftime, time as currenttime
 
 import dataparser as DataParser
@@ -33,17 +31,18 @@ import numpy as np
 
 from nicos.core import Override, Param
 from nicos.core.constants import POINT
-from nicos.devices.datasinks.image import ImageSink, SingleFileSinkHandler
+from nicos.core.errors import NicosError
+from nicos.devices.datasinks.image import ImageFileReader, ImageSink, \
+    SingleFileSinkHandler
 from nicos.devices.datasinks.special import LiveViewSink as BaseLiveViewSink, \
     LiveViewSinkHandler as BaseLiveViewSinkHandler
-from nicos.pycompat import iteritems, to_utf8
 from nicos.utils import findResource
 
 
 class CaressHistogramHandler(SingleFileSinkHandler):
     """Handler for the CaressHistogram data sink."""
 
-    filetype = 'caresshistogram'
+    filetype = 'ctxt'
 
     def __init__(self, sink, dataset, detector):
         SingleFileSinkHandler.__init__(self, sink, dataset, detector)
@@ -55,7 +54,7 @@ class CaressHistogramHandler(SingleFileSinkHandler):
         _metainfo = self.dataset.metainfo
         bycategory = {}
         detectors = self.sink.detectors
-        for (dev, key), (_, v, _, cat) in iteritems(_metainfo):
+        for (dev, key), (_, v, _, cat) in _metainfo.items():
             if dev in detectors + ['UBahn', 'Space', 'tths'] and \
                cat == 'general':
                 continue
@@ -108,18 +107,18 @@ class CaressHistogramHandler(SingleFileSinkHandler):
 
         # write Header
         for line in header:
-            fp.write(to_utf8('%s\n' % line))
+            fp.write(('%s\n' % line).encode())
 
         for i, v in enumerate(image):
             _pos = _start + i * _stepsize
-            fp.write(to_utf8('%.2f\t%s\n' %
-                             (_pos, '\t'.join(['%d' % x for x in v]))))
+            fp.write(('%.2f\t%s\n' %
+                      (_pos, '\t'.join(['%d' % x for x in v]))).encode())
         fp.write(b'\n')
 
         fp.write(b'total sum\n')
         for i, v in enumerate(image):
             _pos = _start + i * _stepsize
-            fp.write(to_utf8('%.2f\t%d\n' % (_pos, v.sum())))
+            fp.write(('%.2f\t%d\n' % (_pos, v.sum())).encode())
 
         fp.flush()
 
@@ -147,7 +146,44 @@ class CaressHistogram(ImageSink):
         return len(arraydesc.shape) == 2
 
 
-class Straight(object):
+class CaressHistogramReader(ImageFileReader):
+    filetypes = [('ctxt', 'CARESS Histogram File (*.ctxt)')]
+
+    correctionfile = 'nicos_mlz/spodi/data/detcorrection.dat'
+
+    @classmethod
+    def fromfile(cls, filename):
+        ndim = 254
+        ndet = 80
+        sizes = (ndet, ndim)
+        corrData = DataParser.ReadCorrectionFile(
+            findResource(cls.correctionfile))
+        with open(filename, 'r', encoding='utf-8') as f:
+            if not f.readline().startswith('QMesyDAQ CARESS Histogram File'):
+                raise NicosError('File is not a CARESS histogram file.')
+            for line in f:
+                if line.startswith('Resosteps'):
+                    resosteps = int(line.split()[1])
+                elif line.startswith('2Theta start'):
+                    startpos = float(line.split()[2])
+                elif line.startswith('Comment'):
+                    for p in line.replace(' = ', '=').replace(' x ', 'x'
+                                                              ).split()[1:]:
+                        k, v = p.split('=')
+                        if k == 'detsampledist':
+                            detsampledist = float(v)
+            thetaRaw = DataParser.ThetaInitial(startpos, resosteps, ndet)
+            thetaCorr = DataParser.ThetaModified(
+                thetaRaw, corrData, resosteps, ndet)
+
+        data = DataParser.CaressFormat(filename, sizes[1], sizes[0])[-1]
+        return np.sum(DataParser.RingStraight(
+            thetaCorr, thetaRaw, DataParser.VertCalibIntensCorr(
+                data, corrData, resosteps, ndet, ndim),
+            resosteps, ndet, ndim, detsampledist), axis=1)
+
+
+class Straight:
     """Data 'straightener' mixin."""
 
     corrData = None
@@ -183,8 +219,41 @@ class Straight(object):
 class LiveViewSinkHandler(Straight, BaseLiveViewSinkHandler):
     """Data live view handler."""
 
+    def prepare(self):
+        Straight.prepare(self)
+
     def processArrays(self, result):
         return [np.sum(arr, axis=1) for arr in self._ringStraight(result)]
+
+    def getLabelDescs(self, result):
+        ds = self.dataset
+        resosteps = ds.metainfo['adet', 'resosteps'][0]
+        ninputs = ds.metainfo['adet', 'numinputs'][0]
+        start, _, step = self._calcStartEndStep(
+            ds.metainfo['adet', '_startpos'][0], resosteps,
+            ds.metainfo['adet', 'range'][0], ninputs * resosteps)
+        return {
+            'x': {
+                'define': 'range',
+                'title': 'tths (deg)',
+                'start': start,
+                'length': resosteps * ninputs,
+                'step': step,
+            },
+        }
+
+    def _calcStartEndStep(self, startp, steps, rg, nx):
+        """Calculate start, end, and step value for the x axis.
+
+        The start and end values are calculated from the detector start value,
+        number of resosteps and the detector range.
+        """
+        # The orientation of the tths is in negative direction but it will be
+        # used in positive direction to avoid type the '-' for each position in
+        # the frontend
+        step = rg / steps
+        start = -(startp - (rg - step))
+        return start, start + nx * step, step
 
 
 class LiveViewSink(BaseLiveViewSink):

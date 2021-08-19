@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,9 +22,7 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
-from nicos.core import Attach, Moveable, NicosError
+from nicos.core import Attach, Moveable
 from nicos.devices.tango import DigitalOutput
 
 
@@ -56,12 +54,10 @@ class MultiDigitalOutput(Moveable):
             dev.start(target)
 
     def doRead(self, maxage=0):
-        values = []
-        for dev in self._adevs['outputs']:
-            values.append(dev.read(maxage))
-        if len(set(values)) != 1:
-            devnames = [dev.name for dev in self._adevs['outputs']]
-            raise NicosError(self,
-                'outputs have different read values: '
-                + ', '.join('%s=%s' % x for x in zip(devnames, values)))
-        return values[0]
+        values = [dev.read(maxage) for dev in self._adevs['outputs']]
+        # if len(set(values)) != 1:
+        #     devnames = [dev.name for dev in self._adevs['outputs']]
+        #     raise NicosError(self,
+        #         'outputs have different read values: '
+        #         + ', '.join('%s=%s' % x for x in zip(devnames, values)))
+        return min(values)

@@ -29,15 +29,12 @@ windows = [
     window('Logbook', 'table', panel('nicos.clients.gui.panels.elog.ELogPanel')),
     window('Log files', 'table', panel('nicos.clients.gui.panels.logviewer.LogViewerPanel')),
     window('Errors', 'errors', panel('nicos.clients.gui.panels.errors.ErrorPanel')),
-    window('Camera', 'live', panel('nicos.clients.gui.panels.liveqwt.LiveDataPanel',
-                                   instrument='poli')),
+    window('Camera', 'live', panel('nicos.clients.gui.panels.live.LiveDataPanel')),
     window('Pandora', 'editor', panel('nicos_mlz.panda.gui.mtt_manual.MTTManualPanel')),
 ]
 
 tools = [
     tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
-         receiver='f.carsughi@fz-juelich.de',
-         mailserver='smtp.frm2.tum.de',
          sender='panda@frm2.tum.de'),
     tool('Sample environment logbooks',
          'nicos.clients.gui.tools.website.WebsiteTool',
@@ -54,4 +51,8 @@ tools = [
     tool('Emergency stop button', 'nicos.clients.gui.tools.estop.EmergencyStopTool',
          runatstartup=False),
     cmdtool('Marche (Server control)', 'marche-gui'),
+    cmdtool('Ana Block control', ['sh', '-c', 'quango-mlzgui -m panda/analyzer/plc_block{1,2,3,4,5} + '
+                                  'panda/analyzer/plc_block{6,7,8,9,10} + '
+                                  'panda/analyzer/plc_block{11,12,13,14,15} + '
+                                  'panda/analyzer/plc_block{16,17,18}']),
 ]

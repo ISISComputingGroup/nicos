@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,11 +22,10 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import kafka
 
 from nicos.core import DeviceMixinBase, Param, host, listof
+from nicos.core.constants import SIMULATION
 
 
 class ProducesKafkaMessages(DeviceMixinBase):
@@ -38,18 +37,23 @@ class ProducesKafkaMessages(DeviceMixinBase):
     parameters = {
         'brokers': Param('List of kafka hosts to be connected',
                          type=listof(host(defaultport=9092)),
-                         default=['localhost'], preinit=True, userparam=False),
+                         mandatory=True, preinit=True, userparam=False),
         'max_request_size': Param('Maximum size of kafka message',
                                   type=int, default=16000000, preinit=True,
                                   userparam=False),
     }
 
     def doPreinit(self, mode):
-        self._producer = kafka.KafkaProducer(bootstrap_servers=self.brokers,
-                                             max_request_size=self.max_request_size)
+        if mode != SIMULATION:
+            self._producer = kafka.KafkaProducer(
+                bootstrap_servers=self.brokers,
+                max_request_size=self.max_request_size)
+        else:
+            self._producer = None
 
     def doShutdown(self):
-        self._producer.close()
+        if self._producer:
+            self._producer.close()
 
     def _setProducerConfig(self, **configs):
         self.doShutdown()

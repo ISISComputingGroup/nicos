@@ -2,16 +2,14 @@ description = 'setup for the execution daemon'
 group = 'special'
 
 devices = dict(
-    # to authenticate against the UserOffice, needs the "propdb" parameter
-    # set on the Experiment object
-    UserDB = device('nicos_mlz.devices.proposaldb.Authenticator'),
-
-    Auth   = device('nicos.services.daemon.auth.list.Authenticator',
-                    # the hashing maybe 'md5' or 'sha1'
-                    hashing = 'md5',
-                    passwd = [('guest', '', 'guest'),
-                             ],
-                   ),
+    UserDBAuth = device('nicos_mlz.devices.ghost.Authenticator',
+         description = 'FRM II user office authentication',
+         instrument = 'STRESS-SPEC',
+         ghosthost = 'ghost.mlz-garching.de',
+         aliases = {
+         },
+         loglevel = 'info',
+    ),
     LDAPAuth = device('nicos.services.daemon.auth.ldap.Authenticator',
         uri = 'ldap://phaidra.admin.frm2',
         userbasedn = 'ou=People,dc=frm2,dc=de',
@@ -19,11 +17,12 @@ devices = dict(
         grouproles = {
             'stressi': 'admin',
             'ictrl': 'admin',
+            'se': 'user',
         }
     ),
     Daemon = device('nicos.services.daemon.NicosDaemon',
         server = '',
-        authenticators = ['LDAPAuth', 'Auth'], # and/or 'UserDB'
+        authenticators = ['UserDBAuth', 'LDAPAuth'],
         loglevel = 'info',
     ),
 )

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,9 +22,7 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
-from nicos.core import Readable
+from nicos.core import Readable, status
 from nicos.core.mixins import CanDisable
 from nicos.core.params import Attach
 
@@ -41,6 +39,14 @@ class TriState(CanDisable, Readable):
         if self._enabled:
             return self._attached_port.read(maxage)
         return 0
+
+    def doStatus(self, maxage=0):
+        if self._enabled:
+            stat = self._attached_port.status(maxage)
+            if stat[0] == status.OK:
+                return status.OK, 'enable'
+            return stat
+        return status.OK, 'disable'
 
     def doEnable(self, on):
         self._enabled = on

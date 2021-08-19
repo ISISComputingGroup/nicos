@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,13 +23,11 @@
 # **************************************************************************
 """Support Code for REFSANS's NOK's."""
 
-from __future__ import absolute_import, division, print_function
-
-from nicos.core import ConfigurationError, HasPrecision, Moveable, MoveError, \
-    Readable, dictwith, status
+from nicos.core import AutoDevice, ConfigurationError, HasPrecision, \
+    Moveable, MoveError, Readable, dictwith, status
 from nicos.core.errors import HardwareError
 from nicos.core.params import Attach, Override, Param, floatrange, limits, \
-    none_or, nonemptylistof, oneof, tupleof
+    none_or, oneof, tupleof
 from nicos.core.utils import multiReset
 from nicos.devices.abstract import CanReference, Coder
 from nicos.devices.generic import Axis
@@ -38,7 +36,7 @@ from nicos.devices.generic.sequence import SeqDev, SeqMethod, SequenceItem, \
 from nicos.devices.tango import Sensor
 from nicos.utils import clamp, lazy_property
 
-from nicos_mlz.refsans.devices.mixins import PseudoNOK
+from nicos_mlz.refsans.devices.mixins import PolynomFit, PseudoNOK
 
 MODES = ['ng', 'rc', 'vc', 'fc']
 
@@ -93,7 +91,7 @@ class NOKMonitoredVoltage(Sensor):
             return status.ERROR, repr(err)
 
 
-class NOKPosition(Coder):
+class NOKPosition(PolynomFit, Coder):
     """Device to read the current Position of a NOK.
 
     The Position is determined by a ratiometric measurement between two
@@ -109,9 +107,6 @@ class NOKPosition(Coder):
     }
 
     parameters = {
-        'poly': Param('Polynomial coefficients in ascending order',
-                      type=nonemptylistof(float), settable=True,
-                      mandatory=True, default=0.),
         'length': Param('Length... ????',
                         type=float, mandatory=False),
         # fun stuff, not really needed....
@@ -141,17 +136,8 @@ class NOKPosition(Coder):
         ref = self._attached_reference.read(maxage)
 
         self.log.debug('Poti vs. Reference value: %f / %f', poti, ref)
-
         # apply simple scaling
-        value = poti / ref
-
-        self.log.debug('uncorrected value: %f', value)
-        result = 0.
-        for i, ai in enumerate(self.poly):
-            result += ai * (value ** i)
-        self.log.debug('final result: %f', result)
-
-        return result
+        return self._fit(poti / ref)
 
 
 #
@@ -212,6 +198,44 @@ class SingleMotorNOK(PseudoNOK, Axis):
     }
 
 
+class DoubleMotorAxis(AutoDevice, Moveable):
+    """NOK using two axes.
+    BrotherMotor
+    DEVELOPING MP only
+    """
+    attached_devices = {
+        'both': Attach('access to both of them via mode', Moveable),
+    }
+
+    parameters = {
+        'index': Param('right side of nok', type=oneof(0, 1),
+                       settable=False, mandatory=True),
+        'other': Param('other side of nok', type=oneof(0, 1),
+                       settable=False, mandatory=True),
+    }
+
+    def doRead(self, maxage=0):
+        return self._attached_both.read(maxage=maxage)[self.index]
+
+    def doStatus(self, maxage=0):
+        return self._attached_both.status(maxage=maxage)
+
+    def doStart(self, target):
+        incmin, incmax = self._attached_both.inclinationlimits
+        brother = self._attached_both.read(0)[self.other]
+        inclination = target - brother
+        if incmin > inclination:
+            brother = target - incmin / 2
+        elif incmax < inclination:
+            brother = target - incmax / 2
+        else:
+            pass  # legal driving range nothing to do
+        if self.other == 1:
+            self._attached_both.move([target, brother])
+        else:
+            self._attached_both.move([brother, target])
+
+
 class DoubleMotorNOK(SequencerMixin, CanReference, PseudoNOK, HasPrecision,
                      Moveable):
     """NOK using two axes.
@@ -252,15 +276,20 @@ class DoubleMotorNOK(SequencerMixin, CanReference, PseudoNOK, HasPrecision,
     valuetype = tupleof(float, float)
     _honor_stop = True
 
+    def doInit(self, mode):
+        for name, idx, ido in [('reactor', 0, 1),
+                               ('sample', 1, 0)]:
+            self.__dict__[name] = DoubleMotorAxis('%s.%s' % (self.name, name),
+                                                  unit=self.unit,
+                                                  both=self,
+                                                  lowlevel=True,
+                                                  index=idx,
+                                                  other=ido)
+        self._motors = [self._attached_motor_r, self._attached_motor_s]
+
     @lazy_property
     def _devices(self):
         return self._attached_motor_r, self._attached_motor_s
-
-    def doInit(self, mode):
-        for dev in self._devices:
-            if hasattr(dev, 'backlash') and dev.backlash != 0:
-                self.log.warning('Attached Device %s should not have a '
-                                 'non-zero backlash!', dev)
 
     def doRead(self, maxage=0):
         return [dev.read(maxage) - ofs - self.masks[self.mode]
@@ -274,7 +303,7 @@ class DoubleMotorNOK(SequencerMixin, CanReference, PseudoNOK, HasPrecision,
         incmin, incmax = self.inclinationlimits
 
         inclination = target_s - target_r
-        if not incmin <= inclination <= incmax:
+        if not incmin < inclination < incmax:
             return False, 'Inclination %.2f out of limit (%.2f, %.2f)!' % (
                 inclination, incmin, incmax)
 
@@ -286,10 +315,9 @@ class DoubleMotorNOK(SequencerMixin, CanReference, PseudoNOK, HasPrecision,
         # no problems detected, so it should be safe to go there....
         return True, ''
 
-    def doIsAtTarget(self, targets):
+    def doIsAtTarget(self, pos, targets):
         traveldists = [target - (akt + ofs)
-                       for target, akt, ofs in zip(targets, self.read(0),
-                                                   self.offsets)]
+                       for target, akt, ofs in zip(targets, pos, self.offsets)]
         self.log.debug('doIsAtTarget', targets, 'traveldists', traveldists)
         return max(abs(v) for v in traveldists) <= self.precision
 
@@ -315,31 +343,34 @@ class DoubleMotorNOK(SequencerMixin, CanReference, PseudoNOK, HasPrecision,
             raise MoveError(self, 'Cannot start device, it is still moving!')
 
         # check precision, only move if needed!
-        if self.isAtTarget(targets):
+        if self.isAtTarget(target=targets):
             return
 
-        devices = self._devices
-
         # XXX: backlash correction and repositioning later
-
-        # build a moving sequence
-        sequence = []
-
-        # now go to target
-        sequence.append([SeqDev(d, t + ofs + self.masks[self.mode],
-                                stoppable=True)
-                         for d, t, ofs in zip(devices, targets, self.offsets)])
-
-        # now go to target again
-        sequence.append([SeqDev(d, t + ofs + self.masks[self.mode],
-                                stoppable=True)
-                         for d, t, ofs in zip(devices, targets, self.offsets)])
-
-        self.log.debug('Seq: %r', sequence)
-        self._startSequence(sequence)
+        self.log.debug('mode: %s', self.mode)
+        for d, t, ofs in zip(self._devices, targets, self.offsets):
+            d.move(t + ofs + self.masks[self.mode])
 
     def doReset(self):
         multiReset(self._motors)
+
+    def doWriteMode(self, mode):
+        self.log.debug('DoubleMotorNOK arg:%s  self:%s', mode, self.mode)
+        target = self.doRead(0)
+        self.log.debug('DoubleMotorNOK target %s', target)
+        target = [pos + self.masks[mode] for pos in target]
+        self.log.debug('DoubleMotorNOK target %s', target)
+        sequence = [SeqDev(d, t + ofs, stoppable=True)
+                    for d, t, ofs in zip(self._devices, target, self.offsets)]
+        self.log.debug('Seq_4: %r', sequence)
+        self._startSequence(sequence)
+
+    def doStatus(self, maxage=0):
+        self.log.debug('DoubleMotorNOK status')
+        lowlevel = SequencerMixin.doStatus(self, maxage)
+        if lowlevel[0] == status.BUSY:
+            return lowlevel
+        return Moveable.doStatus(self, maxage)
 
 
 class DoubleMotorNOKIPC(DoubleMotorNOK):
@@ -371,87 +402,28 @@ class DoubleMotorNOKIPC(DoubleMotorNOK):
                                              for t in refpos])
 
         # build a referencing sequence
-        sequence = []
-
         # go to lowest position first
-        sequence.append([SeqDevMin(d, minpos) for d in devices])
+        sequence = [SeqDevMin(d, minpos) for d in devices]
 
         # if one of the motors should have triggered the low-level-switch
         # move them up a little and wait until the movement has finished
-        sequence.append([SeqMoveOffLimitSwitch(d, backoffby=self.backlash / 4.)
-                         for d in devices])
+        sequence += [SeqMoveOffLimitSwitch(d, backoffby=self.backlash / 4.)
+                     for d in devices]
 
         # ref lowest position, should finish at refpos[0]
         # The move should be first, as the referencing may block!
-        sequence.append([SeqDev(devices[1], refpos[0]),
-                         SeqMethod(devices[0], 'reference')])
+        sequence += [SeqDev(devices[1], refpos[0]),
+                     SeqMethod(devices[0], 'reference')]
 
         # ref highest position, should finish at refpos[1]
-        sequence.append([SeqDev(devices[0], refpos[1]),
-                         SeqMethod(devices[1], 'reference')])
+        sequence += [SeqDev(devices[0], refpos[1]),
+                     SeqMethod(devices[1], 'reference')]
 
         # fun: move both to 0
-        sequence.append([SeqDev(d, 0) for d in devices])
+        sequence += [SeqDev(d, 0) for d in devices]
 
         # GO
-        self._startSequence(sequence)
-
-
-class DoubleMotorNOKBeckhoff(DoubleMotorNOK):
-
-    def doReference(self):
-        """Reference the NOK.
-
-        Just set the do_reference bit and wait for completion
-        """
-        if self._seq_is_running():
-            raise MoveError(self, 'Cannot reference device, it is still '
-                            'moving!')
-
-        # according to docu it is sufficient to set the ref bit of one of the
-        # coupled motors
-        for dev in self._devices:
-            dev._HW_reference()
-
-        for dev in self._devices:
-            dev.wait()
-
-    def doStart(self, targets):
-        """Generate and start a sequence if none is running.
-
-        The sequence is optimised for negative backlash.
-        It will first move both motors to the lowest value of
-        (target + backlash, current_position) and then
-        to the final target.
-        So, inbetween, the NOK should be parallel to the beam.
-        MP 12.12.2017 09:16:05
-        """
-        if self._seq_is_running():
-            raise MoveError(self, 'Cannot start device, it is still moving!')
-
-        # check precision, only move if needed!
-        traveldists = [target - dev.read(0) - ofs
-                       for target, dev, ofs in zip(targets, self._devices,
-                                                   self.offsets)]
-        if max(abs(v) for v in traveldists) <= self.precision:
-            return
-
-        devices = self._devices
-
-        # XXX: backlash correction and repositioning later
-
-        # build a moving sequence
-        sequence = []
-
-        # now go to target
-        sequence.append([SeqDev(d, t + ofs, stoppable=True)
-                         for d, t, ofs in zip(devices, targets, self.offsets)])
-
-        # now go to target again
-        sequence.append([SeqDev(d, t + ofs, stoppable=True)
-                         for d, t, ofs in zip(devices, targets, self.offsets)])
-
-        self.log.debug('Seq: %r', sequence)
+        self.log.debug('Seq_4: %r', sequence)
         self._startSequence(sequence)
 
 
@@ -462,9 +434,15 @@ class MotorEncoderDifference(Readable):
         'analog': Attach('analog encoder maybe poti', Readable),
     }
 
+    parameters = {
+        'absolute': Param('Value is absolute or signed.', type=bool,
+                          settable=True, default=True),
+    }
+
     def doRead(self, maxage=0):
-        return abs(self._attached_analog.read(maxage) -
-                   self._attached_motor.read(maxage))
+        dif = self._attached_analog.read(maxage) - \
+            self._attached_motor.read(maxage)
+        return abs(dif) if self.absolute else dif
 
     def doStatus(self, maxage=0):
         return status.OK, ''

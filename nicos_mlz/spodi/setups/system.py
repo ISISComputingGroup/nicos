@@ -13,7 +13,7 @@ sysconfig = dict(
     notifiers = ['email', 'smser'],
 )
 
-modules = ['nicos.commands.standard']
+modules = ['nicos.commands.standard', 'nicos.commands.utility']
 
 includes = ['notifiers']
 
@@ -25,8 +25,8 @@ devices = dict(
         responsible = 'Markus Hoelzel <markus.hoelzel@frm2.tum.de>',
         website = 'http://www.mlz-garching.de/spodi',
         operators = [
-            u'Technische Universität München (TUM)',
-            u'Karlsruher Institut für Technologie (KIT)',
+            'Technische Universität München (TUM)',
+            'Karlsruher Institut für Technologie (KIT)',
         ],
     ),
     Sample = device('nicos.devices.sample.Sample',
@@ -36,7 +36,6 @@ devices = dict(
     Exp = device('nicos_mlz.devices.experiment.Experiment',
         description = 'experiment object',
         dataroot = '/data',
-        propdb = '/spodicontrol/propdb',
         sendmail = False,
         serviceexp = 'p0',
         sample = 'Sample',

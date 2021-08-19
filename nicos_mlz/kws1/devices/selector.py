@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Class for KWS selector."""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import Attach, Moveable, Param, dictof, dictwith
 from nicos.devices.generic.switcher import MultiSwitcher
@@ -103,6 +101,6 @@ class SelectorSwitcher(MultiSwitcher):
     def _getWaiters(self):
         return self._attached_moveables
 
-    def start(self, position):
-        MultiSwitcher.start(self, position)
+    def _start_unchecked(self, position):
+        MultiSwitcher._start_unchecked(self, position)
         self._attached_det_pos._updateMapping(position)

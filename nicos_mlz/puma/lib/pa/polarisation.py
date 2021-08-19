@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,6 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from math import degrees, pi, radians, tan
 
 from numpy import arange, arcsin
@@ -34,7 +32,7 @@ from .gauss import gaussian
 from .xa import xA
 
 
-class PA(object):
+class PA:
 
     kf = 2.662  # wavevector of scattered neutrons / A-1
     da = 3.354  # netplane distance of analyser / A
@@ -312,14 +310,14 @@ class PA(object):
 if __name__ == '__main__':
     def read():
         ret = {}
-        with open('PolData_In.txt') as f:
+        with open('PolData_In.txt', encoding='utf-8') as f:
             for line in f.readlines():
                 key, value = line.split('=')
                 ret[key.strip()] = float(value.strip())
         return ret
 
     def write(pa):
-        with open('PolData_Out.txt', 'w') as f:
+        with open('PolData_Out.txt', 'w', encoding='utf-8') as f:
             f.write('Parameter-List:\n')
             f.write('wavevector of scattered neutrons     : %6.3f 1/A\n' % pa.kf)
             f.write('netplane-distance of analyzer        : %6.3f A\n' % pa.da)

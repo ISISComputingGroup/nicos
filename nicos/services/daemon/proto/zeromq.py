@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,17 +24,15 @@
 
 """Implementation of the daemon protocol over ZMQ."""
 
-from __future__ import absolute_import, division, print_function
-
+import queue
 import socket
 import threading
 
 import zmq
 
-from nicos.protocols.daemon import DAEMON_EVENTS, CloseConnection, \
-    ProtocolError, Server as BaseServer, \
-    ServerTransport as BaseServerTransport
-from nicos.pycompat import from_utf8, queue, to_utf8
+from nicos.protocols.daemon import CloseConnection, ProtocolError, \
+    Server as BaseServer, ServerTransport as BaseServerTransport
+from nicos.protocols.daemon.classic import PROTO_VERSION
 from nicos.services.daemon.handler import ConnectionHandler
 from nicos.utils import createThread
 from nicos.utils.messaging import nicos_zmq_ctx
@@ -51,11 +49,12 @@ from nicos.utils.messaging import nicos_zmq_ctx
 #
 # Framing for events:
 #
-# [id, verb, data]
+# [id, verb, data, ...]
 #
 # The id is the client id for subscription purposes, or 'ALL' (XXX).
 # The verb is the event name.
-# The data is (maybe) serialized payload.
+# The first data is a serialized data payload.
+# Rest of the data are blob payloads, if applicable.
 
 
 class Server(BaseServer):
@@ -86,7 +85,8 @@ class Server(BaseServer):
         poller.register(self.sock, zmq.POLLIN)
         poller.register(reply_collect, zmq.POLLIN)
 
-        # ZeroMQ expects a poll timeout given in msec. interval is passed through in seconds.
+        # ZeroMQ expects a poll timeout given in msec. interval is passed
+        # through in seconds.
         interval_ms = interval * 1000
 
         while not self._stoprequest:
@@ -117,11 +117,10 @@ class Server(BaseServer):
         with self.handler_lock:
             self.handlers.pop(client_id, None)
 
-    def emit(self, event, data, handler=None):
-        if DAEMON_EVENTS[event][0]:
-            data = self.serializer.serialize_event(event, data)
+    def emit(self, event, data, blobs, handler=None):
+        data = self.serializer.serialize_event(event, data)
         self.event_queue.put([handler.client_id if handler else b'ALL',
-                              to_utf8(event), data])
+                              event.encode(), data] + blobs)
 
     def stop(self):
         self._stoprequest = True
@@ -168,7 +167,7 @@ class ServerTransport(ConnectionHandler, BaseServerTransport):
 
     def get_version(self):
         # XXX: for now, make it the same as the classic proto
-        return 15
+        return PROTO_VERSION
 
     def recv_command(self):
         try:
@@ -176,8 +175,8 @@ class ServerTransport(ConnectionHandler, BaseServerTransport):
             # after a long stretch of inactivity
             item = self.command_queue.get(timeout=3600.)
         except queue.Empty:
-            raise CloseConnection
-        return self.serializer.deserialize_cmd(item[4], from_utf8(item[2]))
+            raise CloseConnection from None
+        return self.serializer.deserialize_cmd(item[4], item[2].decode())
 
     def send_ok_reply(self, payload):
         self.reply_sender.send_multipart(
@@ -186,6 +185,6 @@ class ServerTransport(ConnectionHandler, BaseServerTransport):
 
     def send_error_reply(self, reason):
         self.reply_sender.send_multipart(
-            [self.client_id, b'', b'error', b'', to_utf8(reason)])
+            [self.client_id, b'', b'error', b'', reason.encode()])
 
     # events are sent directly by the Server

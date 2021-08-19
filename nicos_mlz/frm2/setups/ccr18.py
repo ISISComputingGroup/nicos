@@ -6,11 +6,10 @@ includes = ['alias_T']
 
 # setupname is set by nicos before loading this file
 # setupname = filename - '.py' extension
-nethost = setupname
+tango_base = 'tango://%s:10000/box/' % setupname
+plc_tango_base = tango_base + 'plc/_'
 
-plc_tango_base = 'tango://%s:10000/box/plc/_' % setupname
-
-# This box is equipped with the pressure regulation!
+# This box is equipped with the 1K heatswitch
 devices = {
     'T_%s' % setupname : device('nicos_mlz.devices.ccr.CCRControl',
         description = 'The main temperature control device of the CCR',
@@ -19,43 +18,53 @@ devices = {
         unit = 'K',
         fmtstr = '%.3f',
     ),
-    'T_%s_stick' % setupname : device('nicos.devices.taco.TemperatureController',
+    'T_%s_stick' % setupname : device('nicos.devices.tango.TemperatureController',
         description = 'The control device of the sample (stick)',
-        tacodevice = '//%s/box/stick/control2' % nethost,
+        tangodevice = tango_base + 'stick/control2',
         abslimits = (0, 600),
         unit = 'K',
         fmtstr = '%.3f',
     ),
-    'T_%s_tube' % setupname : device('nicos.devices.taco.TemperatureController',
+    'T_%s_stick_range' % setupname : device('nicos.devices.tango.NamedDigitalOutput',
+        description = 'Heaterrange of the sample (stick) regulation',
+        tangodevice = tango_base + 'stick/range2',
+        mapping = dict(off=0, low=1, medium=2, high=3),
+    ),
+    'T_%s_tube' % setupname : device('nicos.devices.tango.TemperatureController',
         description = 'The control device of the tube',
-        tacodevice = '//%s/box/tube/control1' % nethost,
+        tangodevice = tango_base + 'tube/control1',
         abslimits = (0, 300),
         warnlimits = (0, 300),
         unit = 'K',
         fmtstr = '%.3f',
     ),
-    'T_%s_A' % setupname : device('nicos.devices.taco.TemperatureSensor',
-        description = '(optional) Sample temperature',
-        tacodevice = '//%s/box/sample/sensora' % nethost,
+    'T_%s_tube_range' % setupname : device('nicos.devices.tango.NamedDigitalOutput',
+        description = 'Heaterrange of the tube regulation',
+        tangodevice = tango_base + 'tube/range1',
+        mapping = dict(off=0, low=1, medium=2, high=3),
+    ),
+    'T_%s_still' % setupname : device('nicos.devices.tango.Sensor',
+        description = '(LS-Sensor A) Still temperature',
+        tangodevice = tango_base + 'sample/sensora',
         unit = 'K',
         fmtstr = '%.3f',
     ),
-    'T_%s_B' % setupname : device('nicos.devices.taco.TemperatureSensor',
-        description = '(regulation) Temperature at the stick',
-        tacodevice = '//%s/box/stick/sensorb' % nethost,
+    'T_%s_sample_stick' % setupname : device('nicos.devices.tango.Sensor',
+        description = '(LS-Sensor B) Temperature at the stick',
+        tangodevice = tango_base + 'stick/sensorb',
         unit = 'K',
         fmtstr = '%.3f',
     ),
-    'T_%s_C' % setupname : device('nicos.devices.taco.TemperatureSensor',
-        description = 'Temperature of the coldhead',
-        tacodevice = '//%s/box/coldhead/sensorc' % nethost,
+    'T_%s_coldhead' % setupname : device('nicos.devices.tango.Sensor',
+        description = '(LS-Sensor C) Temperature of the coldhead',
+        tangodevice = tango_base + 'coldhead/sensorc',
         warnlimits = (0, 300),
         unit = 'K',
         fmtstr = '%.3f',
     ),
-    'T_%s_D' % setupname : device('nicos.devices.taco.TemperatureSensor',
-        description = '(regulation) Temperature at thermal coupling to the tube',
-        tacodevice = '//%s/box/tube/sensord' % nethost,
+    'T_%s_sample_tube' % setupname : device('nicos.devices.tango.Sensor',
+        description = '(LS-Sensor D) Temperature at thermal coupling to the tube',
+        tangodevice = tango_base + 'tube/sensord',
         warnlimits = (0, 300),
         unit = 'K',
         fmtstr = '%.3f',
@@ -111,7 +120,7 @@ devices = {
 
 alias_config = {
     'T':  {'T_%s' % setupname: 200, 'T_%s_stick' % setupname: 150, 'T_%s_tube' % setupname: 100},
-    'Ts': {'T_%s_B' % setupname: 100, 'T_%s_A' % setupname: 90, 'T_%s_D' % setupname: 20, 'T_%s_C' % setupname: 10},
+    'Ts': {'T_%s_sample_stick' % setupname: 100, 'T_%s_sample_tube' % setupname: 90, 'T_%s_still' % setupname: 20, 'T_%s_coldhead' % setupname: 10},
 }
 
 startupcode = '''

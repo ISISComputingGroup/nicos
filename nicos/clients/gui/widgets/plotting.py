@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,6 @@
 # *****************************************************************************
 """NICOS GR plotting backend."""
 
-from __future__ import absolute_import, division, print_function
-
 import os
 import tempfile
 import time
@@ -44,13 +42,11 @@ from nicos.clients.gui.utils import DlgPresets, DlgUtils, dialogFromUi, loadUi
 from nicos.guisupport.plots import DATEFMT, TIMEFMT, MaskedPlotCurve, \
     NicosPlotAxes, NicosTimePlotAxes
 from nicos.guisupport.qt import QAction, QApplication, QCursor, QDialog, \
-    QFileDialog, QFont, QListWidgetItem, QMenu, QPoint, Qt
-from nicos.guisupport.qtgr import GUIConnector, InteractiveGRWidget, \
-    LegendEvent, MouseEvent, ROIEvent
-from nicos.guisupport.utils import scaledFont
-# pylint: disable=redefined-builtin
-from nicos.pycompat import exec_, string_types, number_types
-from nicos.utils import safeName
+    QFont, QListWidgetItem, QMenu, QPoint, Qt
+from nicos.guisupport.qtgr import InteractiveGRWidget, LegendEvent, \
+    MouseEvent, ROIEvent
+from nicos.guisupport.utils import savePlot, scaledFont
+from nicos.utils import number_types, safeName
 from nicos.utils.fitting import CosineFit, ExponentialFit, Fit, FitError, \
     FitResult, GaussFit, LinearFit, LorentzFit, PearsonVIIFit, \
     PseudoVoigtFit, SigmoidFit, TcFit
@@ -100,7 +96,7 @@ def prepareData(x, y, dy, norm):
     return x, y, dy
 
 
-class Fitter(object):
+class Fitter:
     title = 'unknown fit'
     picks = []
 
@@ -390,7 +386,7 @@ class ArbitraryFitter(Fitter):
         fcnstr, params, values, xmin, xmax = dlg.getFunction()
 
         ns = {}
-        exec_('from numpy import *', ns)
+        exec('from numpy import *', ns)
         try:
             model = eval('lambda x, %s: %s' % (', '.join(params), fcnstr), ns)
         except SyntaxError as e:
@@ -747,12 +743,11 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
         self._plot.title = self.titleString()
         self.addPlot(self._plot)
 
-        guiConn = GUIConnector(self)
-        guiConn.connect(LegendEvent.ROI_CLICKED, self.on_legendItemClicked,
-                        LegendEvent)
-        guiConn.connect(ROIEvent.ROI_CLICKED, self.on_roiItemClicked, ROIEvent)
-        guiConn.connect(MouseEvent.MOUSE_PRESS, self.on_fitPicker_selected)
-        guiConn.connect(MouseEvent.MOUSE_MOVE, self.on_mouseMove)
+        self.cbm.addHandler(LegendEvent.ROI_CLICKED, self.on_legendItemClicked,
+                            LegendEvent)
+        self.cbm.addHandler(ROIEvent.ROI_CLICKED, self.on_roiItemClicked, ROIEvent)
+        self.cbm.addHandler(MouseEvent.MOUSE_PRESS, self.on_fitPicker_selected)
+        self.cbm.addHandler(MouseEvent.MOUSE_MOVE, self.on_mouseMove)
         self.logXinDomain.connect(self.on_logXinDomain)
         self.logYinDomain.connect(self.on_logYinDomain)
         self.setLegend(True)
@@ -800,7 +795,7 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
             self._axes.setXtickCallback(self.xtickCallBack)
             self._plot.offsetXLabel = -.08
 
-        scale = self.yaxisScale()
+        scale = self.yaxisScale()  # pylint: disable=assignment-from-none
         if scale:
             axes = self._plot.getAxes(0)
             curwin = axes.getWindow()
@@ -828,11 +823,11 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
 
     def isLogScaling(self, idx=0):
         axes = self._plot.getAxes(idx)
-        return (axes.scale & gr.OPTION_Y_LOG if axes is not None else False)
+        return axes.scale & gr.OPTION_Y_LOG if axes is not None else False
 
     def isLogXScaling(self, idx=0):
         axes = self._plot.getAxes(idx)
-        return (axes.scale & gr.OPTION_X_LOG if axes is not None else False)
+        return axes.scale & gr.OPTION_X_LOG if axes is not None else False
 
     def setLogScale(self, on):
         self._plot.setLogY(on, rescale=True)
@@ -907,9 +902,9 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
                     res = event.roi.reference
                     text = '\n'.join(
                         (n + '\t' if n else '\t') +
-                        (v + '\t' if isinstance(v, string_types)
+                        (v + '\t' if isinstance(v, str)
                          else '%g\t' % v) +
-                        (dv if isinstance(dv, string_types)
+                        (dv if isinstance(dv, str)
                          else '%g' % dv)
                         for (n, v, dv) in res.label_contents)
                     QApplication.clipboard().setText(text)
@@ -964,33 +959,9 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
             self.plotcurves.append(plotcurve)
 
     def savePlot(self):
-        saveName = None
-        dialog = QFileDialog(self, "Select file name", "", self._saveTypes)
-        dialog.selectNameFilter(gr.PRINT_TYPE[gr.PRINT_PDF])
-        dialog.setOption(dialog.HideNameFilterDetails, False)
-        dialog.setAcceptMode(QFileDialog.AcceptSave)
-        if dialog.exec_() == QDialog.Accepted:
-            path = dialog.selectedFiles()[0]
-            if path:
-                _p, suffix = os.path.splitext(path)
-                if suffix:
-                    suffix = suffix.lower()
-                else:
-                    # append selected name filter suffix (filename extension)
-                    nameFilter = dialog.selectedNameFilter()
-                    for k, v in gr.PRINT_TYPE.items():
-                        if v == nameFilter:
-                            suffix = '.' + k
-                            path += suffix
-                            break
-                if suffix and (suffix[1:] in gr.PRINT_TYPE or
-                               suffix[1:] in gr.GRAPHIC_TYPE):
-                    self.save(path)
-                    saveName = os.path.basename(path)
-                    self._saveName = saveName
-                else:
-                    raise Exception("Unsupported file format")
-        return saveName
+        self._saveName = savePlot(self, gr.PRINT_TYPE[gr.PRINT_PDF],
+                                  self._saveName)
+        return self._saveName
 
     def printPlot(self):
         self.printDialog("Nicos-" + self._saveName if self._saveName
@@ -998,7 +969,7 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
         return True
 
     @property
-    def plot(self):
+    def plot(self):  # pylint: disable=invalid-overridden-method
         """Get current gr.pygr.Plot object."""
         return self._plot
 
@@ -1054,8 +1025,8 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
 
         text = '\n'.join(
             (n + ': ' if n else '') +
-            (v if isinstance(v, string_types) else '%g' % v) +
-            (dv if isinstance(dv, string_types) else ' +/- %g' % dv)
+            (v if isinstance(v, str) else '%g' % v) +
+            (dv if isinstance(dv, str) else ' +/- %g' % dv)
             for (n, v, dv) in res.label_contents)
         grtext = Text(res.label_x, res.label_y, text, self._axes, .012,
                       hideviewport=False)

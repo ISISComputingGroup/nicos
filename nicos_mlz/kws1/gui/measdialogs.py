@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Dialogs for the "Measurement" commandlet."""
-
-from __future__ import absolute_import, division, print_function
 
 import itertools
 from collections import OrderedDict
@@ -53,7 +51,7 @@ LOOPS = [
 SAMPLE_NUM = 32
 
 
-class MeasDef(object):
+class MeasDef:
     def __init__(self, rtmode, loops=None):
         self.rtmode = rtmode
         self.loops = loops or LOOPS[:]
@@ -98,7 +96,7 @@ class MeasDef(object):
         result = []
         for dicts in itertools.product(*dict_lists):
             entry = OrderedDict()
-            for d in sorted(dicts, key=lambda d: d.values()[0].ORDER):
+            for d in sorted(dicts, key=lambda d: list(d.values())[0].ORDER):
                 entry.update(d)
             result.append(entry)
         # post-process sample measurement time factor
@@ -296,7 +294,7 @@ class DetsetDialog(QDialog):
     def on_table_cellActivated(self, i, j):
         if self._edit:
             self._stopEdit()
-        element = self._rows[i].values()[j]
+        element = list(self._rows[i].values())[j]
         # create edit widget
         widget = element.createWidget(self, self.client)
         # apply constraints to the widget from other entries
@@ -404,8 +402,7 @@ class DevicesWidget(QWidget):
     def getDef(self):
         if self._edit:
             self._stopEdit()
-        return [{dev: element for (dev, element) in zip(self.devs, row)}
-                for row in self._rows]
+        return [dict(zip(self.devs, row)) for row in self._rows]
 
     def addRow(self, elements=None):
         if self._edit:

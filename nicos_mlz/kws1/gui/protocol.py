@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,14 +24,11 @@
 
 """Generate a measurement protocol from saved runs."""
 
-from __future__ import absolute_import, division, print_function
-
 from os import path
 
 from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.utils import loadUi
 from nicos.guisupport.qt import QFileDialog, QPrintDialog, QPrinter, pyqtSlot
-from nicos.pycompat import to_utf8
 from nicos.utils import findResource
 
 
@@ -90,8 +87,8 @@ class ProtocolPanel(Panel):
             return
         try:
             text = self.outText.toPlainText()
-            with open(fn, 'wb') as fp:
-                fp.write(to_utf8(text))
+            with open(fn, 'w', encoding='utf-8') as fp:
+                fp.write(text)
         except Exception as err:
             self.showError('Could not save: %s' % err)
 

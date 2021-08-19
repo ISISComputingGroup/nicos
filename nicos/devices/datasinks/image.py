@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,14 +24,11 @@
 
 """Base Image data sink classes for NICOS."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos import session
 from nicos.core import FINAL, INTERRUPTED, LIVE, Override
 from nicos.core.constants import POINT
 from nicos.core.data import DataFile, DataSink, DataSinkHandler
 from nicos.devices.datasinks import FileSink
-from nicos.pycompat import add_metaclass
 from nicos.utils import ReaderRegistry, syncFile
 
 
@@ -96,6 +93,8 @@ class SingleFileSinkHandler(DataSinkHandler):
                                                      self.sink.filenametemplate,
                                                      self.sink.subdir,
                                                      fileclass=self.fileclass,
+                                                     filemode=self.sink.filemode,
+                                                     logger=self.sink.log,
                                                      **kwargs)
         return self._file
 
@@ -109,11 +108,9 @@ class SingleFileSinkHandler(DataSinkHandler):
         Note that *image* is None if defer_file_creation is false, because in
         that case `writeHeader` is called before the image data is available.
         """
-        pass
 
     def writeData(self, fp, image):
         """Write the image data part of the file (second part)."""
-        pass
 
     def _putResult(self, quality, result):
         image = result[1][0]
@@ -219,9 +216,12 @@ class ReaderMeta(type):
         return new_class
 
 
-@add_metaclass(ReaderMeta)
-class ImageFileReader(object):
-    filetypes = []  # list of (filetype abbreviation, QFileDialog filter str)
+class ImageFileReader(metaclass=ReaderMeta):
+    # List of (filetype, QFileDialog filter string, i.e. "Name (*.ext *.ext2)")
+    #
+    # The filetype has to be identical to the filetype reported by the sink
+    # which is writing the file.
+    filetypes = []
 
     @classmethod
     def fromfile(cls, filename):

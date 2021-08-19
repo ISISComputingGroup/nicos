@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Module for SANS-1 specific commands."""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos import session
 from nicos.commands import usercommand
@@ -100,7 +98,7 @@ def freqmes(assumed_freq, number_of_counts):
     for i in range(number_of_counts):
         print(i + 1)
         value = valuedev.read(0)
-        if value > untere_grenze and value < obere_grenze:
+        if untere_grenze < value < obere_grenze:
             value_list.append(value)
         else:
             wrong_list.append(value)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,25 +24,17 @@
 
 """Module to test PUMA specific modules."""
 
-from __future__ import absolute_import, division, print_function
-
+import ast
 import os
 
 import pytest
 
 from test.utils import approx
 
-try:
-    from string import maketrans  # pylint: disable=deprecated-module
-except ImportError:
-    maketrans = str.maketrans
-
-
-
 session_setup = 'multidetector'
 
 
-class TestMultiDetector(object):
+class TestMultiDetector:
     """Test class for the PUMA multidetector arranging device."""
 
     @pytest.fixture(scope='function', autouse=True)
@@ -94,14 +86,14 @@ class TestMultiDetector(object):
         with open(os.path.join(dirname, 'med_test.txt')) as f:
             for s in f.readlines():
                 # convert stringified list to list avoiding use of 'eval'
-                v = [float(x) for x in s.translate(maketrans('][,', '   ')).split()]
+                v = ast.literal_eval(s)
                 assert med.isAllowed(v)[0]
 
         # read bad targets from file
         with open(os.path.join(dirname, 'med_test_fail.txt')) as f:
             for s in f.readlines():
                 # convert stringified list to list avoiding use of 'eval'
-                v = [float(x) for x in s.translate(maketrans('][,', '   ')).split()]
+                v = ast.literal_eval(s)
                 assert not med.isAllowed(v)[0]
 
     def test_reference(self, session):

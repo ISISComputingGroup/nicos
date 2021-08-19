@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,23 +22,16 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function, \
-    unicode_literals
-
-from contextlib import contextmanager
-
 from numpy import array
 
 from nicos.clients.gui.panels import Panel
-from nicos.clients.gui.utils import loadUi
-from nicos.clients.gui.widgets.plotting import NicosPlotCurve
+from nicos.clients.gui.utils import loadUi, waitCursor
 from nicos.core.errors import NicosError
 from nicos.core.utils import ADMIN
 from nicos.guisupport.livewidget import LiveWidget1D
-from nicos.guisupport.plots import GRCOLORS
-from nicos.guisupport.qt import QApplication, QCursor, QDialogButtonBox, \
-    QDoubleValidator, QLabel, QMessageBox, QSize, QSizePolicy, Qt, \
-    QVBoxLayout, QWidget, pyqtSlot
+from nicos.guisupport.plots import GRCOLORS, MaskedPlotCurve
+from nicos.guisupport.qt import QDialogButtonBox, QDoubleValidator, QLabel, \
+    QMessageBox, QSize, QSizePolicy, Qt, QVBoxLayout, QWidget, pyqtSlot
 from nicos.guisupport.widget import NicosWidget
 from nicos.utils import findResource
 
@@ -49,20 +42,11 @@ COLOR_RED = GRCOLORS['red']
 COLOR_GREEN = GRCOLORS['green']
 COLOR_BLUE = GRCOLORS['blue']
 
-ANGSTROM = u'\u212b'
-DELTA = u'\u0394'
-LAMBDA = u'\u03bb'
-MICRO = u'\xb5'
-MINUSONE = u'\u207b\xb9'
-
-
-@contextmanager
-def wait_cursor():
-    try:
-        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        yield
-    finally:
-        QApplication.restoreOverrideCursor()
+ANGSTROM = '\u212b'
+DELTA = '\u0394'
+LAMBDA = '\u03bb'
+MICRO = '\xb5'
+MINUSONE = '\u207b\xb9'
 
 
 class MiniPlot(LiveWidget1D):
@@ -71,23 +55,21 @@ class MiniPlot(LiveWidget1D):
 
     def __init__(self, xlabel, ylabel, ncurves=1, parent=None, **kwds):
         LiveWidget1D.__init__(self, parent)
-        self.plot.xlabel = xlabel
-        self.plot.ylabel = ylabel
 
-        self.curve.linecolor = kwds.get('color1', COLOR_BLACK)
-        self.curve.linewidth = 2
+        self.axes.resetCurves()
+        self.setTitles({'x': xlabel, 'y': ylabel})
 
-        if ncurves > 1:
-            self.curve2 = NicosPlotCurve(
-                [0], [.1], linecolor=kwds.get('color2', COLOR_GREEN))
-            self.curve2.linewidth = 2
-            self.axes.addCurves(self.curve2)
-        else:
-            self.curve2 = None
-
+        self._curves = [
+            MaskedPlotCurve([0], [1], linewidth=2, legend='',
+                            linecolor=kwds.get('color1', COLOR_BLACK)),
+            MaskedPlotCurve([0], [.1], linewidth=2, legend='',
+                            linecolor=kwds.get('color2', COLOR_GREEN)),
+        ]
+        for curve in self._curves[:ncurves]:
+            self.axes.addCurves(curve)
+        self.plot.setLegend(True)
         # Disable creating a mouse selection to zoom
         self.gr.setMouseSelectionEnabled(False)
-        self.plot.setLegend(True)
 
     def sizeHint(self):
         return QSize(120, 120)
@@ -114,11 +96,10 @@ class PlotWidget(QWidget):
         parent.layout().insertWidget(1, self.plot)
 
     def setData(self, x, y1, y2=None):
-        self.plot.curve.x = array(x)
-        self.plot.curve.y = array(y1)
-        if self.plot.curve2 and y2 is not None:
-            self.plot.curve2.x = array(x)
-            self.plot.curve2.y = array(y2)
+        for curve, y in zip(self.plot._curves, (y1, y2)):
+            if y is not None:
+                curve.x = array(x)
+                curve.y = array(y)
 
         self.plot.reset()
         self.plot.update()
@@ -129,8 +110,8 @@ class DynamicRangePlot(PlotWidget):
     def __init__(self, parent):
         PlotWidget.__init__(self, 'Dynamic Range', DELTA + 'E (meV)',
                             '|Q| ' + ANGSTROM + MINUSONE, 2, parent=parent)
-        self.plot.curve.legend = ''
-        self.plot.curve2.legend = ''
+        self.plot._curves[0].legend = 'low'
+        self.plot._curves[1].legend = 'high'
 
 
 class ElasticResolutionPlot(PlotWidget):
@@ -139,7 +120,6 @@ class ElasticResolutionPlot(PlotWidget):
         PlotWidget.__init__(self, 'Elastic Resolution',
                             LAMBDA + '(' + ANGSTROM + ')',
                             'dE (' + MICRO + 'eV)', 1, parent=parent)
-        self.plot.curve.legend = ''
         self.plot.logscale(True)
 
 
@@ -148,7 +128,6 @@ class ResolutionPlot(PlotWidget):
     def __init__(self, parent):
         PlotWidget.__init__(self, 'Resolution', 'Energy (meV)',
                             'dE (' + MICRO + 'eV)', 1, parent=parent)
-        self.plot.curve.legend = ''
         self.plot.logscale(True)
 
 
@@ -159,8 +138,8 @@ class IntensityPlot(PlotWidget):
                             'neutrons' % direction,
                             'PSD channel position (cm)', 'intensity',
                             parent=parent)
-        self.plot.curve.legend = 'without analyzer'
-        self.plot.downcurve.legend = 'with analyzer'
+        self.plot._curves[0].legend = 'without analyzer'
+        self.plot._curves[1].legend = 'with analyzer'
 
 
 class ResolutionPanel(NicosWidget, Panel):
@@ -187,7 +166,7 @@ class ResolutionPanel(NicosWidget, Panel):
         pass
 
     def initUi(self):
-        with wait_cursor():
+        with waitCursor():
             loadUi(self,
                    findResource('nicos_mlz/toftof/gui/resolutionpanel.ui'))
 
@@ -206,7 +185,7 @@ class ResolutionPanel(NicosWidget, Panel):
         pass
 
     def on_client_connected(self):
-        with wait_cursor():
+        with waitCursor():
             missed_devices = []
             for d in ('chSpeed', 'chRatio', 'chWL', 'chST'):
                 try:

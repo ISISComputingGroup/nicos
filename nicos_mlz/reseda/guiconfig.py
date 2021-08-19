@@ -35,7 +35,10 @@ main_window = tabbed(
 
 windows = [
     window('Editor', 'editor',
-           panel('nicos.clients.gui.panels.editor.EditorPanel')),
+        vsplit(
+           panel('nicos.clients.gui.panels.scriptbuilder.CommandsPanel'),
+           panel('nicos.clients.gui.panels.editor.EditorPanel',
+           ))),
     window('Scans', 'plotter',
            panel('nicos.clients.gui.panels.scans.ScansPanel',
                  fit_functions={
@@ -54,13 +57,13 @@ windows = [
     window('Errors', 'errors',
            panel('nicos.clients.gui.panels.errors.ErrorPanel')),
     window('Live data', 'live',
-           panel('nicos_mlz.mira.gui.live.LiveDataPanel')),
+           panel('nicos_mlz.reseda.gui.live.CascadeLiveDataPanel',
+                 filetypes=['pad', 'tof'],
+                 defaults={'logscale': True},)),
 ]
 
 tools = [
     tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
-         receiver='f.carsughi@fz-juelich.de',
-         mailserver='smtp.frm2.tum.de',
          sender='reseda@frm2.tum.de',
         ),
     tool('Calculator', 'nicos.clients.gui.tools.calculator.CalculatorTool'),
@@ -77,3 +80,7 @@ tools = [
          'nicos.clients.gui.tools.estop.EmergencyStopTool',
          runatstartup=False),
 ]
+
+options = {
+    'reader_classes': ['nicos_mlz.reseda.devices.cascade.CascadeImageReader'],
+}

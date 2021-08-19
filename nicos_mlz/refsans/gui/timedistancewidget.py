@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,22 +22,13 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 # pylint:disable=no-name-in-module
-from matplotlib.backends.qt_compat import is_pyqt5
+from matplotlib.backends.backend_qt5agg import FigureCanvas
 from matplotlib.figure import Figure
 
 from nicos.guisupport.qt import QVBoxLayout, QWidget
 
 from nicos_mlz.refsans.lib.timedistancediagram import timedistancediagram
-
-if is_pyqt5():
-    # pylint:disable=no-name-in-module
-    from matplotlib.backends.backend_qt5agg import FigureCanvas
-else:
-    # pylint:disable=no-name-in-module
-    from matplotlib.backends.backend_qt4agg import FigureCanvas
 
 
 class TimeDistanceWidget(QWidget):
@@ -52,12 +43,14 @@ class TimeDistanceWidget(QWidget):
         layout.addWidget(self.canvas)
         self.setLayout(layout)
 
-    def plot(self, speed, angles, nperiods, disc2_pos, D, Actual_D=None):
+    def plot(self, speed, angles, nperiods, disc2_pos, D, disc2_mode,
+             Actual_D=None):
         # discards the old graph
         self._static_ax.clear()
 
-        timedistancediagram(speed, angles, n_per=nperiods, D=D,
-                            disk2_pos=disc2_pos, plot=self._static_ax,
+        timedistancediagram(speed, angles, disc2_pos, D,
+                            n_per=nperiods, disk2_mode=disc2_mode,
+                            plot=self._static_ax,
                             Actual_D=Actual_D)
 
         # refresh canvas

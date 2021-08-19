@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,13 +22,12 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from nicos.core import Moveable, Readable, status
-from nicos.core.params import Attach, Param, floatrange
+from nicos.core.mixins import HasLimits
+from nicos.core.params import Attach, Override, Param, floatrange
 
 
-class FocusPoint(Moveable):
+class FocusPoint(HasLimits, Moveable):
     attached_devices = {
         'table': Attach('table', Moveable),
         'pivot': Attach('pivot', Readable),
@@ -37,6 +36,10 @@ class FocusPoint(Moveable):
     parameters = {
         'gisansdistance': Param('GISANS distance',
                                 type=floatrange(0, None), default=10700),
+    }
+
+    parameter_overrides = {
+        'abslimits': Override(mandatory=True, volatile=False),
     }
 
     def moveToFocus(self):
@@ -63,6 +66,12 @@ class FocusPoint(Moveable):
             return state
         table = self._attached_table.read()
         focus = self._calculation()
-        text = 'focus' if abs(table - focus) <= self._attached_table.precision\
-            else state[1]
+        precision = 0
+        if hasattr(self._attached_table, '_attached_device'):
+            precision = self._attached_table._attached_device.precision
+        elif hasattr(self._attached_table, 'precision'):
+            precision = self._attached_table.precision
+        else:
+            precision = 0
+        text = 'focus' if abs(table - focus) <= precision else state[1]
         return status.OK, text

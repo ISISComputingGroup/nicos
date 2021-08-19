@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,13 +18,13 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Matt Clarke <matt.clarke@esss.se>
+#   Matt Clarke <matt.clarke@ess.eu>
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import pytest
+
+pytest.importorskip('graypy')
 
 from nicos.commands.device import adjust
 
@@ -33,7 +33,7 @@ from nicos_ess.devices.epics.motor import EpicsMotor
 session_setup = 'ess_motors'
 
 
-class FakeEpicsMotor(EpicsMotor): # pylint: disable=too-many-ancestors
+class FakeEpicsMotor(EpicsMotor):
     """
     Epics motor with fake getting and setting of PVs.
     """
@@ -53,7 +53,7 @@ class FakeEpicsMotor(EpicsMotor): # pylint: disable=too-many-ancestors
     }
 
     def doPreinit(self, mode):
-        pass
+        self._record_fields = self._get_record_fields()
 
     def doInit(self, mode):
         pass
@@ -79,7 +79,13 @@ class FakeEpicsMotor(EpicsMotor): # pylint: disable=too-many-ancestors
         return self.values[pvparam]
 
 
-class TestEpicsMotor(object):
+class DerivedEpicsMotor(FakeEpicsMotor):
+    def _get_record_fields(self):
+        record_fields = FakeEpicsMotor._get_record_fields(self)
+        record_fields.update({'extra_field': 'XTR'})
+        return record_fields
+
+class TestEpicsMotor:
     motor = None
 
     @pytest.fixture(autouse=True)
@@ -156,3 +162,19 @@ class TestEpicsMotor(object):
         # Check new limits
         assert (low + new_offset,
                 high + new_offset) == self.motor.userlimits
+
+
+
+class TestDerivedEpicsMotor:
+
+    @pytest.fixture(autouse=True)
+    def prepare(self, session):
+        self.session = session
+        self.motor1 = self.session.getDevice('motor1')
+        self.motor2 = self.session.getDevice('motor2')
+
+    def test_record_fields(self):
+        motor1_fields = self.motor1._record_fields
+        motor2_fields = self.motor2._record_fields
+        difference = set(motor2_fields) ^ set(motor1_fields)
+        assert difference

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,26 +24,52 @@
 
 """The NICOS electronic logbook."""
 
-from __future__ import absolute_import, division, print_function
-
-import io
-from cgi import escape
+from html import escape
 from logging import ERROR
 from os import path, unlink
 from shutil import copyfile
 from time import localtime, strftime
 
-from nicos.pycompat import from_utf8, to_utf8
 from nicos.services.elog.genplot import plotDataset
 from nicos.services.elog.utils import formatMessage, formatMessagePlain, \
     pretty1, pretty2
 
 try:
-    import creole
+    import markdown
 except ImportError:
-    creole = None
+    markdown = None
+else:
+    class CollectHeaders(markdown.Extension):
+        """Markdown extension that assigns proper IDs to headers, and maintains
+        a list of headers that can be added to the elog's table of contents.
+        """
+        def __init__(self, new_id_func):
+            markdown.Extension.__init__(self)
+            self.new_id = new_id_func
+            self.headers = []
 
-FRAMESET = u'''\
+        def extendMarkdown(self, md):
+            md.registerExtension(self)
+            md.treeprocessors.register(CollectHeadersProcessor(self),
+                                       'collect-headers', 999)
+
+    class CollectHeadersProcessor(markdown.treeprocessors.Treeprocessor):
+        def __init__(self, ext):
+            markdown.treeprocessors.Treeprocessor.__init__(self)
+            self.ext = ext
+
+        def run(self, root):
+            for level in ('h1', 'h2', 'h3', 'h4', 'h5', 'h6'):
+                for head in root.iter(level):
+                    head.attrib['id'] = self.ext.new_id()
+                    self.ext.headers.append((
+                        int(level[1:]),
+                        head.text,
+                        head.attrib['id'],
+                    ))
+
+
+FRAMESET = '''\
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -188,10 +214,10 @@ PROLOG_TOC = b'''\
 
 def create_or_open(filename, prolog=b''):
     if not path.isfile(filename):
-        io.open(filename, 'wb').close()
-    # we have to open in binary mode since we want to seek from the end,
-    # which the text wrapper doesn't support
-    fd = io.open(filename, 'r+b')
+        open(filename, 'wb').close()
+    # we have to open in binary mode since we want to do a nonzero seek from
+    # the end, which the text wrapper doesn't support
+    fd = open(filename, 'r+b')
     fd.seek(0, 2)
     if fd.tell() == 0:
         fd.write(prolog)
@@ -199,7 +225,7 @@ def create_or_open(filename, prolog=b''):
     return fd
 
 
-class HtmlWriter(object):
+class HtmlWriter:
     def __init__(self):
         self.fd = None
         self.curstate = None
@@ -222,15 +248,16 @@ class HtmlWriter(object):
 
     def open(self, directory, instr, proposal):
         self.close()
-        io.open(path.join(directory, 'logbook.html'), 'w').write(
-            FRAMESET % (instr, proposal))
+        with open(path.join(directory, 'logbook.html'), 'w',
+                  encoding='utf-8') as f:
+            f.write(FRAMESET % (instr, proposal))
         self.fd = create_or_open(path.join(directory, 'content.html'), PROLOG)
         self.fd_toc = create_or_open(path.join(directory, 'toc.html'),
                                      PROLOG_TOC)
 
-    def emit(self, html, suffix=u''):
-        html = to_utf8(html)
-        suffix = to_utf8(suffix)
+    def emit(self, html, suffix=''):
+        html = html.encode()
+        suffix = suffix.encode()
         if self.fd:
             self.fd.write(html)
             # write suffix now, but place file pointer so that it's overwritten
@@ -261,22 +288,22 @@ class HtmlWriter(object):
             self.curstate = None
 
     def emit_toc(self, html):
-        html = to_utf8(html)
+        html = html.encode()
         if self.fd_toc:
             self.fd_toc.write(html)
             self.fd_toc.flush()
 
     def toc_entry(self, level, text, target, cls=None):
-        html = ''
+        htmlstr = ''
         if self.toc_level < level:
-            html += '<ul class="toc">' * (level - self.toc_level)
+            htmlstr += '<ul class="toc">' * (level - self.toc_level)
         elif self.toc_level > level:
-            html += '</ul>' * (self.toc_level - level) + '\n'
-        html += ('<li class="toc"><a href="content.html#%s" '
-                 'target="content"%s>%s</a></li>\n' % (
-                     target, cls and ' class="%s"' % cls or '',
-                     escape(text)))
-        self.emit_toc(html)
+            htmlstr += '</ul>' * (self.toc_level - level) + '\n'
+        htmlstr += ('<li class="toc"><a href="content.html#%s" '
+                    'target="content"%s>%s</a></li>\n' % (
+                        target, cls and ' class="%s"' % cls or '',
+                        escape(text)))
+        self.emit_toc(htmlstr)
         self.toc_level = level
 
     def new_id(self):
@@ -284,7 +311,7 @@ class HtmlWriter(object):
         return 'id%s-%s' % (id(self), self.curid)
 
 
-class TextWriter(object):
+class TextWriter:
     def __init__(self):
         self.fd = None
 
@@ -299,11 +326,11 @@ class TextWriter(object):
 
     def message(self, message):
         if self.fd:
-            self.fd.write(to_utf8(formatMessagePlain(message)))
+            self.fd.write(formatMessagePlain(message).encode())
             self.fd.flush()
 
 
-class Handler(object):
+class Handler:
     def __init__(self, log, plotformat):
         self.log = log
         self.plotformat = plotformat
@@ -349,11 +376,14 @@ class Handler(object):
 
     def handle_entry(self, time, data):
         self.out.timestamp(time)
-        if creole:
-            emitter = creole.HtmlEmitter(
-                creole.Parser(from_utf8(data)).parse(), self.out.new_id)
-            data = emitter.emit()
-            headers = emitter.headers
+        if markdown:
+            header_ext = CollectHeaders(self.out.new_id)
+            data = markdown.markdown(data, extensions=[
+                'markdown.extensions.tables',
+                'markdown.extensions.fenced_code',
+                header_ext,
+            ])
+            headers = header_ext.headers
         else:
             data, headers = escape(data), []
         self.out.newstate('entry', '', '', data)

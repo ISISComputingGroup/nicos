@@ -2,7 +2,8 @@ description = "SingleSlit [slit k1] between nok6 and nok7"
 
 group = 'lowlevel'
 
-includes = ['nok_ref', 'nokbus1']
+includes = ['nok_ref', 'zz_absoluts']
+
 instrument_values = configdata('instrument.values')
 showcase_values = configdata('cf_showcase.showcase_values')
 tango_base = instrument_values['tango_base']
@@ -14,7 +15,7 @@ devices = dict(
         # length: 6.0,
         description = 'zb2 single Slit at nok6 before nok7',
         unit = 'mm',
-        motor = 'zb2_motor',
+        motor = 'zb2_axis',
         nok_start = 7633.5, # 7591.5
         nok_end = 7639.5, # 7597.5
         nok_gap = 1.0,
@@ -25,20 +26,13 @@ devices = dict(
             'gisans':    -122.0 * optic_values['gisans_scale'],
         },
     ),
-    zb2_motor = device(code_base + 'ipc.NOKMotorIPC',
-        description = 'IPC controlled Motor of ZB2',
-        abslimits = (-215.69, 93.0),
-        bus = 'nokbus1',
-        addr = 0x37,
-        slope = 800.0,
-        speed = 50,
-        accel = 50,
-        confbyte = 32,
-        ramptype = 2,
-        microstep = 1,
-        refpos = 68.0465,
-        zerosteps = int(681.95 * 800),
-        lowlevel = showcase_values['hide_poti'],
+    zb2_axis = device('nicos.devices.generic.Axis',
+        description = 'zb2 single Slit for backlash',
+        motor = 'zb2_motor',
+        backlash = -0.5,
+        precision = optic_values['precision_ipcsms'],
+        unit = 'mm',
+        lowlevel = True,
     ),
     zb2_analog = device(code_base + 'nok_support.NOKPosition',
         description = 'Position sensing for ZB2',

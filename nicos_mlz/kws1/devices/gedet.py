@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,20 +24,17 @@
 
 """NICOS integration for GE detector."""
 
-from __future__ import absolute_import, division, print_function
-
 import time
 
 import PyTango
 
 from nicos import session
 from nicos.core import Attach, Moveable, NicosTimeoutError, Override, Param, \
-    dictof, status, tupleof, usermethod
+    Readable, dictof, status, tupleof, usermethod
 from nicos.devices.epics import EpicsAnalogMoveable, EpicsReadable
 from nicos.devices.generic.sequence import BaseSequencer, SeqMethod, SeqSleep
 from nicos.devices.generic.switcher import Switcher
 from nicos.devices.tango import PowerSupply
-from nicos.pycompat import iteritems
 
 
 class HVSwitcher(Switcher):
@@ -56,7 +53,7 @@ class HVSwitcher(Switcher):
 
     def _mapReadValue(self, pos):
         prec = self.precision
-        for name, value in iteritems(self.mapping):
+        for name, value in self.mapping.items():
             if prec:
                 if all(abs(p - v) <= prec for (p, v) in zip(pos, value)):
                     return name
@@ -78,7 +75,7 @@ class HVSwitcher(Switcher):
     @usermethod
     def transferSettings(self):
         import epics
-        for epicsid, pvs in iteritems(self.pv_values):
+        for epicsid, pvs in self.pv_values.items():
             for pvname, pvvalue in pvs:
                 fullpvname = '%s:%s_W' % (epicsid, pvname)
                 self.log.debug('setting %s = %s' % (fullpvname, pvvalue))
@@ -197,3 +194,25 @@ class HVEpicsAnalogMoveable(EpicsAnalogMoveable):
 class HVEpicsArrayReadable(EpicsReadable):
     def doRead(self, maxage=0):
         return self._get_pv('readpv')[:8].tolist()
+
+
+class GEMaxTemperature(Readable):
+    """Return the maximum of a number of 8-pack temperatures."""
+
+    attached_devices = {
+        'epts':   Attach('Individual 8-pack Temps', Readable, multiple=True),
+    }
+
+    def doStatus(self, maxage=0):
+        # do not forward individual 8-pack status
+        return status.OK, ''
+
+    def doRead(self, maxage=0):
+        maxtemp = 0
+        for dev in self._attached_epts:
+            try:
+                maxtemp = max(maxtemp, dev.read(maxage))
+            except Exception:
+                # if individual 8-packs are not reachable, ignore
+                pass
+        return maxtemp

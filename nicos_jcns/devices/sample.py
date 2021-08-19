@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,6 @@
 
 """NICOS sample device with support of IFF sample database."""
 
-from __future__ import absolute_import, division, print_function
-
 from requests import post
 
 from nicos import session
@@ -37,7 +35,7 @@ from nicos_mlz.devices.sample import Sample as MLZSample
 DUMMY_SAMPLE_ID = 218  # 498
 # TODO: check if IDs are the same in the actual sample DB
 MEASUREMENT_ACTION_ID = {
-    'fourcircle': 32,
+    # 'fourcircle': 32,  # fourcircle not supported yet
     'galaxi': 25,
 }
 NICOS_USER_ID = 45
@@ -54,7 +52,7 @@ class Sample(MLZSample):
         new_id = DUMMY_SAMPLE_ID
         # check whether given ID belongs to a sample by trying to add a
         # measurement entry to the sample database
-        if value is not None and 'ldap_id' in session.getExecutingUser().data:
+        if value is not None:
             bot = session.experiment.sampledb_botname
             r = post(
                 session.experiment.sampledb_url + 'objects/',

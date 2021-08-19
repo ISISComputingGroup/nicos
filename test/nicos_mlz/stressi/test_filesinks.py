@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """STRESS-SPEC specific data sink tests."""
-
-from __future__ import absolute_import, division, print_function
 
 from os import path
 
@@ -53,7 +51,8 @@ def prepare(session, dataroot):
     session.experiment.setDetectors(['adet'])
 
     # Create devices needed in data sinks
-    for dev in ['xt', 'yt', 'zt', 'slits', 'slitm', 'slite', 'slitp', 'omgm']:
+    for dev in ['xt', 'yt', 'zt', 'slits', 'slitm', 'slite', 'slitp', 'omgm',
+                'tths']:
         session.getDevice(dev)
 
     # Adjust the monochromator to reasonable position and check it
@@ -76,7 +75,7 @@ def prepare(session, dataroot):
     yield
 
 
-class TestSinks(object):
+class TestSinks:
 
     def test_caress_sink(self, session):
         caressfile = path.join(session.experiment.datapath, 'm200000043.dat')

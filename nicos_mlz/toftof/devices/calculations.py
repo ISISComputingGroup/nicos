@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 # *****************************************************************************
 
 """TOFTOF chopper and resolution calculations."""
-
-from __future__ import absolute_import, division, print_function
 
 from math import cos, pi, radians, sqrt
 
@@ -100,6 +98,7 @@ def speedRatio(ratio=1):
 
 
 def calculateChopperDelay(wl, speed, ratio, st, ch5_90deg_offset):
+    # note: unknown time unit, suspect microseconds
     chdelay = 0
     ratio2 = speedRatio(ratio)
     # calculate the speed in Hz instead of given speed in rpms
@@ -120,6 +119,7 @@ def calculateChopperDelay(wl, speed, ratio, st, ch5_90deg_offset):
 
 def calculateCounterDelay(wl, speed, ratio, delay, ch5_90deg_offset):
     # calculate the speed in Hz instead of given speed in rpms
+    # returns the delay in s (should be smaller than the calculated frametime)
     speed /= 60.0
     ratio2 = speedRatio(ratio)
     # 4 * speed, since we have 4 slits in chopper disc 1
@@ -129,16 +129,19 @@ def calculateCounterDelay(wl, speed, ratio, delay, ch5_90deg_offset):
     tel = 1e-6 * alpha * wl * (a[0] - a[5]) + TOFoffset + delay
     n = int(tel / (ratio / (2 * speed)))
     tel -= n * (ratio / (2 * speed))
-    return int(round(tel / ttr))  # 50 ns of the TOF electronics
+    # round to multiple of 100ns, (property of electronics)
+    return int(round(tel / (2*ttr))) * 2 * ttr
 
 
-def calculateTimeInterval(speed, ratio):
+def calculateFrameTime(speed, ratio):
     """
-    Calculates the time interval from chopper parameters.
+    Calculates the frame time interval from chopper parameters.
 
     Chopper speed in rpm given, but calculations are in Hz.
     The interval is the time between pulses of chopper 5 because chopper 5
     has only 2 slits
+
+    returns the frame time in s
     """
     speed /= 60.0
     if speed == 0:
@@ -251,7 +254,7 @@ def Energy(wavelength):
     return 1000. * (hbar * k0) ** 2 / (2 * mn * e)
 
 
-class ResolutionAnalysis(object):
+class ResolutionAnalysis:
 
     def __init__(self, chSpeed, chWL, chRatio, chST):
         self.speed = chSpeed

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,8 +28,6 @@ NOT INTENDED TO BE USED AT THE INSTRUMENT!
 servos are too small and inaccurate to be used at the instrument,
 but are quite handy for shows
 """
-
-from __future__ import absolute_import, division, print_function
 
 import threading
 import time
@@ -109,7 +107,7 @@ class SerComIO(Device):
                 self._polls.append(device)
         else:
             self._polls = [device]
-            if (self._thread is None) or not(self._thread.is_alive()):
+            if (self._thread is None) or not self._thread.is_alive():
                 self._thread = createThread('servo poller', self._poller)
 
     def delPollDev(self, device):

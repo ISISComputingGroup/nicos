@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,10 +24,8 @@
 
 """A general nicos proxy superclass."""
 
-from __future__ import absolute_import, division, print_function
 
-
-class NicosProxy(object):
+class NicosProxy:
     """
     General proxy class to add special behaviour to classes.  See
     http://code.activestate.com/recipes/252151-generalized-delegates-and-proxies/
@@ -36,7 +34,7 @@ class NicosProxy(object):
     _obj = None
 
     def __init__(self, obj):
-        super(NicosProxy, self).__init__(obj)
+        super().__init__(obj)
         self._obj = obj
 
     def __getattr__(self, name):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,18 +26,14 @@
 Global configuration for the NICOS system.
 """
 
-from __future__ import absolute_import, division, print_function
-
-import glob
 import os
 import sys
+from configparser import ConfigParser
 from os import path
 from re import compile as regexcompile, escape as regexescape
 
-from nicos.pycompat import ConfigParser
 
-
-class config(object):
+class config:
     """Singleton for settings potentially overwritten later."""
 
     _applied = False  # make only one call to apply
@@ -100,14 +96,6 @@ class config(object):
         # Set a default setup_subdirs
         if cls.setup_subdirs is None:
             cls.setup_subdirs = cls.instrument
-
-        # Set up PYTHONPATH for Taco libraries.
-        try:
-            tacobase = os.environ['DSHOME']
-        except KeyError:
-            tacobase = '/opt/taco'
-        sys.path.extend(glob.glob(tacobase + '/lib*/python%d.*/site-packages'
-                                  % sys.version_info[0]))
 
         cls._applied = True
 
@@ -172,7 +160,8 @@ def readConfig():
     except ImportError:
         print('Setup package %r does not exist, cannot continue.' %
               setup_package, file=sys.stderr)
-        raise RuntimeError('Setup package %r does not exist.' % setup_package)
+        raise RuntimeError(
+            'Setup package %r does not exist.' % setup_package) from None
     setup_package_path = path.dirname(setup_package_mod.__file__)
 
     # Try to find a good value for the instrument name, either from the

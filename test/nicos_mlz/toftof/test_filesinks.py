@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 
 """TOFTOF specific data sink tests."""
 
-from __future__ import absolute_import, division, print_function
-
 from os import path
 
 import pytest
@@ -36,7 +34,7 @@ session_setup = 'toftof'
 exp_dataroot = 'toftofdata'
 
 try:
-    import nxs  # pylint: disable=unused-import
+    import nxs
 except ImportError:
     nxs = None
 
@@ -80,7 +78,7 @@ def prepare(session, dataroot):
     yield
 
 
-class TestSinks(object):
+class TestSinks:
 
     @pytest.mark.skipif(nxs is None, reason='NeXuS library missing')
     def test_toftof_sink(self, session):

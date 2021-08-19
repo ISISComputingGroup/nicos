@@ -2,10 +2,15 @@ description = 'setup for the execution daemon'
 group = 'special'
 
 devices = dict(
-    # to authenticate against the UserOffice, needs the "propdb" parameter
-    # set on the Experiment object
-    UserDB = device('nicos_mlz.devices.proposaldb.Authenticator'),
-
+    GhostAuth = device('nicos_mlz.devices.ghost.Authenticator',
+         description = 'GHoST proposal system authentication',
+         instrument = 'DNS',
+         ghosthost = 'ghost.mlz-garching.de',
+         aliases = {
+             'ys': ('y.su@fz-juelich.de', 'user'),
+             'tm': ('t.mueller@fz-juelich.de', 'user'),
+         },
+    ),
     Auth = device('nicos.services.daemon.auth.list.Authenticator',
         hashing = 'md5',
         passwd = [('guest', '', 'guest'),
@@ -14,7 +19,7 @@ devices = dict(
     ),
     Daemon = device('nicos.services.daemon.NicosDaemon',
         server = '',
-        authenticators = ['Auth'],  # or ['Auth', 'UserDB']
-        loglevel = 'debug',
+        authenticators = ['GhostAuth', 'Auth'],
+        loglevel = 'info',
     ),
 )

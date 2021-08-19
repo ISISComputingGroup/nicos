@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -126,10 +126,10 @@ class DoubleMonochromator(HasLimits, IsController, BaseSequencer):
             return True, ''
 
         if adev == self._attached_mtx:
-            test = self._checksafe()
-            if test:
+            try:
+                self._checksafe()
                 return True, 'Position Allowed'
-            else:
+            except NicosError:
                 return False, 'Monochromator blades not in a safe position'
         else:
             return True, 'Position Allowed'

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,6 @@
 """
 This module contains some classes for NICOS - EPICS integration.
 """
-from __future__ import absolute_import, division, print_function
-
 import threading
 from time import time as currenttime
 
@@ -52,16 +50,13 @@ if not isinstance(threading.currentThread(), threading._MainThread):
 # it is called once at import time, before epics objects can be created.
 try:
     epics.ca.clear_cache()
+    epics.ca.initialize_libca()
 except epics.ca.ChannelAccessException as err:
-    # python 2.x
-    if hasattr(err, 'message'):
-        msg = err.message  # pylint: disable=exception-message-attribute
-    # python 3.x
-    elif hasattr(err, 'args'):
+    if hasattr(err, 'args'):
         msg = err.args[0]
     else:
         msg = 'error in epics channel access setup'
-    raise ImportError(msg)
+    raise ImportError(msg) from None
 
 __all__ = [
     'EpicsDevice', 'EpicsReadable', 'EpicsStringReadable',
@@ -121,13 +116,8 @@ class EpicsDevice(DeviceMixinBase):
     parameters = {
         'epicstimeout': Param('Timeout for getting EPICS PVs',
                               type=none_or(floatrange(0.1, 60)),
-                              default=1.0),
+                              default=1.0, userparam=False),
     }
-
-    # A set of all parameters that indicate PV names.  Since PVs are very
-    # limited, an EpicsDevice is expected to use many different PVs a lot
-    # of times.
-    pv_parameters = set()
 
     # This will store PV objects for each PV param.
     _pvs = {}
@@ -163,15 +153,19 @@ class EpicsDevice(DeviceMixinBase):
                                              % pvname)
 
                 self._pvctrls[pvparam] = pv.get_ctrlvars() or {}
+            self._register_pv_callbacks()
         else:
             for pvparam in self._get_pv_parameters():
                 self._pvs[pvparam] = HardwareStub(self)
                 self._pvctrls[pvparam] = {}
 
+    def _register_pv_callbacks(self):
+        pass
+
     def _get_pv_parameters(self):
         # The default implementation of this method simply returns the
         # pv_parameters set
-        return self.pv_parameters
+        return set()
 
     def _get_pv_name(self, pvparam):
         # In the default case, the name of a PV-parameter is stored in ai
@@ -211,8 +205,7 @@ class EpicsDevice(DeviceMixinBase):
         return max(status_map.items())
 
     def _setMode(self, mode):
-        super(EpicsDevice, self)._setMode(mode)
-        # remove the PVs on entering simulation mode, to prevent
+        # Remove the PVs on entering simulation mode, to prevent
         # accidental access to the hardware
         if mode == SIMULATION:
             for key in self._pvs:
@@ -270,14 +263,15 @@ class EpicsReadable(EpicsDevice, Readable):
 
     parameters = {
         'readpv': Param('PV for reading device value',
-                        type=pvname, mandatory=True),
+                        type=pvname, mandatory=True, userparam=False),
     }
-
-    pv_parameters = {'readpv'}
 
     parameter_overrides = {
         'unit': Override(mandatory=False),
     }
+
+    def _get_pv_parameters(self):
+        return {'readpv'}
 
     def doInit(self, mode):
         if mode != SIMULATION:
@@ -285,10 +279,8 @@ class EpicsReadable(EpicsDevice, Readable):
                                                     anytype)
 
     def doReadUnit(self):
-        pvunit = self._get_pvctrl('readpv', 'units', '')
-        if not pvunit and 'unit' in self._config:
-            return self._config['unit']
-        return pvunit
+        return self._get_pvctrl('readpv', 'units',
+                                self._config.get('unit', ''))
 
     def doRead(self, maxage=0):
         return self._get_pv('readpv')
@@ -312,19 +304,18 @@ class EpicsMoveable(EpicsDevice, Moveable):
 
     parameters = {
         'readpv': Param('PV for reading device value',
-                        type=pvname, mandatory=True),
+                        type=pvname, mandatory=True, userparam=False),
         'writepv': Param('PV for writing device target',
-                         type=pvname, mandatory=True),
+                         type=pvname, mandatory=True, userparam=False),
         'targetpv': Param('Optional target readback PV.',
-                          type=none_or(pvname), mandatory=False)
+                          type=none_or(pvname), mandatory=False,
+                          userparam=False)
     }
 
     parameter_overrides = {
         'unit': Override(mandatory=False),
         'target': Override(volatile=True),
     }
-
-    pv_parameters = {'readpv', 'writepv'}
 
     def _get_pv_parameters(self):
         """
@@ -333,19 +324,19 @@ class EpicsMoveable(EpicsDevice, Moveable):
         the mandatory pv_parameters.
         """
         if self.targetpv:
-            return self.pv_parameters | {'targetpv'}
+            return {'readpv', 'writepv', 'targetpv'}
 
-        return self.pv_parameters
+        return {'readpv', 'writepv'}
 
     def doInit(self, mode):
         if mode == SIMULATION:
             return
         intype = FTYPE_TO_VALUETYPE.get(self._pvs['readpv'].ftype, anytype)
         outtype = FTYPE_TO_VALUETYPE.get(self._pvs['writepv'].ftype, anytype)
-        if intype != self.valuetype:
+        if intype is not anytype and intype != self.valuetype:
             raise ConfigurationError(self, 'Input PV %r does not have the '
                                            'correct data type' % self.readpv)
-        if outtype != self.valuetype:
+        if outtype is not anytype and outtype != self.valuetype:
             raise ConfigurationError(self, 'Output PV %r does not have the '
                                            'correct data type' % self.writepv)
 
@@ -353,7 +344,7 @@ class EpicsMoveable(EpicsDevice, Moveable):
             target_type = FTYPE_TO_VALUETYPE.get(
                 self._pvs['targetpv'].ftype, anytype)
 
-            if target_type != self.valuetype:
+            if target_type is not anytype and target_type != self.valuetype:
                 raise ConfigurationError(
                     self, 'Target PV %r does not have the '
                           'correct data type' % self.targetpv)
@@ -363,16 +354,14 @@ class EpicsMoveable(EpicsDevice, Moveable):
 
     def doReadTarget(self):
         """
-        In many cases IOCs provide a readback of the setpoint, here represented
-        as targetpv. Since this is not provided everywhere, it should still be
-        possible to get the target, which is then assumed to be retained in the
-        PV represented by writepv.
+        IOCs commonly provide a read-back of the set-point according to the
+        device (targetpv). When this read-back is not present then the writepv
+        should be read instead.
         """
         if self.targetpv:
             return self._get_pv('targetpv')
 
-        value = self._params.get('target')
-        return value if value is not None else self._config.get('target')
+        return self._get_pv('writepv')
 
     def doRead(self, maxage=0):
         return self._get_pv('readpv')
@@ -416,7 +405,6 @@ class EpicsWindowTimeoutDevice(HasWindowTimeout, EpicsAnalogMoveable):
     """
     Analog moveable with window timeout.
     """
-    pass
 
 
 class EpicsDigitalMoveable(EpicsMoveable):
@@ -424,3 +412,7 @@ class EpicsDigitalMoveable(EpicsMoveable):
     Handles EPICS devices which can set and read an integer value.
     """
     valuetype = int
+
+    parameter_overrides = {
+        'fmtstr': Override(default='%d'),
+    }

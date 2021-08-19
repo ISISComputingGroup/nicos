@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Virtual devices for testing."""
-
-from __future__ import absolute_import, division, print_function
 
 import math
 import time
@@ -64,7 +62,7 @@ class VirtualImage(BaseImage):
                                            self.sizes[1], self.sizes[0])
             self._rawdata = 0.1 * data[3]
             self._resosteps = data[1]
-        except (IOError, ValueError):
+        except (OSError, ValueError):
             self.log.warning('data file %s not present, returning empty array '
                              'from virtual SPODI image', self.datafile)
             self._rawdata = np.zeros(
@@ -97,16 +95,13 @@ class VirtualImage(BaseImage):
         return t * np.random.poisson(data)
 
     def _run(self):
-        try:
-            while not self._stopflag:
-                elapsed = self._timer.elapsed_time()
-                self.log.debug('update image: elapsed = %.1f', elapsed)
-                array = self._generate(self._base_loop_delay)
-                self._buf = self._buf + array
-                self.readresult = [self._buf.sum().astype('<u4')]
-                time.sleep(self._base_loop_delay)
-        finally:
-            self._remaining = None
+        while not self._stopflag:
+            elapsed = self._timer.elapsed_time()
+            self.log.debug('update image: elapsed = %.1f', elapsed)
+            array = self._generate(self._base_loop_delay)
+            self._buf = self._buf + array
+            self.readresult = [self._buf.sum().astype('<u4')]
+            time.sleep(self._base_loop_delay)
 
     def doReadArray(self, _quality):
         return self._buf.astype('<u4')

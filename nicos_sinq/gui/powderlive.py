@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,12 +25,10 @@
   A live view which shows a powder diagram with the correct two_theta and a
   title.
 """
-from __future__ import absolute_import, division, print_function
-
 import numpy
 
-from nicos.clients.gui.panels.livegr import IntegralLiveWidget, \
-    LiveDataPanel, LiveWidget1D
+from nicos.clients.gui.panels.live import IntegralLiveWidget, LiveDataPanel, \
+    LiveWidget1D
 
 
 class LivePowderWidget(LiveWidget1D):

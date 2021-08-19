@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,9 +24,7 @@
 
 """Scan commands for NICOS."""
 
-from __future__ import absolute_import, division, print_function
-
-from numpy import ndarray
+from numpy import meshgrid, ndarray
 
 from nicos import session
 from nicos.commands import helparglist, usercommand
@@ -36,13 +34,11 @@ from nicos.core.constants import SUBSCAN
 from nicos.core.scan import CONTINUE_EXCEPTIONS, SKIP_EXCEPTIONS, \
     ContinuousScan, ManualScan, Scan, StopScan, SweepScan
 from nicos.core.spm import Bare, Dev, spmsyntax
-# pylint: disable=redefined-builtin
-from nicos.pycompat import iteritems, number_types, string_types, \
-    xrange as range
+from nicos.utils import number_types
 
 __all__ = [
     'scan', 'cscan', 'timescan', 'sweep', 'twodscan', 'contscan',
-    'manualscan', 'appendscan',
+    'manualscan', 'appendscan', 'gridscan',
 ]
 
 
@@ -88,13 +84,15 @@ def _fixType(dev, args, mkpos):
 
 
 def _handleScanArgs(args, kwargs, scaninfo):
-    preset, detlist, envlist, move, multistep = {}, [], None, [], []
+    preset, detlist, envlist, move, multistep = {}, None, None, [], []
     for arg in args:
-        if isinstance(arg, string_types):
+        if isinstance(arg, str):
             scaninfo = arg + ' - ' + scaninfo
         elif isinstance(arg, number_types):
             preset['t'] = arg
         elif isinstance(arg, Measurable):
+            if detlist is None:
+                detlist = []
             detlist.append(arg)
         elif isinstance(arg, Readable):
             if envlist is None:
@@ -102,7 +100,7 @@ def _handleScanArgs(args, kwargs, scaninfo):
             envlist.append(arg)
         else:
             raise UsageError('unsupported scan argument: %r' % arg)
-    for key, value in iteritems(kwargs):
+    for key, value in kwargs.items():
         if key in session.devices and isinstance(session.devices[key],
                                                  Moveable):
             # Here, don't replace 'list' by '(list, tuple)'
@@ -114,7 +112,7 @@ def _handleScanArgs(args, kwargs, scaninfo):
                 multistep.append((session.devices[key], value))
             else:
                 move.append((session.devices[key], value))
-        elif key == 'info' and isinstance(value, string_types):
+        elif key == 'info' and isinstance(value, str):
             scaninfo = value + ' - ' + scaninfo
         else:
             preset[key] = value
@@ -132,8 +130,7 @@ def _infostr(fn, args, kwargs):
                 return '%.4g' % x
             return '%.4f' % x
         return repr(x)
-    argsrepr = ', '.join(devrepr(a) for a in args
-                         if not isinstance(a, string_types))
+    argsrepr = ', '.join(devrepr(a) for a in args if not isinstance(a, str))
     if kwargs:
         kwargsrepr = ', '.join('%s=%r' % kv for kv in kwargs.items())
         return '%s(%s, %s)' % (fn, argsrepr, kwargsrepr)
@@ -205,11 +202,67 @@ def scan(dev, *args, **kwargs):
     3    2.0  5.0
     4    3.0  7.0
     ==== ==== ====
+
     """
     def mkpos(starts, steps, numpoints):
         return [[start + i*step for (start, step) in zip(starts, steps)]
                 for i in range(numpoints)]
+
     scanstr = _infostr('scan', (dev,) + args, kwargs)
+    devs, values, restargs = _fixType(dev, args, mkpos)
+    preset, scaninfo, detlist, envlist, move, multistep = \
+        _handleScanArgs(restargs, kwargs, scanstr)
+    Scan(devs, values, None, move, multistep, detlist, envlist, preset,
+         scaninfo).run()
+
+
+@usercommand
+@helparglist('dev-list, start-list, step-list, numpoints-list, ...')
+@spmsyntax(Dev(Moveable), Bare, Bare, Bare)
+def gridscan(dev, *args, **kwargs):
+    """Scans over a grid of device positions and count detector(s).
+
+    The orthogonal grid will spanned by the positions of each device.
+
+    >>> gridscan([dev1, dev2], [-1, -2], [1, 1], [3, 5])
+
+    which generates a measurement over a grid with positions:
+
+    ==== ==== ====
+    Step dev1 dev2
+    ==== ==== ====
+    1    -1.0 -2.0
+    2     0.0 -2.0
+    3     1.0 -2.0
+    4    -1.0 -1.0
+    5     0.0 -1.0
+    6     1.0 -1.0
+    7    -1.0  0.0
+    8     0.0  0.0
+    9     1.0  0.0
+    10   -1.0  1.0
+    11    0.0  1.0
+    12    1.0  1.0
+    13   -1.0  2.0
+    14    0.0  2.0
+    15    1.0  2.0
+    ==== ==== ====
+    """
+    def mkpos(starts, steps, numpoints):
+        if isinstance(numpoints, (list, tuple)):
+            if len(starts) != len(numpoints):
+                raise UsageError('start, steps, and numpoint arguments must '
+                                 'have the same length')
+            scanvals = [[start + j * step for j in range(numpoint)]
+                        for start, step, numpoint in
+                        zip(starts, steps, numpoints)]
+            values = meshgrid(*scanvals)
+            for i, grid in enumerate(values):
+                values[i] = list(grid.reshape(grid.size))
+            return [tuple(v[i] for v in values) for i in range(len(values[0]))]
+        raise UsageError('numpoints must be a list')
+
+    scanstr = _infostr('gridscan', (dev,) + args, kwargs)
     devs, values, restargs = _fixType(dev, args, mkpos)
     preset, scaninfo, detlist, envlist, move, multistep = \
         _handleScanArgs(restargs, kwargs, scanstr)
@@ -310,10 +363,14 @@ def sweep(dev, start, end, *args, **kwargs):
     long as T is still moving.  *start* can be None to start moving towards the
     *end* immediately without moving to a starting value first.
 
-    A special "delay" argument is supported to allow time delays between two
-    points:
+    Special arguments "delay" (in seconds) and "minstep" (in device units)
+    are supported to allow delays between two points. They can be combined
+    which will wait for both conditions (minimum time and also step between
+    points):
 
-    >>> sweep(T, 10, 100, t=2, delay=5)
+    >>> sweep(T, 10, 20, t=2, delay=5)      # minimum 2 points based on ramp
+    >>> sweep(T, 10, 20, t=2, minstep=0.5)  # 21 points
+    >>> sweep(T, 10, 20, t=2, delay=5, minstep=0.5)  # 2-21 points
     """
     # XXX: the SweepScan supports a) max #points and b) multiple devices, but
     # we don't offer that in this simplified interface until it's actually
@@ -424,6 +481,9 @@ sweep.__doc__ += (ADDSCANHELP0 + ADDSCANHELP2).replace('scan(dev, ',
                                                        'sweep(dev, ')
 twodscan.__doc__ += (ADDSCANHELP0 + ADDSCANHELP2).replace('scan(dev, ',
                                                           'twodscan(dev1, ')
+gridscan.__doc__ += (
+    ADDSCANHELP0 + ADDSCANHELP1 + ADDSCANHELP2).replace(
+            'scan(dev,', 'gridscan([dev1, dev2],')
 
 
 @usercommand
@@ -480,7 +540,7 @@ def contscan(dev, start, end, speed=None, timedelta=None, *args, **kwargs):
     scan.run()
 
 
-class _ManualScan(object):
+class _ManualScan:
     def __init__(self, args, kwargs):
         title = kwargs.pop('_title', 'manualscan')
         scanstr = _infostr(title, args, kwargs)
@@ -494,7 +554,7 @@ class _ManualScan(object):
         try:
             self.scan.manualBegin()
             return self.scan
-        except:  # yes, all exceptions
+        except BaseException:
             session._manualscan = None
             raise
 

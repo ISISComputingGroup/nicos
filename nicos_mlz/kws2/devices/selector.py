@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Special class for KWS 2 selector, which can be tilted."""
-
-from __future__ import absolute_import, division, print_function
 
 from nicos.core import Attach, Moveable, Override, Param, Readable, dictof, \
     dictwith, tupleof
@@ -84,6 +82,11 @@ class SelectorLambda(Moveable):
                     (value - self.offsets[tilted])))
         self.log.debug('moving selector to %f rpm', speed)
         self._attached_seldev.start(speed)
+
+    def doInfo(self):
+        tilted = bool(self._attached_tiltdev.read())
+        val = 0.2 if tilted else 0.1
+        return [('spread', val, str(val), '', 'general')]
 
 
 class SelectorSwitcher(KWS1SelectorSwitcher):

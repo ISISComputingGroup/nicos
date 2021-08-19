@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,9 +24,6 @@
 
 """NICOS utilities independent from an active session."""
 
-from __future__ import absolute_import, division, print_function
-
-import errno
 import fnmatch
 import inspect
 import linecache
@@ -41,8 +38,9 @@ import traceback
 import unicodedata
 from collections import OrderedDict
 from contextlib import contextmanager
-from datetime import timedelta
+from datetime import date, timedelta
 from functools import wraps
+from io import BufferedWriter, FileIO
 from itertools import chain, islice
 from os import path
 from stat import S_IRGRP, S_IROTH, S_IRUSR, S_IRWXU, S_IWUSR, S_IXGRP, \
@@ -53,15 +51,16 @@ from time import localtime, mktime, sleep, strftime, strptime, \
 # do **not** import nicos.session here
 # session dependent nicos utilities should be implemented in nicos.core.utils
 from nicos import config, get_custom_version, nicos_version
-# pylint: disable=redefined-builtin
-from nicos.pycompat import PY2, iteritems, string_types, text_type, \
-    xrange as range, zip
 
 try:
-    import pwd
     import grp
+    import pwd
 except ImportError:
     pwd = grp = None
+
+
+# all builtin number types (useful for isinstance checks)
+number_types = (int, float)
 
 
 class AttrDict(dict):
@@ -70,7 +69,7 @@ class AttrDict(dict):
         try:
             return self[key]
         except KeyError:
-            raise AttributeError(key)
+            raise AttributeError(key) from None
 
     def __setattr__(self, key, value):
         self[key] = value
@@ -79,7 +78,7 @@ class AttrDict(dict):
         try:
             del self[key]
         except KeyError:
-            raise AttributeError(key)
+            raise AttributeError(key) from None
 
 
 class LCDict(dict):
@@ -94,7 +93,7 @@ class LCDict(dict):
         return dict.__delitem__(self, key.lower())
 
 
-class lazy_property(object):
+class lazy_property:
     """A property that calculates its value only once."""
     def __init__(self, func):
         self._func = func
@@ -133,7 +132,7 @@ class readonlydict(dict):
         update = _no
 
     def __getnewargs__(self):
-        return (dict(iteritems(self)),)
+        return (dict(self.items()),)
 
     def __reduce__(self):
         return dict.__reduce__(self)
@@ -145,7 +144,7 @@ class BoundedOrderedDict(OrderedDict):
         OrderedDict.__init__(self, *args, **kwds)
         self._checklen()
 
-    def __setitem__(self, key, value):  # pylint: disable=signature-differs
+    def __setitem__(self, key, value):
         OrderedDict.__setitem__(self, key, value)
         self._checklen()
 
@@ -171,7 +170,7 @@ class AutoDefaultODict(OrderedDict):
         return val
 
 
-class Repeater(object):
+class Repeater:
     def __init__(self, obj):
         self.object = obj
         self._stop = False
@@ -179,13 +178,10 @@ class Repeater(object):
     def __iter__(self):
         return self
 
-    # pylint: disable=next-method-defined
-    def next(self):
+    def __next__(self):
         if self._stop:
             raise StopIteration
         return self.object
-
-    __next__ = next  # Python 3
 
     def __len__(self):
         return 0
@@ -197,7 +193,7 @@ class Repeater(object):
         self._stop = True
 
 
-class HardwareStub(object):
+class HardwareStub:
     """An object that denies all attribute access, used to prevent accidental
     hardware access in simulation mode.
     """
@@ -365,7 +361,7 @@ def parseHostPort(host, defaultport, missingportok=False):
         try:
             port = int(port)
         except ValueError:
-            raise ValueError('invalid port number: ' + port)
+            raise ValueError('invalid port number: ' + port) from None
         if not 0 < port < 65536:
             raise ValueError('port number out of range')
     if ':' in host:
@@ -393,7 +389,7 @@ def tcpSocket(host, defaultport, timeout=None, keepalive=None):
             s.settimeout(timeout)
     # connect
         s.connect((host, int(port)))
-    except socket.error:
+    except OSError:
         closeSocket(s)
         raise
     if keepalive:
@@ -413,11 +409,11 @@ def closeSocket(sock, socket=socket):
         return
     try:
         sock.shutdown(socket.SHUT_RDWR)
-    except socket.error:
+    except OSError:
         pass
     try:
         sock.close()
-    except socket.error:
+    except OSError:
         pass
 
 
@@ -438,9 +434,12 @@ def tcpSocketContext(host, defaultport, timeout=None):
         closeSocket(sock)
 
 
-def getfqdn(name=''):
+def getfqdn():
     """Get fully qualified hostname."""
-    return socket.getfqdn(name)
+    hostname = socket.gethostname()
+    if '.' in hostname:
+        return hostname
+    return socket.getfqdn(hostname)
 
 
 def bitDescription(bits, *descriptions):
@@ -477,7 +476,7 @@ def createSubprocess(cmdline, **kwds):
                                       kwds.get('stdout') or
                                       kwds.get('stderr')):
             kwds['close_fds'] = True
-    return subprocess.Popen(cmdline, **kwds)
+    return subprocess.Popen(cmdline, **kwds)  # pylint: disable=consider-using-with
 
 
 try:
@@ -539,14 +538,14 @@ def parseDateString(s, enddate=False):
 
 def terminalSize():
     """Try to find the terminal size as (cols, rows)."""
-    import struct
     import fcntl
+    import struct
     import termios
     try:
         h, w, _hp, _wp = struct.unpack(
             'HHHH', fcntl.ioctl(0, termios.TIOCGWINSZ,
                                 struct.pack('HHHH', 0, 0, 0, 0)))
-    except IOError:
+    except OSError:
         return 80, 25
     return w, h
 
@@ -591,7 +590,8 @@ def importString(import_name):
     try:
         mod = __import__(modname, {}, {}, fromlist)
     except ImportError as err:
-        raise ImportError('Could not import %r: %s' % (import_name, err))
+        raise ImportError(
+            'Could not import %r: %s' % (import_name, err)) from err
     if not obj:
         return mod
     else:
@@ -609,7 +609,7 @@ def resolveClasses(classes):
     """
     if not isinstance(classes, (list, tuple)):
         classes = [classes]
-    return tuple(importString(cls) if isinstance(cls, string_types) else cls
+    return tuple(importString(cls) if isinstance(cls, str) else cls
                  for cls in classes)
 
 
@@ -622,12 +622,12 @@ DEFAULT_FILE_MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH
 
 
 def readFile(filename):
-    with open(filename, 'r') as fp:
+    with open(filename, 'r', encoding='utf-8') as fp:
         return [line.strip() for line in fp]
 
 
 def writeFile(filename, lines):
-    with open(filename, 'w') as fp:
+    with open(filename, 'w', encoding='utf-8') as fp:
         fp.writelines(lines)
 
 
@@ -671,12 +671,12 @@ def moveOutOfWay(filepath, maxbackups=10):
                 except os.error as ex:
                     raise RuntimeError('Could not rename %s to backup '
                                        'name %s: %s' %
-                                       (filepath, renamename, ex))
+                                       (filepath, renamename, ex)) from ex
             # retry if backup name was already used
             nxt = nxt + 1
 
 
-def safeWriteFile(filepath, content, mode='w', maxbackups=10):
+def safeWriteFile(filepath, content, maxbackups=10):
     """(Almost) atomic writing of a file.
 
     The content is first written to a temporary file and then swapped in while
@@ -689,7 +689,7 @@ def safeWriteFile(filepath, content, mode='w', maxbackups=10):
     if isinstance(content, list):
         writeFile(tmpfile, content)
     else:
-        open(tmpfile, mode).write(content)
+        open(tmpfile, 'w', encoding='utf-8').write(content)
     try:
         if maxbackups:
             moveOutOfWay(filepath, maxbackups)
@@ -705,19 +705,16 @@ def writePidfile(appname):
     pidpath = getPidfileName(appname)
     try:
         os.makedirs(path.dirname(pidpath))
-    except OSError as err:
-        if err.errno != errno.EEXIST:
-            raise
+    except FileExistsError:
+        pass
     writeFile(pidpath, [str(os.getpid())])
 
 
 def removePidfile(appname):
     try:
         os.unlink(getPidfileName(appname))
-    except OSError as err:
-        if err.errno == errno.ENOENT:
-            return
-        raise
+    except FileNotFoundError:
+        pass
 
 
 def ensureDirectory(dirname, enableDirMode=DEFAULT_DIR_MODE, **kwargs):
@@ -735,9 +732,9 @@ def enableDisableFileItem(filepath, mode, owner=None, group=None, logger=None):
             stats = os.stat(filepath)  # only change the requested parts
             owner = owner or stats.st_uid
             group = group or stats.st_gid
-            if isinstance(owner, string_types):
+            if isinstance(owner, str):
                 owner = pwd.getpwnam(owner)[2]
-            if isinstance(group, string_types):
+            if isinstance(group, str):
                 group = grp.getgrnam(group)[2]
             os.chown(filepath, owner, group)
         except (OSError, KeyError) as e:
@@ -864,7 +861,7 @@ def expandTemplate(template, keywords, field_re=field_re):
                 replacement = ''
             else:
                 defaulted.append(field.groupdict())
-        result.append(replacement)
+        result.append(str(replacement))
         current = field.end()
     result.append(template[current:])
     return ''.join(result), defaulted, missing
@@ -914,6 +911,7 @@ def daemonize():
     os.close(2)
 
     # redirect standard file descriptors
+    # pylint: disable=consider-using-with
     sys.stdin = open('/dev/null', 'r')
     sys.stdout = sys.stderr = open('/dev/null', 'w')
 
@@ -961,60 +959,6 @@ def setuser(recover=True):
         os.environ['HOME'] = pwd.getpwuid(uid).pw_dir
     if config.umask is not None and hasattr(os, 'umask'):
         os.umask(int(config.umask, 8))
-
-
-# as copied from Python 3.3
-def which(cmd, mode=os.F_OK | os.X_OK, path=None):
-    """Given a command, mode, and a PATH string, return the path which
-    conforms to the given mode on the PATH, or None if there is no such
-    file.
-
-    `mode` defaults to os.F_OK | os.X_OK. `path` defaults to the result
-    of os.environ.get("PATH"), or can be overridden with a custom search
-    path.
-    """
-    # Check that a given file can be accessed with the correct mode.
-    # Additionally check that `file` is not a directory, as on Windows
-    # directories pass the os.access check.
-    def _access_check(fn, mode):
-        return (os.path.exists(fn) and os.access(fn, mode) and
-                not os.path.isdir(fn))
-
-    # Short circuit. If we're given a full path which matches the mode
-    # and it exists, we're done here.
-    if _access_check(cmd, mode):
-        return cmd
-
-    path = (path or os.environ.get("PATH", os.defpath)).split(os.pathsep)
-
-    if sys.platform == "win32":
-        # The current directory takes precedence on Windows.
-        if os.curdir not in path:
-            path.insert(0, os.curdir)
-
-        # PATHEXT is necessary to check on Windows.
-        pathext = os.environ.get("PATHEXT", "").split(os.pathsep)
-        # See if the given file matches any of the expected path extensions.
-        # This will allow us to short circuit when given "python.exe".
-        matches = [cmd for ext in pathext if cmd.lower().endswith(ext.lower())]
-        # If it does match, only test that one, otherwise we have to try
-        # others.
-        files = [cmd] if matches else [cmd + ext.lower() for ext in pathext]
-    else:
-        # On other platforms you don't have things like PATHEXT to tell you
-        # what file suffixes are executable, so just pass on cmd as-is.
-        files = [cmd]
-
-    seen = set()
-    for dir_ in path:
-        dir_ = os.path.normcase(dir_)
-        if dir_ not in seen:
-            seen.add(dir_)
-            for thefile in files:
-                name = os.path.join(dir_, thefile)
-                if _access_check(name, mode):
-                    return name
-    return None
 
 
 # console color utils
@@ -1065,7 +1009,7 @@ def nocolor():
 if os.name == 'nt':
     try:
         # colorama provides ANSI-colored console output support under Windows
-        import colorama  # pylint: disable=import-error
+        import colorama
     except ImportError:
         nocolor()
     else:
@@ -1092,8 +1036,8 @@ def whyExited(status):
 
 def formatExtendedFrame(frame):
     ret = []
-    for key, value in iteritems(frame.f_locals):
-        if key in ('credentials', 'password'):
+    for key, value in frame.f_locals.items():
+        if key.startswith(('credentials', 'password', 'secret')):
             continue
         try:
             valstr = repr(value)[:256]
@@ -1104,8 +1048,30 @@ def formatExtendedFrame(frame):
     return ret
 
 
-def formatExtendedTraceback(etype, value, tb):
-    ret = ['Traceback (most recent call last):\n']
+ST_HEADER = 'Stack trace (most recent call last):'
+TB_HEADER = 'Traceback (most recent call last):'
+TB_CAUSE_MSG = ('The above exception was the direct cause of the '
+                'following exception:')
+TB_CONTEXT_MSG = ('During handling of the above exception, another '
+                  'exception occurred:')
+
+
+def listExtendedTraceback(exc, seen=None):
+    seen = seen or set()
+    if id(exc) in seen:
+        return []
+    seen.add(id(exc))
+
+    ret = []
+    if exc.__cause__ is not None:
+        ret += listExtendedTraceback(exc.__cause__, seen)
+        ret.extend(['\n', TB_CAUSE_MSG, '\n\n'])
+    elif exc.__context__ is not None:
+        ret += listExtendedTraceback(exc.__context__, seen)
+        ret.extend(['\n', TB_CONTEXT_MSG, '\n\n'])
+
+    ret.extend([TB_HEADER, '\n'])
+    tb = exc.__traceback__
     while tb is not None:
         frame = tb.tb_frame
         filename = frame.f_code.co_filename
@@ -1117,29 +1083,43 @@ def formatExtendedTraceback(etype, value, tb):
             item = item + '    %s\n' % line.strip()
         ret.append(item)
         if filename not in ('<script>', '<string>'):
-            ret += formatExtendedFrame(tb.tb_frame)
+            if tb.tb_frame.f_globals.get('__name__', '').startswith('nicos'):
+                ret += formatExtendedFrame(tb.tb_frame)
         tb = tb.tb_next
-    ret += traceback.format_exception_only(etype, value)
-    return ''.join(ret).rstrip('\n')
+    ret += traceback.format_exception_only(type(exc), exc)
+    return ret
 
 
-def formatExtendedStack(level=1):
-    f = sys._getframe(level)
-    ret = ['Stack trace (most recent call last):\n\n']
-    while f is not None:
-        lineno = f.f_lineno
-        co = f.f_code
+def formatExtendedTraceback(exc):
+    """Format a traceback for the given exception as a string.
+
+    The traceback will include the source line of each frame, as usual, but
+    also the values of local variables in the frames.
+    """
+    return ''.join(listExtendedTraceback(exc)).rstrip('\n')
+
+
+def formatExtendedStack(frame=None, level=1):
+    """Format a stacktrace, starting at the given *frame* (or the current
+    frame), showing source and local variables of each frame.
+    """
+    if frame is None:
+        frame = sys._getframe(level)
+    ret = [ST_HEADER, '\n\n']
+    while frame is not None:
+        lineno = frame.f_lineno
+        co = frame.f_code
         filename = co.co_filename
         name = co.co_name
         item = '  File "%s", line %d, in %s\n' % (filename, lineno, name)
         linecache.checkcache(filename)
-        line = linecache.getline(filename, lineno, f.f_globals)
+        line = linecache.getline(filename, lineno, frame.f_globals)
         if line:
             item = item + '    %s\n' % line.strip()
         ret.insert(1, item)
         if filename != '<script>':
-            ret[2:2] = formatExtendedFrame(f)
-        f = f.f_back
+            ret[2:2] = formatExtendedFrame(frame)
+        frame = frame.f_back
     return ''.join(ret).rstrip('\n')
 
 
@@ -1150,8 +1130,8 @@ def formatException(cut=0, exc_info=None):
     if exc_info is None:
         typ, val, tb = sys.exc_info()
     else:
-        typ, val, tb = exc_info  # pylint: disable=W0633
-    res = ['Traceback (most recent call last):\n']
+        typ, val, tb = exc_info
+    res = [TB_HEADER, '\n']
     tbres = traceback.format_tb(tb, sys.maxsize)
     res += tbres[cut:]
     res += traceback.format_exception_only(typ, val)
@@ -1196,7 +1176,7 @@ def readFileCounter(counterpath, key):
     """
     try:
         lines = readFile(counterpath)
-    except IOError:
+    except OSError:
         writeFile(counterpath, [])
         return 0
     for line in lines:
@@ -1223,11 +1203,11 @@ def updateFileCounter(counterpath, key, value):
 
 def allDays(fromtime, totime):
     """Determine days of an interval between two timestamps."""
-    tmfr = int(mktime(localtime(fromtime)[:3] + (0, 0, 0, 0, 0, -1)))
-    tmto = int(min(currenttime(), totime))
-    for tmday in range(tmfr, tmto, 86400):
-        lt = localtime(tmday)
-        yield str(lt[0]), '%02d-%02d' % lt[1:3]
+    current = date.fromtimestamp(fromtime)
+    final = date.fromtimestamp(totime)
+    while current <= final:
+        yield f'{current.year}', f'{current.month:02}-{current.day:02}'
+        current += timedelta(days=1)
 
 
 # Note, binding "sleep" as a local here since this function usually is run
@@ -1268,7 +1248,7 @@ def watchFileContent(filenames, log, interval=1.0, sleep=sleep):
                     with open(filename, 'rb') as f:
                         result.append(f.read())
                     break
-                except IOError as err:
+                except OSError as err:
                     log.error('got exception checking for content of %r: %s',
                               filename, err)
                     sleep(localinterval)
@@ -1290,7 +1270,7 @@ def syncFile(fileObj):
 
 def decodeAny(string):
     """Try to decode the string from UTF-8 or latin9 encoding."""
-    if isinstance(string, text_type):
+    if isinstance(string, str):
         return string
     try:
         return string.decode('utf-8')
@@ -1303,8 +1283,8 @@ def decodeAny(string):
 _SAFE_FILE_CHARS = frozenset('-=+_.,()[]{}0123456789abcdefghijklmnopqrstuvwxyz'
                              'ABCDEFGHIJKLMNOPQRSTUVWXYZ')
 _BAD_NAMES = frozenset(('.', '..', 'con', 'prn', 'aux', 'nul') +
-                       tuple('com%d' for d in range(1, 10)) +
-                       tuple('lpt%d' for d in range(1, 10)))
+                       tuple(f'com{d}' for d in range(1, 10)) +
+                       tuple(f'lpt{d}' for d in range(1, 10)))
 
 
 def safeName(what, _SAFE_FILE_CHARS=_SAFE_FILE_CHARS):
@@ -1320,7 +1300,7 @@ def safeName(what, _SAFE_FILE_CHARS=_SAFE_FILE_CHARS):
         s = s.replace('__', '_')
     # avoid special bad names
     if s.lower() in _BAD_NAMES:
-        s = '_%s_'
+        s = f'_{s}_'
     return s if s else '_empty_'
 
 
@@ -1418,7 +1398,7 @@ def num_sort(x, inf=float('inf')):
     """A sort key function to sort strings by a numeric prefix, then
     lexically.
     """
-    if not isinstance(x, string_types):
+    if not isinstance(x, str):
         return (0, x)
     m = re.match(r'[\d.-]+', x)
     try:
@@ -1427,7 +1407,7 @@ def num_sort(x, inf=float('inf')):
         return (inf, x)
 
 
-class ReaderRegistry(object):
+class ReaderRegistry:
     readers = dict()
 
     @classmethod
@@ -1446,10 +1426,10 @@ class ReaderRegistry(object):
     @classmethod
     def filefilters(cls):
         return [(ftype, ffilter) for ftype, (_cls, ffilter) in
-                iteritems(cls.readers)]
+                cls.readers.items()]
 
 
-class FitterRegistry(object):
+class FitterRegistry:
     fitters = dict()
 
     @classmethod
@@ -1463,7 +1443,7 @@ class FitterRegistry(object):
             return cls.fitters[key.lower()]
         except KeyError:
             raise KeyError('Unknown fitter name %r, known fitters: %s' %
-                           (key, ', '.join(cls.fitters)))
+                           (key, ', '.join(cls.fitters))) from None
 
 
 keyexpr_re = re.compile(r'(?P<dev_or_key>[a-zA-Z_0-9./]+)'
@@ -1613,7 +1593,7 @@ def parseDuration(inputvalue, allownegative=False):
         return inputvalue
     if isinstance(inputvalue, timedelta):
         return inputvalue.total_seconds()
-    elif not isinstance(inputvalue, string_types):
+    elif not isinstance(inputvalue, str):
         raise TypeError('Wrong input data type')
 
     invalue = inputvalue.strip()
@@ -1627,7 +1607,6 @@ def parseDuration(inputvalue, allownegative=False):
     elif invalue.startswith('+'):
         invalue = invalue.lstrip('+')
 
-
     try:
         val = float(invalue)
     except ValueError:
@@ -1635,7 +1614,7 @@ def parseDuration(inputvalue, allownegative=False):
 
         if not m:
             raise ValueError('"%s" can not be parsed. ' % inputvalue
-                             + DURATION_HINT)
+                             + DURATION_HINT) from None
 
         groupdict = m.groupdict()
         timedict = {}
@@ -1660,12 +1639,6 @@ def formatArgs(obj, strip_self=False):
 
     If *strip_self* is true, strip the "self" argument if present.
     """
-    if PY2:
-        argspec = inspect.getargspec(obj)
-        if strip_self and argspec[0] and argspec[0][0] == 'self':
-            del argspec[0][0]
-        return inspect.formatargspec(*argspec)
-
     sig = inspect.signature(obj)
     if strip_self and 'self' in sig.parameters:
         sig = sig.replace(parameters=[p for p in sig.parameters.values()
@@ -1675,10 +1648,6 @@ def formatArgs(obj, strip_self=False):
 
 def getNumArgs(obj):
     """Return the number of "normal" arguments a callable object takes."""
-    if PY2:
-        argspec = inspect.getargspec(obj)
-        return len(argspec[0])
-
     sig = inspect.signature(obj)
     return sum(1 for p in sig.parameters.values()
                if p.kind == inspect.Parameter.POSITIONAL_ONLY or
@@ -1694,3 +1663,23 @@ def tupelize(iterable, n=2):
     Leftover elements at the end are ignored.
     """
     return zip(*(iter(iterable),) * n)
+
+
+def byteBuffer(obj):
+    """Return a byte-based memory view of *obj*."""
+    # For numpy arrays, memoryview() keeps info about the element size and
+    # shape, so that len() gives unexpected results compared to buffer().
+    # Casting to a pure byte view gets rid of that.
+    return memoryview(obj).cast('B')
+
+
+class File(BufferedWriter):
+    """File-like class for easy inheritance and customization by data sinks."""
+
+    def __init__(self, filepath, openmode):
+        self._raw = FileIO(filepath, openmode)
+        BufferedWriter.__init__(self, self._raw)
+
+
+def toAscii(s):
+    return s.encode('unicode-escape').decode('ascii')

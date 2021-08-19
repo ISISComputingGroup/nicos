@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,12 +22,11 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import numpy
 
 from nicos.core import NicosError, Override, Param
-from nicos.devices.datasinks.image import ImageSink, SingleFileSinkHandler
+from nicos.devices.datasinks.image import ImageFileReader, ImageSink, \
+    SingleFileSinkHandler
 
 try:
     import PIL
@@ -37,10 +36,9 @@ except ImportError as e:
     _import_error = e
 
 
-
 class TIFFImageSinkHandler(SingleFileSinkHandler):
 
-    filetype = 'TIFF'
+    filetype = 'tiff'
     defer_file_creation = True
     accept_final_images_only = True
 
@@ -76,3 +74,20 @@ class TIFFImageSink(ImageSink):
 
     def isActiveForArray(self, arraydesc):
         return len(arraydesc.shape) == 2
+
+
+class TIFFFileReader(ImageFileReader):
+    filetypes = [
+        ('tiff', 'TIFF File (*.tiff *.tif)'),
+    ]
+
+    @classmethod
+    def fromfile(cls, filename):
+        if PIL is None:
+            raise NicosError('%s: The Python Image Library (PIL) is not '
+                             'available. Please check whether it is installed '
+                             'and in your PYTHONPATH' % _import_error)
+        with Image.open(filename) as im:
+            if im.getbands() in ('I', ('I',)):  # single band == gray picture
+                return numpy.asarray(im)
+            raise NicosError('Only monochrome pictures supported')

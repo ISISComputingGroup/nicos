@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,16 +24,14 @@
 
 """NICOS parameter utilities tests."""
 
-from __future__ import absolute_import, division, print_function
-
 from numpy import array
 
 from nicos.core.errors import ConfigurationError, ProgrammingError
 from nicos.core.params import ArrayDesc, Attach, Param, Value, absolute_path, \
     anytype, dictof, dictwith, floatrange, host, intrange, ipv4, limits, \
     listof, mailaddress, nicosdev, none_or, nonemptylistof, nonemptystring, \
-    oneof, oneofdict, oneofdict_or, pvname, relative_path, setof, subdir, \
-    tacodev, tangodev, tupleof, vec3
+    oneof, oneofdict, oneofdict_or, pvname, relative_path, setof, string, \
+    subdir, tacodev, tangodev, tupleof, vec3
 
 from test.utils import raises
 
@@ -49,7 +47,7 @@ def test_param_class():
 
 
 def test_attach_class():
-    class MyClass(object):
+    class MyClass:
         pass
     # test __init__()
     assert raises(ProgrammingError, Attach, 'desc.', MyClass, optional=3)
@@ -164,6 +162,12 @@ def test_tupleof():
     assert raises(ValueError, tupleof(int, str), ('a',))
     assert raises(ValueError, tupleof(int, str), 'x')
     assert raises(ProgrammingError, tupleof,)
+
+
+def test_string():
+    assert string(b'blah') == 'blah'
+    assert string() == ''
+    assert string('blah') == 'blah'
 
 
 def test_dictof():
@@ -330,12 +334,12 @@ def test_mailaddress():
     assert mailaddress('myaddress@domain.my') == 'myaddress@domain.my'
     assert mailaddress('myaddress+local@my.domain.my') == 'myaddress+local@my.domain.my'
     assert mailaddress('myaddress@my.domain123.my') == 'myaddress@my.domain123.my'
-    assert mailaddress(u'myaddress@my.dömäin.my') == 'myaddress@my.xn--dmin-moa0i.my'
-    assert mailaddress(u'myaddress@وزارة-الأتصالات.مصر') == \
+    assert mailaddress('myaddress@my.dömäin.my') == 'myaddress@my.xn--dmin-moa0i.my'
+    assert mailaddress('myaddress@وزارة-الأتصالات.مصر') == \
         'myaddress@xn----rmckbbajlc6dj7bxne2c.xn--wgbh1c'
-    assert mailaddress(u'M. Address <my.address@domain.my>') == 'M. Address <my.address@domain.my>'
-    assert mailaddress(u'M. Address <my.address@domain.my> ') == 'M. Address <my.address@domain.my> '
-    assert mailaddress(u'W. Lohstroh, G. Simeoni '
+    assert mailaddress('M. Address <my.address@domain.my>') == 'M. Address <my.address@domain.my>'
+    assert mailaddress('M. Address <my.address@domain.my> ') == 'M. Address <my.address@domain.my> '
+    assert mailaddress('W. Lohstroh, G. Simeoni '
                        '<wiebke.lohstroh+giovanna.simeoni@frm2.tum.de>') ==  \
                        'W. Lohstroh, G. Simeoni <wiebke.lohstroh+giovanna.simeoni@frm2.tum.de>'
     assert raises(ValueError, mailaddress, 'M. Address my.address@domain.my>')
@@ -346,7 +350,7 @@ def test_mailaddress():
     assert raises(ValueError, mailaddress, 'my@domain.123')
     assert raises(ValueError, mailaddress, 'my@domain@dummy.my')
     assert raises(ValueError, mailaddress, 'my@nonsens@dömain.my')
-    assert raises(ValueError, mailaddress, u'M. Address <my.address@domain.my>,')
+    assert raises(ValueError, mailaddress, 'M. Address <my.address@domain.my>,')
 
 
 def test_value_class():
@@ -379,12 +383,14 @@ def test_nicosdev():
     assert nicosdev('nicosdev') == 'nicosdev'
     assert nicosdev('nicos.dev') == 'nicos.dev'
     assert raises(ValueError, nicosdev, 'a.nicos.dev')
+    assert nicosdev() == ''
 
 
 def test_nonemptystring():
     p = Param('nonemptystring', type=nonemptystring)
     assert p.default is None
     assert raises(ValueError, nonemptystring, '')
+    assert nonemptystring('text') == 'text'
 
 
 def test_host():

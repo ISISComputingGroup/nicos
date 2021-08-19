@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,12 +19,13 @@
 #
 # Module authors:
 #   Nikhil Biyani <nikhil.biyani@psi.ch>
+#   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import pytest
+
+pytest.importorskip('graypy')
 
 from nicos_ess.nexus.converter import NexusTemplateConverter
 from nicos_ess.nexus.elements import DeviceAttribute, DeviceDataset, \
@@ -94,12 +95,12 @@ elements = {
              'type': 'string'}
          },
     ('event_stream', EventStream(topic='topic', source='source',
-                                 broker="localhost:9092", dtype="uint32")):
+                                 dtype='uint32', chunk_size=1234)):
         {'type': 'stream',
          'stream': {'topic': 'topic', 'source': 'source',
-                    'type': 'uint32',
-                    'broker': 'localhost:9092',
-                    'writer_module': 'ev42'}
+                    'type': 'uint32', 'writer_module': 'ev42',
+                    'chunk_size': 1234
+                    }
          },
     ('group_normal', NXGroup('NXgroup')):
         {'attributes': {'NX_class': 'NXgroup'},
@@ -151,7 +152,7 @@ converted = {
 }
 
 
-class TestNexusTemplate(object):
+class TestNexusTemplate:
     """ Tests to check if the NeXus templates are converted correctly
     """
 
@@ -227,7 +228,6 @@ class TestNexusTemplate(object):
 
         return True, ''
 
-    #  pylint: disable=dict-keys-not-iterating
     @pytest.mark.parametrize("element", elements.keys())
     def test_element_provides_correct_json(self, element):
         """ Test that elements provide correct JSON structures

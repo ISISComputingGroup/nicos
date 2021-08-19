@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,15 +24,12 @@
 
 """Session classes for simple and noninteractive use."""
 
-from __future__ import absolute_import, division, print_function
-
 import signal
 import sys
 
 from nicos import session
 from nicos.core.constants import SLAVE
 from nicos.core.sessions import Session
-from nicos.pycompat import exec_
 from nicos.utils import daemonize, removePidfile, setuser, writePidfile
 
 try:
@@ -49,8 +46,12 @@ class NoninteractiveSession(Session):
 
     autocreate_devices = False
 
-    def _beforeStart(self, maindev):
+    def _beforeStart(self, maindev, daemonized):
         pass
+
+    @classmethod
+    def _notify_systemd(cls, appname, msg):
+        systemd.daemon.notify(msg)
 
     @classmethod
     def _get_maindev(cls, appname, maindevname, setupname):
@@ -62,7 +63,7 @@ class NoninteractiveSession(Session):
     def run(cls, appname, maindevname=None, setupname=None, pidfile=True,
             daemon=False, start_args=None):
         if daemon == 'systemd':
-            systemd.daemon.notify("STATUS=initializing session")
+            cls._notify_systemd(appname, "STATUS=initializing session")
         elif daemon:
             daemonize()
         else:
@@ -93,7 +94,7 @@ class NoninteractiveSession(Session):
             if pidfile and daemon != 'systemd':
                 writePidfile(appname)
 
-            session._beforeStart(maindev)
+            session._beforeStart(maindev, daemonized=daemon)
         except Exception as err:
             try:
                 session.log.exception('Fatal error while initializing')
@@ -102,13 +103,17 @@ class NoninteractiveSession(Session):
             return 1
 
         if daemon == 'systemd':
-            systemd.daemon.notify("STATUS=starting main device")
+            cls._notify_systemd(appname, "STATUS=starting main device")
 
         start_args = start_args or ()
         maindev.start(*start_args)
 
         if daemon == 'systemd':
-            systemd.daemon.notify("READY=1\nSTATUS=running")
+            cls._notify_systemd(appname, "READY=1\nSTATUS=running")
+
+        # For services that don't run in a separate thread
+        if hasattr(maindev, 'run_main_loop'):
+            maindev.run_main_loop()
 
         maindev.wait()
 
@@ -146,5 +151,5 @@ class ScriptSession(Session):
         session.handleInitialSetup(setup, mode)
 
         # Execute the script code and shut down.
-        exec_(code, session.namespace)
+        exec(code, session.namespace)
         session.shutdown()

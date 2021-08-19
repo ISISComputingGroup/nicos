@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """NICOS data manager test suite."""
-
-from __future__ import absolute_import, division, print_function
 
 from contextlib import contextmanager
 
@@ -100,7 +98,7 @@ def test_temp_point(session):
 
 def test_point_dataset(session):
     dataman = session.experiment.data
-    assert len(dataman._stack) == 0  # pylint: disable=len-as-condition
+    assert len(dataman._stack) == 0
     with dataset_scope(session, 'point'):
         ds = dataman._current
 
@@ -135,7 +133,7 @@ def test_force_scandata(session):
     dataman = session.experiment.data
     session.experiment._setROParam('forcescandata', True)
     try:
-        count(1)
+        count(0.01)
         # ensure that a scan dataset was produced
         ds = dataman.getLastScans()[-1]
         assert ds.npoints == 1

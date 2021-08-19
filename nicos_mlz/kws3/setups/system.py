@@ -22,7 +22,7 @@ devices = dict(
         instrument = 'KWS-3',
         doi = 'http://dx.doi.org/10.17815/jlsrf-1-28',
         responsible = 'V. Pipich <v.pipich@fz-juelich.de>',
-        operators = [u'Jülich Centre for Neutron Science (JCNS)'],
+        operators = ['Jülich Centre for Neutron Science (JCNS)'],
         website = 'http://www.mlz-garching.de/kws-3',
     ),
     Sample = device('nicos_mlz.kws1.devices.sample.KWSSample',
@@ -37,14 +37,13 @@ devices = dict(
         mailserver = 'mailhost.frm2.tum.de',
         serviceexp = 'maintenance',
         sample = 'Sample',
-        propdb = '/home/jcns/.nicos_proposaldb',
         managerights = dict(
             enableDirMode = 0o775,
             enableFileMode = 0o664,
-            disableDirMode = 0o500,
+            disableDirMode = 0o700,
             disableFileMode = 0o400,
             owner = 'jcns',
-            group = 'games'
+            group = 'mlzinstr'
         ),
     ),
     filesink = device('nicos.devices.datasinks.AsciiScanfileSink',

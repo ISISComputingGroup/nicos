@@ -4,8 +4,6 @@ group = 'lowlevel'
 
 excludes = ['sans1_det']
 
-nethost = 'sans1srv.sans1.frm2'
-
 sysconfig = dict(
     datasinks = ['Histogram', 'Listmode']
 )
@@ -32,4 +30,5 @@ devices = dict(
 
 startupcode = '''
 det1._attached_images[0].listmode = True
+det1._attached_images[0].histogram = True
 '''

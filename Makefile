@@ -7,17 +7,13 @@ PODMAN_OR_DOCKER = $(shell which podman || which docker || \
 
 SHELL=/bin/bash
 
-RCC4 = pyrcc4
 RCC5 = pyrcc5
-PYTHON = /usr/bin/env python
-
-nicos/guisupport/gui_rc_qt4.py: resources/nicos-gui.qrc
-	-$(RCC4) -py3 -o $@ $<
+PYTHON = /usr/bin/env python3
 
 nicos/guisupport/gui_rc_qt5.py: resources/nicos-gui.qrc
 	-$(RCC5) -o $@ $<
 
-guirc: nicos/guisupport/gui_rc_qt4.py nicos/guisupport/gui_rc_qt5.py
+guirc: nicos/guisupport/gui_rc_qt5.py
 
 pod-demo:
 	$(PODMAN_OR_DOCKER) run -u `id -u` -v `pwd`:/nicos -p 1301:1301 \
@@ -25,11 +21,13 @@ pod-demo:
 
 clean:
 	rm -rf build
-	find . -name '*.pyc' -exec rm -f {} \;
+	find . -name '__pycache__' -exec rm -rf {} \;
+	rm -rf test/root/
 
 clean-demo: clean
 	-rm -rf data/cache/*
 	-rm -rf data/logbook data/20*
+	-rm -rf log/poller* log/cache log/daemon log/elog log/nicos log/watchdog
 	-rm data/current
 
 install:
@@ -37,14 +35,14 @@ install:
 	@echo
 	@if [ -z "$(PREFIX)" ]; then echo "PREFIX is empty! Do not run make install on instruments"; exit 1; fi
 	mkdir -p $(DESTDIR)$(PREFIX)
-	python setup.py install --prefix=$(PREFIX) \
+	$(PYTHON) setup.py install --prefix=$(PREFIX) \
 	                        $(and $(DESTDIR),--root=$(DESTDIR)) \
 				$(and $(INSTRUMENT),--instrument=$(INSTRUMENT)) \
 				$(and $(SETUPPACKAGE), --setup-package=$(SETUPPACKAGE))
 
 inplace-install:
-	-ln -sf -t /etc/init.d $(PWD)/etc/nicos-system
-	-ln -sf -t /usr/bin $(PWD)/bin/*
+	-ln -sf -t /etc/init.d "$$(pwd)/etc/nicos-system"
+	-ln -sf -t /usr/bin "$$(pwd)"/bin/*
 
 install-venv:
 	if [ -z "$(VENVNAME)" ]; then export VENVNAME=nicos-venv ; fi; \
@@ -91,7 +89,7 @@ lint:
 	@-PYTHONPATH=.:${PYTHONPATH} pylint --rcfile=./pylintrc nicos/ nicos_*/ nicostools/ tools/* bin/*
 
 changelint:
-	PYFILESCHANGED=$$(git diff --name-status `git merge-base HEAD HEAD^` | sed -e '/^D/d' | sed -e 's/.\t//'  | grep "\.py\$$"); \
+	PYFILESCHANGED=$$(git diff --name-only --diff-filter=dux HEAD^...HEAD | grep "\.py$$" | grep -v setups) ; \
 	if [[ -n "$$PYFILESCHANGED" ]]; then \
 		PYTHONPATH=.:${PYTHONPATH} pylint --rcfile=./pylintrc $$PYFILESCHANGED; \
 	else echo 'no python files changed'; fi
@@ -100,7 +98,7 @@ manualrelease: test release
 
 release:
 	cd doc; rm -rf build/html; ${MAKE} html
-	python setup.py sdist
+	$(PYTHON) setup.py sdist
 
 help:
 	@echo "Important targets:"

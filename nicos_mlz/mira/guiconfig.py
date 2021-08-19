@@ -23,6 +23,7 @@ main_window = tabbed(
     ),
     ('Mieze display',
      panel('nicos_mlz.reseda.gui.mieze_display.MiezePanel',
+           foils=[0, 1, 2, 5, 6, 7],
            setups='mieze')
     ),
 )
@@ -33,9 +34,12 @@ windows = [
            panel('nicos.clients.gui.panels.scriptbuilder.CommandsPanel'),
            panel('nicos.clients.gui.panels.editor.EditorPanel',
                  tools=[tool('Scan', 'nicos.clients.gui.tools.scan.ScanTool')]))),
-    window('Live data', 'live', panel('nicos_mlz.mira.gui.live.LiveDataPanel')),
+    window('Live data', 'live',
+           panel('nicos_mlz.reseda.gui.live.CascadeLiveDataPanel',
+                 filetypes=['pad', 'tof'],
+                 defaults={'logscale': True},)),
     window('Camera', 'live',
-           panel('nicos.clients.gui.panels.liveqwt.LiveDataPanel',
+           panel('nicos.clients.gui.panels.live.LiveDataPanel',
                  instrument='poli')),
     window('Scans', 'plotter',
            panel('nicos.clients.gui.panels.scans.ScansPanel')),
@@ -66,8 +70,6 @@ MIEZE_settings = [
 
 tools = [
     tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
-         receiver = 'f.carsughi@fz-juelich.de',
-         mailserver = 'smtp.frm2.tum.de',
          sender = 'mira@frm2.tum.de',
     ),
     cmdtool('Server control panel',
@@ -89,3 +91,7 @@ tools = [
     tool('Report NICOS bug or request enhancement',
          'nicos.clients.gui.tools.bugreport.BugreportTool'),
 ]
+
+options = {
+    'reader_classes': ['nicos_mlz.reseda.devices.cascade.CascadeImageReader'],
+}

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,8 @@
 
 """Generate quick overview plots of scans, using Gnuplot."""
 
-from __future__ import absolute_import, division, print_function
-
 import subprocess
 
-from nicos.pycompat import to_utf8
 from nicos.utils import createSubprocess
 
 
@@ -42,7 +39,7 @@ def plotDataset(dataset, fn, fmt):
                                  stderr=subprocess.STDOUT)
 
     def write(s):
-        gpProcess.stdin.write(to_utf8(s))
+        gpProcess.stdin.write(s.encode())
 
     write('set terminal %s size 600,400 dashed\n' % fmt)
     write('set xlabel "%s (%s)"\n' % (dataset.xnames[dataset.xindex],

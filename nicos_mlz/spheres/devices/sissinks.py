@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,8 +26,6 @@
 Sinks which handle the data provided from the SIS detector at SPHERES.
 '''
 
-
-from __future__ import absolute_import, division, print_function
 
 import os
 from time import localtime, strftime, time as currenttime
@@ -475,13 +473,18 @@ class PreviewSinkHandler(special.LiveViewSinkHandler):
                 else:
                     preview[i] = counts / (tsteps * timesteptime)  # = counts/s
 
-
         return [preview]
 
-    def getAbscissa(self, result):
-        return ['<f4']
+    def getLabelDescs(self, result):
+        return {
+            'x': {
+                'define': 'array',
+                'index': 0,
+                'dtype': '<f4',
+            },
+        }
 
-    def getAbscissaArrays(self, result):
+    def getLabelArrays(self, result):
         return [self.abscissa]
 
 

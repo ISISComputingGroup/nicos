@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,6 @@
 
 """NICOS triple-axis instrument devices."""
 
-from __future__ import absolute_import, division, print_function
-
 from math import asin, cos, degrees, pi, radians, sin
 
 from nicos.core import MASTER, SIMULATION, Attach, HasLimits, HasPrecision, \
@@ -34,7 +32,6 @@ from nicos.core import MASTER, SIMULATION, Attach, HasLimits, HasPrecision, \
     oneof, status
 from nicos.devices.generic.mono import ANG2MEV, THZ2MEV, \
     Monochromator as BaseMonochromator, from_k, to_k
-from nicos.pycompat import listvalues
 
 
 def wavevector(dvalue, order, theta):
@@ -122,15 +119,16 @@ class Monochromator(HasLimits, HasPrecision, BaseMonochromator):
         self._axisprecision *= 1.25
 
     def doReset(self):
-        multiReset(listvalues(self._adevs))
+        multiReset(list(self._adevs.values()))
         self._focwarnings = 3
 
     def _calc_angles(self, k):
         try:
             angle = thetaangle(self.dvalue, self.order, k)
         except ValueError:
-            raise LimitError(self, 'wavelength not reachable with d=%.3f A '
-                             'and n=%s' % (self.dvalue, self.order))
+            raise LimitError(
+                self, 'wavelength not reachable with d=%.3f A and n=%s' % (
+                    self.dvalue, self.order)) from None
         tt = 2.0 * angle * self.scatteringsense  # twotheta with correct sign
         th = angle * self.scatteringsense  # absolute theta with correct sign
         th = (angle - 90.0) * self.scatteringsense + 90.0 * self.crystalside

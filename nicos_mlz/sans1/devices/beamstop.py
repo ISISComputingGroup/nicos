@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,19 +24,16 @@
 
 """Beamstop handling for SANS1"""
 
-from __future__ import absolute_import, division, print_function
-
 import numpy as np
 
 from nicos import session
-from nicos.core import SIMULATION, SLAVE, Attach, Moveable, Override, Param, \
-    PositionError, UsageError, dictof, floatrange, limits, oneof, requires, \
-    status, tupleof
+from nicos.core import ADMIN, SIMULATION, SLAVE, Attach, Moveable, Override, \
+    Param, PositionError, UsageError, dictof, floatrange, limits, oneof, \
+    requires, status, tupleof
 from nicos.devices.generic import Axis
 from nicos.devices.generic.sequence import SeqCall, SeqDev as NicosSeqDev, \
     SequencerMixin
 from nicos.devices.tango import Sensor
-from nicos.pycompat import iteritems, reraise
 
 
 class FunnySensor(Sensor):
@@ -208,7 +205,7 @@ class BeamStop(SequencerMixin, Moveable):
                     return True, 'pure horizontal movement allowed'
             else:
                 # purely vertical movement if around a slot
-                for slot, (slotx, _shapesize) in iteritems(self.slots):
+                for slot, (slotx, _shapesize) in self.slots.items():
                     if abs(xpos - slotx) <= xprec:
                         # at slot 'slot' allow vertical movement
                         if abs(target[0] - xpos) <= xprec:
@@ -236,11 +233,11 @@ class BeamStop(SequencerMixin, Moveable):
         self._attached_xaxis.start(target[0])
         self._attached_yaxis.start(target[1])
 
-    #@requires(level='admin')
+    # @requires(level=ADMIN)
     @requires()
     def doWriteShape(self, target):
         if self._seq_is_running():
-            raise UsageError('can not change shape while Busy')
+            raise UsageError('can not change shape while busy')
         if not self.shape in self.slots:
             raise UsageError('currently used shape unknown, '
                              '(Call instrument scientist!)')
@@ -291,5 +288,5 @@ class BeamStop(SequencerMixin, Moveable):
         self._seq_stopflag = True
         self._setROParam('fixed', 'Error during sequence (step %r), needs '
                                   'manual fixing!' % step)
-        self._setROParam('fixedby', ('admin', 20))
-        reraise(*exc_info)
+        self._setROParam('fixedby', (ADMIN, 20))
+        raise exc_info[1]

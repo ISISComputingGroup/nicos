@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,12 +22,11 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 import pytest
 
 from nicos import nicos_version
 from nicos.core import MASTER
+from nicos.core.constants import LIVE
 from nicos.protocols.daemon import STATUS_IDLE
 
 from test.utils import raises
@@ -164,19 +163,32 @@ def test_live_events(client):
     client.run_and_wait('''\
 import numpy
 from nicos import session
-from nicos.pycompat import memory_buffer
+from nicos.core.constants import LIVE
+from nicos.utils import byteBuffer
 arr = numpy.array([[1, 2], [3, 4]], dtype='<u1')
-session.updateLiveData(
-    'Live', 'uid', 'detname',
-    ['file.name'], '<u1', [2], [2], [1], 12345,
-    [memory_buffer(arr)])
+session.updateLiveData(dict(
+    tag=LIVE,
+    uid='uid',
+    det='detname',
+    time=12345,
+    datadescs=[dict(
+        dtypes='<u1',
+        shapes=(2, 2, 1),
+        count=1)]),
+    [byteBuffer(arr)])
 ''', 'live.py')
-    for name, data, _exc in client.iter_signals(idx, timeout=10.0):
-        if name == 'liveparams':
-            assert data == ['Live', 'uid', 'detname', ['file.name'], '<u1',
-                            [2], [2], [1], 12345]
-        elif name == 'livedata':
-            assert bytes(data) == b'\x01\x02\x03\x04'
+    for name, data, blobs in client.iter_signals(idx, timeout=10.0):
+        if name == 'livedata':
+            assert data == dict(uid='uid',
+                                tag=LIVE,
+                                det='detname',
+                                time=12345,
+                                datadescs=[dict(
+                                    dtypes='<u1',
+                                    shapes=[2, 2, 1],
+                                    count=1)])
+
+            assert [b.tobytes() for b in blobs] == [b'\x01\x02\x03\x04']
             return
 
 

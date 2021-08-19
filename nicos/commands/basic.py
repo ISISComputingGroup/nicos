@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,9 +24,7 @@
 
 """Module for basic user commands."""
 
-from __future__ import absolute_import, division, print_function
-
-import io
+import builtins
 import os
 import sys
 import time
@@ -38,18 +36,14 @@ from nicos import session
 from nicos.commands import helparglist, hiddenusercommand, parallel_safe, \
     usercommand
 from nicos.core import ADMIN, MAINTENANCE, MASTER, SIMULATION, Device, \
-    ModeError, NicosError, Readable, UsageError, requires
+    ModeError, NicosError, Readable, UsageError
 from nicos.core.sessions.utils import EXECUTIONMODES
 from nicos.core.spm import AnyDev, Bool, DeviceName, Multi, Num, Oneof, \
     SetupName, String, spmsyntax
 from nicos.devices.notifiers import Mailer
-from nicos.pycompat import builtins, exec_, iteritems, string_types
 from nicos.utils import fixupScript, formatArgs, formatDuration, printTable, \
     reexecProcess, resolveClasses
 from nicos.utils.timer import Timer
-
-CO_DIVISION = 0x2000
-
 
 __all__ = [
     'help', 'dir', 'ListCommands', 'sleep',
@@ -149,7 +143,10 @@ def sleep(secs):
     >>> sleep(10)     # sleep for 10 seconds
     >>> sleep(0.5)    # sleep for half a second
     """
-    session.log.info('sleeping for %.1f seconds...', secs)
+    if secs > 1:
+        session.log.info('sleeping for %.1f seconds...', secs)
+    else:
+        session.log.debug('sleeping for %.1f seconds...', secs)
 
     if session.mode == SIMULATION:
         session.clock.tick(secs)
@@ -298,7 +295,7 @@ def ListSetups(listall=False):
     """
     session.log.info('Available setups:')
     items = []
-    for name, info in iteritems(session.getSetupInfo()):
+    for name, info in session.getSetupInfo().items():
         if info is None:
             items.append((name, '', '<could not be read, check syntax>', ''))
             continue
@@ -326,7 +323,7 @@ def _Restart():
     import signal
 
     @atexit.register
-    def restart_nicos():  # pylint: disable=W0612
+    def restart_nicos():  # pylint: disable=unused-variable
         reexecProcess()
     os.kill(os.getpid(), signal.SIGTERM)
 
@@ -359,7 +356,7 @@ def CreateDevice(*devnames):
     see also: `CreateAllDevices`, `RemoveDevice`
     """
     for devname in devnames:
-        if not isinstance(devname, string_types):
+        if not isinstance(devname, str):
             raise UsageError('CreateDevice() arguments must be strings')
         session.createDevice(devname, explicit=True)
 
@@ -411,7 +408,7 @@ def CreateAllDevices(**kwargs):
 
     session.startMultiCreate()
     try:
-        for devname, (_, devconfig) in iteritems(session.configured_devices):
+        for devname, (_, devconfig) in session.configured_devices.items():
             if devconfig.get('lowlevel', False) and not lowlevel:
                 continue
             try:
@@ -490,7 +487,6 @@ def Remark(remark):
 
 @usercommand
 @spmsyntax(Oneof(*EXECUTIONMODES))
-@requires(level='admin')
 def SetMode(mode):
     """Set the execution mode.
 
@@ -532,6 +528,10 @@ def SetMode(mode):
         mode = SIMULATION
     elif mode == 'maint':
         mode = MAINTENANCE
+    if mode == MAINTENANCE:
+        # switching to maintenance mode is dangerous since two parallel
+        # sessions can execute active commands
+        session.checkAccess({'level': ADMIN})
     try:
         session.setMode(mode)
     except ModeError:
@@ -604,7 +604,7 @@ def ClearCache(*devnames):
         session.log.info('cleared cached information for %s', devname)
 
 
-class _Scope(object):
+class _Scope:
     def __init__(self, name):
         self.name = name
 
@@ -650,7 +650,7 @@ def _scriptfilename(filename):
     return fn + '.py'
 
 
-class _ScriptScope(object):
+class _ScriptScope:
     def __init__(self, filename, code):
         self.filename = filename
         self.code = code
@@ -683,12 +683,12 @@ def _RunScript(filename, statdevices, debug=False):
             dev._sim_max = None
     session.log.info('running user script: %s', fn)
     try:
-        fp = io.open(fn, 'r', encoding='utf-8')
+        fp = open(fn, 'r')
     except Exception as e:
         if session.mode == SIMULATION:
             session.log.exception('Dry run: error opening script')
             return
-        raise NicosError('cannot open script %r: %s' % (filename, e))
+        raise NicosError('cannot open script %r: %s' % (filename, e)) from e
     with fp:
         code = fp.read()
         # guard against bare excepts
@@ -700,11 +700,11 @@ def _RunScript(filename, statdevices, debug=False):
                              filename)
 
         def compiler(src):
-            return compile(src + '\n', fn, 'exec', CO_DIVISION)
+            return compile(src + '\n', fn, 'exec')
         compiled = session.scriptHandler(code, fn, compiler)
         with _ScriptScope(path.basename(fn), code):
             try:
-                exec_(compiled, session.namespace)
+                exec(compiled, session.namespace)
             except Exception:
                 if debug:
                     traceback.print_exc()
@@ -730,7 +730,7 @@ def _RunCode(code, debug=False):
         starttime = session.clock.time
     code = fixupScript(code)
     try:
-        exec_(code, session.namespace)
+        exec(code, session.namespace)
     except Exception:
         if debug:
             traceback.print_exc()
@@ -790,9 +790,9 @@ def sim(what, *devices, **kwargs):
     if not path.isfile(fn) and not what.endswith(('.py', '.txt')):
         try:
             compile(what + '\n', 'exec', 'exec')
-        except Exception:
+        except Exception as e:
             raise NicosError('Argument is neither a script file nor valid '
-                             'code')
+                             'code') from e
         session.runSimulation('_RunCode(%r, %s)' % (what, debug))
         return
     if session.mode == SIMULATION:
@@ -817,10 +817,10 @@ def notify(*args):
     """
     if len(args) == 1:
         # use first line of text as subject
-        text, = args  # pylint: disable=unbalanced-tuple-unpacking
+        text, = args
         session.notify(text.splitlines()[0], text, important=False)
     elif len(args) == 2:
-        subject, text = args  # pylint: disable=unbalanced-tuple-unpacking
+        subject, text = args
         session.notify(subject, text, important=False)
     else:
         raise UsageError("Usage: notify('text') or notify('subject', 'text')")
@@ -841,11 +841,16 @@ def SetMailReceivers(*emails):
 
     see also: `ListMailReceivers`
     """
+    emails = list(emails)
     ok = False
+    exp = session.experiment
+    propinfo = dict(exp.propinfo)
+    propinfo['notif_emails'] = emails
+    exp._setROParam('propinfo', propinfo)
     for notifier in session.notifiers:
         if isinstance(notifier, Mailer) and not notifier.private:
             ok = True
-            notifier.receivers = list(emails)
+            notifier.receivers = emails
     if not ok:
         session.log.warning('general email notification is not configured '
                             'in this setup')
@@ -866,7 +871,7 @@ def ListMailReceivers():
     """
     session.log.info('Email addresses for notifications:')
     items = []
-    for notifier, recipients in iteritems(_listReceivers(Mailer)):
+    for notifier, recipients in _listReceivers(Mailer).items():
         for rec in recipients:
             items.append((notifier,) + rec)
     printTable(('mailer', 'email address', 'info'), sorted(items),
@@ -912,7 +917,7 @@ def SetDataReceivers(*emails):
                             'configured in this setup')
     else:
         propinfo = dict(exp.propinfo)
-        propinfo['user_email'] = list(emails)
+        propinfo['data_emails'] = list(emails)
         exp._setROParam('propinfo', propinfo)
         if emails:
             session.log.info('data retrieval email will be sent to %s',
@@ -938,7 +943,7 @@ def ListDataReceivers():
     session.log.info('Email addresses the data will be sent to:')
     propinfo = dict(session.experiment.propinfo)
     items = set()
-    for addr in propinfo.get('user_email', ()):
+    for addr in propinfo.get('data_emails', ()):
         items.add((addr,))
     printTable(('email address', ), sorted(items), session.log.info)
 
@@ -951,7 +956,7 @@ def _trace():
         session.log.info('No previous traceback.')
 
 
-class timer(object):
+class timer:
     is_userobject = True
 
     def __enter__(self):
@@ -970,7 +975,7 @@ timer = timer()
 def LogEntry(entry):
     """Make a free-form entry in the electronic logbook.
 
-    The entry will be processed as Creole markup.
+    The entry will be processed as Markdown markup.
 
     Note: on the command line, you can also call this function by entering a
     Python comment.  I.e., these two commands are equivalent at the command

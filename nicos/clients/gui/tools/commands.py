@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +23,6 @@
 # *****************************************************************************
 
 """Graphical maintenance command runner."""
-
-from __future__ import absolute_import, division, print_function
 
 import subprocess
 import time
@@ -124,12 +122,12 @@ class AsyncCommandsTool(CommandsTool):
             if rl:
                 line = self.proc.stdout.readline()
                 while line:
-                    self.newText.emit(line)
+                    self.newText.emit(line.decode())
                     line = self.proc.stdout.readline()
 
     @pyqtSlot(str)
     def appendText(self, line):
-        self.outputBox.appendPlainText(line.strip('\n').decode())
+        self.outputBox.appendPlainText(line.strip('\n'))
         sb = self.outputBox.verticalScrollBar()
         sb.setValue(sb.maximum())
 

@@ -21,17 +21,15 @@ windows = [
     window('Logbook', 'table', panel('nicos.clients.gui.panels.elog.ELogPanel')),
     window('Log files', 'table', panel('nicos.clients.gui.panels.logviewer.LogViewerPanel')),
     window('Errors', 'errors', panel('nicos.clients.gui.panels.errors.ErrorPanel')),
-    window('Live data', 'live',panel('nicos.clients.gui.panels.liveqwt.LiveDataPanel',
+    window('Live data', 'live',panel('nicos.clients.gui.panels.live.LiveDataPanel',
                                      cachesize = 40,
                                      showcached = True,
                                      instrument = 'laue',
-                                     filetypes=['tif'])),
+                                     filetypes = ['tiff'])),
 ]
 
 tools = [
     tool('Downtime report', 'nicos.clients.gui.tools.downtime.DownTimeTool',
-         receiver='f.carsughi@fz-juelich.de',
-         mailserver='smtp.frm2.tum.de',
          sender='laue@frm2.tum.de',
         ),
     tool('Calculator', 'nicos.clients.gui.tools.calculator.CalculatorTool'),

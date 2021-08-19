@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,21 +25,19 @@
 
 """New acquisition commands (scan and count)."""
 
-from __future__ import absolute_import, division, print_function
-
 from nicos import session
 from nicos.commands import helparglist, parallel_safe, usercommand
 from nicos.core.acquire import Average, CountResult, MinMax, acquire, \
     read_environment, stop_acquire_thread
 from nicos.core.device import Measurable, SubscanMeasurable
 from nicos.core.errors import NicosError, UsageError
-from nicos.pycompat import iteritems, number_types, string_types
-from nicos.utils import createThread
+from nicos.utils import createThread, number_types, printTable
 
 __all__ = [
     'count', 'live', 'preset',
     'SetDetectors', 'AddDetector', 'ListDetectors',
     'SetEnvironment', 'AddEnvironment', 'ListEnvironment',
+    'ListDatasinks',
     'avg', 'minmax',
 ]
 
@@ -107,7 +105,7 @@ def _count(*detlist, **preset):
         if isinstance(det, number_types):
             preset['t'] = det
             continue
-        elif isinstance(det, string_types):
+        elif isinstance(det, str):
             preset['info'] = det  # XXX
             continue
         if not isinstance(det, Measurable):
@@ -200,7 +198,7 @@ def preset(**preset):
         names.difference_update(det.presetInfo())
         det.setPreset(**preset)
     session.log.info('new preset: %s',
-                     ', '.join('%s=%s' % item for item in iteritems(preset)))
+                     ', '.join('%s=%s' % item for item in preset.items()))
     if names:
         session.log.warning('these preset keys were not recognized by any of '
                             'the detectors: %s -- detectors are %s',
@@ -286,6 +284,22 @@ def ListEnvironment():
                          ', '.join(session.experiment.envlist))
     else:
         session.log.info('at the moment no standard environment is set.')
+
+
+@usercommand
+@parallel_safe
+def ListDatasinks():
+    """List the standard data sinks."""
+    if session.datasinks:
+        session.log.info('Currently used data sinks are:')
+        items = [
+            (ds.name, ', '.join(ds.settypes), ', '.join(ds.detectors))
+            for ds in session.datasinks
+        ]
+        printTable(('name', 'used for', 'active for detectors'),
+                    items, session.log.info)
+    else:
+        session.log.info('At the moment no data sinks are set.')
 
 
 @usercommand

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,11 +22,8 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
 from nicos import session
 from nicos.core.errors import NicosError
-from nicos.pycompat import iteritems
 
 from nicos_ess.nexus import DeviceStream
 from nicos_ess.nexus.elements import KafkaStream, NXAttribute, NXDataset, \
@@ -34,7 +31,7 @@ from nicos_ess.nexus.elements import KafkaStream, NXAttribute, NXDataset, \
 from nicos_ess.nexus.placeholder import DeviceValuePlaceholder
 
 
-class NexusTemplateConverter(object):
+class NexusTemplateConverter:
     """Converts the provided nexus template. Creates and populates the entry
     groups from nexus template and then creates and returns the nexus
     structure from those entry groups.
@@ -78,7 +75,7 @@ class NexusTemplateConverter(object):
 
         if isinstance(value, dict):
             # Populate rest of the elements
-            for key, val in iteritems(value):
+            for key, val in value.items():
                 if isinstance(val, dict):
                     # This is another group
                     child_nxname, child_value = self._populate(key, val)

@@ -129,6 +129,22 @@ lakeshore = Block('LakeShore', [
     setups='lakeshore',
 )
 
+lakeshore_hts = Block('LakeShore HTS', [
+    BlockRow(
+        Field(dev='t_ls_hts', name='Regul.'),
+        Field(dev='t_ls_hts_a', name='Sensor A'),
+        Field(dev='t_ls_hts_d', name='Sensor D'),
+    ),
+    BlockRow(
+        Field(key='t_ls_hts/setpoint', name='Setpoint'),
+        Field(key='t_ls_hts/p', name='P', width=5),
+        Field(key='t_ls_hts/i', name='I', width=5),
+        Field(key='t_ls_hts/d', name='D', width=5),
+    ),
+    ],
+    setups='lakeshore_hts',
+)
+
 lakeshoreplot = Block('LakeShore', [
     BlockRow(
         Field(dev='T', plot='T',
@@ -145,8 +161,8 @@ lakeshoreplot = Block('LakeShore', [
 cryos = []
 cryosupps = []
 cryoplots = []
-cryodict = dict(cci3he1='3He-insert', cci3he2='3He-insert', cci3he3='3He-insert',
-                ccidu1='Dilution-insert', ccidu2='Dilution-insert')
+cryodict = dict(cci3he01='3He-insert', cci3he02='3He-insert', cci3he03='3He-insert',
+                ccidu01='Dilution-insert', ccidu02='Dilution-insert')
 for cryo, name in cryodict.items():
     cryos.append(
         Block('%s %s' % (name, cryo.title()), [
@@ -216,7 +232,7 @@ for i in range(10, 22 + 1):
                 Field(key='t_ccr%d/d' % i, name='D', width=6),
             ),
             ],
-            setups='ccr%d and not cci3he*' % i,
+            setups='ccr%d and not cci3he0*' % i,
         )
     )
     ccrsupps.append(
@@ -348,6 +364,31 @@ vti = Block('VTI', [
     setups='variox',
 )
 
+ccm12v = Block('12T Magnet', [
+    BlockRow(
+        Field(dev='B_ccm12v'),
+        Field(key='B_ccm12v/target', name='Target', fmtstr='%.2f'),
+    ),
+    BlockRow(
+        Field(dev='T_ccm12v_vti', name='VTI'),
+        Field(dev='T_ccm12v_stick', name='Stick'),
+    ),
+    ],
+    setups='ccm12v',
+)
+
+ccm12vplots = Block('12T Magnet', [
+    BlockRow(
+        Field(dev='T_ccm12v_vti', plot='Tccm12v',
+            plotwindow=12*3600, width=30, height=20),
+        Field(dev='T_ccm12v_stick', plot='Tccm12v',
+            plotwindow=12*3600, width=30, height=20),
+        ),
+    ],
+    setups='ccm12v',
+)
+
+
 kelvinox = Block('Kelvinox', [
     BlockRow(Field(dev='mc')),
     BlockRow(Field(key='mc/setpoint',name='Setpoint',unit='K')),
@@ -394,8 +435,8 @@ tas = Block('TAS', [
         ],
 )
 
-column2 = Column(collimation, detector) + Column(*cryos) + Column(*ccrs) + \
-          Column(lakeshore, ccm55v, wm5v, vti)
+column2 = Column(collimation, detector, ccm12v) + Column(*cryos) + Column(*ccrs) + \
+          Column(lakeshore, lakeshore_hts, ccm55v, wm5v, vti)
 
 column3 = Column(tas) + Column(ccm55vsupp, wm5vsupp, kelvinox, foki,  memograph) + \
           Column(*cryosupps) + Column(*ccrsupps)
@@ -405,7 +446,7 @@ column4 = Column(lakeshoreplot) + Column(*cryoplots) + Column(*ccrplots)
 devices = dict(
     Monitor = device('nicos.services.monitor.html.Monitor',
         title = 'PANDA Status monitor',
-        filename = '/pandacontrol/webroot/index.html',
+        filename = '/control/webroot/index.html',
         interval = 10,
         loglevel = 'info',
         cache = 'phys.panda.frm2',
@@ -415,6 +456,7 @@ devices = dict(
         fontsize = 17,
         layout = [[_expcolumn],
                   [column1, column2, column3],
-                  [column4]]
+                  [column4]],
+        noexpired = True,
     ),
 )

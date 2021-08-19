@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,10 +24,8 @@
 
 """Utilities for the electronic logbook daemon."""
 
-from __future__ import absolute_import, division, print_function
-
+import html
 import time
-from cgi import escape
 from logging import DEBUG, ERROR, FATAL, INFO, WARNING
 
 from nicos.utils.loggers import ACTION, INPUT
@@ -57,7 +55,7 @@ def formatMessage(message):
     elif levelno <= INFO:
         text = name + message[3]
     elif levelno == INPUT:
-        return '<span class="input">' + escape(message[3]) + '</span>'
+        return '<span class="input">' + html.escape(message[3]) + '</span>'
     elif levelno <= WARNING:
         text = levels[levelno] + ': ' + name + message[3]
         cls = 'warn'
@@ -65,7 +63,7 @@ def formatMessage(message):
         text = '%s [%s] %s%s' % (levels[levelno], formatTime(message[1]),
                                  name, message[3])
         cls = 'err'
-    return '<span class="%s">%s</span>' % (cls, escape(text))
+    return '<span class="%s">%s</span>' % (cls, html.escape(text))
 
 
 def formatMessagePlain(message):

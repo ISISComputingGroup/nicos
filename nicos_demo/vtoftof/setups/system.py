@@ -7,7 +7,7 @@ sysconfig = dict(
     instrument = 'TOFTOF',
     experiment = 'Exp',
     datasinks = [
-        'conssink', 'filesink', 'dmnsink', 'livesink', 'tofsink'
+        'conssink', 'filesink', 'dmnsink', 'livesink', 'tofsink', 'nxsink',
     ],
 )
 
@@ -35,13 +35,14 @@ devices = dict(
         sample = 'Sample',
         reporttemplate = '',
         elog = True,
+        forcescandata = False,  # True,
         managerights = dict(
             enableDirMode = 0o775,
             enableFileMode = 0o664,
             disableDirMode = 0o550,
             disableFileMode = 0o440,
-            # owner = 'toftof',
-            # group = 'toftof',
+            owner = 'toftof',
+            group = 'toftof',
         ),
         counterfile = 'counter',
     ),
@@ -52,9 +53,19 @@ devices = dict(
     tofsink = device('nicos_mlz.toftof.devices.datasinks.TofImageSink',
         filenametemplate = ['%(pointcounter)08d_0000.raw'],
     ),
+    nxsink = device('nicos_mlz.toftof.devices.datasinks.NexusSink',
+        templateclass = 'nicos_mlz.toftof.devices.datasinks.nexustemplate.TofTofNexusLegacyTemplate',
+        filenametemplate = ['L_TOFTOF%(pointcounter)08d.hdf5'],
+    ),
     Space = device('nicos.devices.generic.FreeSpace',
         description = 'The amount of free space for storing data',
         path = 'data',
         minfree = 5,
+    ),
+    LogSpace = device('nicos.devices.generic.FreeSpace',
+        description = 'Free space on the log drive',
+        path = 'log',
+        lowlevel = True,
+        warnlimits = (0.5, None),
     ),
 )

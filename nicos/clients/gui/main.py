@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,6 @@
 
 """NICOS GUI application startup."""
 
-from __future__ import absolute_import, division, print_function
-
 import argparse
 import logging
 import os
@@ -36,6 +34,7 @@ from os import path
 
 from nicos import config
 from nicos.clients.base import ConnectionData
+from nicos.clients.flowui.mainwindow import MainWindow as MainWindowESS
 from nicos.clients.gui.config import processGuiConfig
 from nicos.clients.gui.dialogs.instr_select import InstrSelectDialog
 from nicos.clients.gui.mainwindow import MainWindow
@@ -46,9 +45,22 @@ from nicos.utils import parseConnectionString
 from nicos.utils.loggers import ColoredConsoleHandler, NicosLogfileHandler, \
     NicosLogger, initLoggers
 
-from nicos_ess.gui.mainwindow import MainWindow as MainWindowESS
+from nicos_sinq.gui.mainwindow import MainWindowSINQ
+
+# Work around a crash on Py3/Bionic when readline is imported later in
+# a callback from unpickling server data.
+try:
+    import readline  # pylint: disable=unused-import
+except ImportError:
+    pass
 
 log = None
+
+_mainwindow_cls = {
+    'default': MainWindow,
+    'ess': MainWindowESS,
+    'sinq': MainWindowSINQ,
+    }
 
 
 def parseargs():
@@ -84,8 +96,7 @@ def main(argv):
 
     # set up logging for unhandled exceptions in Qt callbacks
     def log_unhandled(*exc_info):
-        traceback.print_exception(
-            *exc_info)  # pylint: disable=no-value-for-parameter
+        traceback.print_exception(*exc_info)
         log.exception('unhandled exception in QT callback', exc_info=exc_info)
 
     sys.excepthook = log_unhandled
@@ -116,29 +127,32 @@ def main(argv):
 
     with open(opts.configfile, 'rb') as fp:
         configcode = fp.read()
-
     gui_conf = processGuiConfig(configcode)
+    gui_conf.stylefile = ''
 
-    stylefiles = [
-        path.join(userpath, 'style-%s.qss' % sys.platform),
+    if gui_conf.options.get('facility') in ['ess', 'sinq']:
+        gui_conf.stylefile = f"{config.nicos_root}" \
+                             f"/nicos/clients/flowui/guiconfig.qss"
+
+    stylefiles = [path.join(userpath, 'style-%s.qss' % sys.platform),
         path.join(userpath, 'style.qss'),
         path.splitext(opts.configfile)[0] + '-%s.qss' % sys.platform,
-        path.splitext(opts.configfile)[0] + '.qss',
-    ]
-    for stylefile in stylefiles:
+        path.splitext(opts.configfile)[0] + '.qss', ]
+
+    for stylefile in [gui_conf.stylefile] or stylefiles:
         if path.isfile(stylefile):
             try:
-                with open(stylefile, 'r') as fd:
+                with open(stylefile, 'r', encoding='utf-8') as fd:
                     app.setStyleSheet(fd.read())
+                gui_conf.stylefile = stylefile
                 break
             except Exception:
                 log.warning('Error setting user style sheet from %s',
                             stylefile, exc=1)
 
-    if 'ess_gui' in gui_conf.options and gui_conf.options['ess_gui']:
-        mainwindow = MainWindowESS(log, gui_conf, opts.viewonly, opts.tunnel)
-    else:
-        mainwindow = MainWindow(log, gui_conf, opts.viewonly, opts.tunnel)
+    mainwindow_cls = _mainwindow_cls.get(gui_conf.options.get('facility',
+                                                              'default'))
+    mainwindow = mainwindow_cls(log, gui_conf, opts.viewonly, opts.tunnel)
     log.addHandler(DebugHandler(mainwindow))
 
     if opts.connect:

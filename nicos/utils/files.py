@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,13 +28,10 @@ Utility routines for nicos file finding
 This modules contains helper functions to find e.g. setupfiles etc.
 """
 
-from __future__ import absolute_import, division, print_function
-
 import os
 import re
+from configparser import ConfigParser
 from os import path
-
-from nicos.pycompat import ConfigParser
 
 SETUPNAME_RE = re.compile(r'[-\w]+$')
 
@@ -75,8 +72,7 @@ def findNicosInstrumentSubDirs(parent, facility=''):
 
 def findAllNicosInstrumentDirs(root):
     for facility, full in findNicosFacilityDirs(root):
-        for res in findNicosInstrumentSubDirs(full, facility):
-            yield res
+        yield from findNicosInstrumentSubDirs(full, facility)
 
 
 def findInstrGuiConfigs(where):

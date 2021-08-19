@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2018-2020 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2018-2021 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,14 +23,12 @@
 #
 # *****************************************************************************
 
-from __future__ import absolute_import, division, print_function
-
-from nicos.clients.gui.panels.livegr import LiveDataPanel as BaseLiveDataPanel
+from nicos.clients.gui.panels.live import LiveDataPanel as BaseLiveDataPanel
 from nicos.guisupport.livewidget import IntegralLiveWidget as BaseIntegralLiveWidget, \
     LiveWidget1D as BaseLiveWidget1D, Plot
 
 
-class ProvidesTitleSetter(object):
+class ProvidesTitleSetter:
     """Provides function to set the the title of the plot
     """
 
@@ -53,8 +51,7 @@ class IntegralLiveWidget(ProvidesTitleSetter, BaseIntegralLiveWidget):
 
 
 class LiveDataPanel(BaseLiveDataPanel):
-    """In addition to the base class, also sets the title of the plots
-    """
+    """In addition to the base class, also sets the title of the plots."""
 
     def __init__(self, parent, client, options):
         BaseLiveDataPanel.__init__(self, parent, client, options)
