@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -118,6 +118,11 @@ class ScriptRequest(Request):
     def serialize(self):
         return {'reqid': self.reqid, 'name': self.name, 'script': self.text,
                 'user': self.user.name}
+
+    def serialize_result(self, success):
+        base = self.serialize()
+        base['success'] = success
+        return base
 
     def __repr__(self):
         if self.name:
@@ -324,7 +329,8 @@ class ExecutionController(Controller):
             # many breakpoints if not on the highest level.
             self.eventfunc('status', (status, lineno))
 
-    def _breakfunc(self, frame, flag):
+    def _breakfunc(self, frame, arg):
+        flag = arg
         # check level of breakpoint reached
         fn = frame.f_code.co_filename
         if fn.startswith('<break>'):  # '<break>n' means stoplevel n
@@ -479,35 +485,23 @@ class ExecutionController(Controller):
                               quiet=quiet)
 
     def add_watch_expression(self, val):
-        self.watchlock.acquire()
-        try:
+        with self.watchlock:
             self.watchexprs.add(val)
-        finally:
-            self.watchlock.release()
 
     def remove_watch_expression(self, val):
-        self.watchlock.acquire()
-        try:
+        with self.watchlock:
             self.watchexprs.discard(val)
-        finally:
-            self.watchlock.release()
 
     def remove_all_watch_expressions(self, group):
-        self.watchlock.acquire()
-        try:
+        with self.watchlock:
             for expr in self.watchexprs.copy():
                 if expr.endswith(group):
                     self.watchexprs.remove(expr)
-        finally:
-            self.watchlock.release()
 
     def eval_watch_expressions(self):
         ret = {}
-        self.watchlock.acquire()
-        try:
+        with self.watchlock:
             vals = list(self.watchexprs)
-        finally:
-            self.watchlock.release()
         for val in vals:
             try:
                 expr = val.partition(':')[0]
@@ -676,9 +670,12 @@ class ExecutionController(Controller):
                 except Exception:
                     session.log.log(INPUT, formatScript(request))
                     session.logUnhandledException(cut_frames=1)
+                    self.eventfunc('done', request.serialize_result(False))
                     continue
+                success = False
                 try:
                     self.current_script.execute(self)
+                    success = True
                 except ControlStop as err:
                     if err.args[0] == 'emergency stop':
                         # block all pending requests (should have been done
@@ -691,9 +688,9 @@ class ExecutionController(Controller):
                         # that are queued after that should be executed, so
                         # we don't block requests here
                         session.log.info('Script stopped by %s', err.args[2])
-                except BdbQuit as err:  # pylint: disable=bad-except-order
+                except BdbQuit:  # pylint: disable=bad-except-order
                     session.log.error('Script stopped through debugger')
-                except Exception as err:  # pylint: disable=bad-except-order
+                except Exception:  # pylint: disable=bad-except-order
                     # the topmost two frames are still in the
                     # daemon, so don't display them to the user
                     # perhaps also send an error notification
@@ -703,6 +700,7 @@ class ExecutionController(Controller):
                         # last resort: do not exit script thread even if we
                         # can't handle this exception
                         pass
+                self.eventfunc('done', request.serialize_result(success))
                 if self.debugger:
                     self.debug_end(tracing=False)
                 session.clearActions()

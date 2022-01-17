@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -184,8 +184,8 @@ class CryopadPol(Moveable):
             return status.NOTREACHED, 'unknown polarization setting'
         return status.OK, 'idle'
 
-    def doStart(self, pos):
-        theta_chi = calc.DIRECTIONS[pos]
+    def doStart(self, target):
+        theta_chi = calc.DIRECTIONS[target]
         cppos = self._attached_cryopad.target or (0, 0, 0, 0)
         if self.side == 'in':
             target = tuple(theta_chi) + cppos[2:4]

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -299,7 +299,7 @@ class SetupDirective(Directive):
             klass = getattr(mod, klass)
             CLASS_CACHE[classPath] = klass
             return klass
-        except ImportError as e:
+        except ImportError:
             self.warning('Could not import device class %s' % classPath)
         except AttributeError as e:
             self.warning(str(e))

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,7 +21,7 @@
 #   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
-
+from collections import OrderedDict
 from enum import Enum
 
 import numpy
@@ -79,8 +79,8 @@ class LiveWidget(DefaultLiveWidget):
 
     clicked = pyqtSignal(str)
 
-    def __init__(self, name, parent=None):
-        DefaultLiveWidget.__init__(self, parent)
+    def __init__(self, name, parent=None, **kwargs):
+        DefaultLiveWidget.__init__(self, parent, **kwargs)
         self.setMinimumSize(150, 150)
         self.name = name
 
@@ -96,8 +96,8 @@ class LiveWidget1D(DefaultLiveWidget1D):
 
     clicked = pyqtSignal(str)
 
-    def __init__(self, name='', parent=None):
-        DefaultLiveWidget1D.__init__(self, parent)
+    def __init__(self, name='', parent=None, **kwargs):
+        DefaultLiveWidget1D.__init__(self, parent, **kwargs)
         self.setMinimumSize(150, 150)
         self.name = name
 
@@ -230,7 +230,7 @@ class MultiLiveDataPanel(LiveDataPanel):
         self.fileList = QListWidget()
         self.tb_fileList = QComboBox()
         self._detector_selected = options.get('default_detector', '')
-        self._previews = {}
+        self._previews = OrderedDict()
         self._previews_cache = {}
         LiveDataPanel.__init__(self, parent, client, options)
         self.layout().setMenuBar(self.toolbar)
@@ -245,9 +245,14 @@ class MultiLiveDataPanel(LiveDataPanel):
         self.on_client_setup()
 
     def on_client_disconnected(self):
+        self._cleanup_existing_previews()
+
+    def _cleanup_existing_previews(self):
         for item in layout_iterator(self.scrollContent.layout()):
             item.widget().deleteLater()
             del item
+        self._previews.clear()
+        self._previews_cache.clear()
 
     def add_detector_to_preview(self, detname):
         previews = self.create_preview(detname)
@@ -258,6 +263,7 @@ class MultiLiveDataPanel(LiveDataPanel):
             self.scrollContent.layout().addWidget(preview)
 
     def on_client_setup(self):
+        self._cleanup_existing_previews()
         self._create_previews()
 
     def highlight_selected_preview(self, detname):
@@ -273,9 +279,16 @@ class MultiLiveDataPanel(LiveDataPanel):
         :return: None
         """
         detectors = set(self.find_detectors())
-        self.on_client_disconnected()
+        if not detectors:
+            return
         for detector in detectors:
             self.add_detector_to_preview(detector)
+        self._display_first_detector()
+
+    def _display_first_detector(self):
+        if self._previews:
+            first_preview = next(iter(self._previews.values()))
+            first_preview.widget().clicked.emit(first_preview.widget().name)
 
     def on_client_cache(self, data):
         # Update the preview if the list of detectors being used changes
@@ -313,10 +326,12 @@ class MultiLiveDataPanel(LiveDataPanel):
         """
         state = self.client.ask('getstatus')
         if not state:
-            return {}
-        detlist = self.client.getCacheKey('exp/detlist')[1]
-        return [det for det in detlist if self.client.eval(f'{det}.arrayInfo('
-                                                           f')', [])]
+            return []
+        detlist = self.client.getCacheKey('exp/detlist')
+        if not detlist:
+            return []
+        return [det for det in detlist[1]
+                if self.client.eval(f'{det}.arrayInfo()', [])]
 
     def create_preview(self, detname):
         """
@@ -362,7 +377,7 @@ class MultiLiveDataPanel(LiveDataPanel):
             labels, _ = process_axis_labels(datadesc, blobs)
             if self._has_plot_changed_dimensionality(widget, labels):
                 # Previews are no longer correct widget types
-                self._create_previews()
+                self.on_client_setup()
             process_livedata(widget,
                              numpy.frombuffer(blobs[index], normalized_type),
                              params, labels, index)

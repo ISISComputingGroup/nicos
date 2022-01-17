@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@
 from nicos.core import MASTER, Attach, HasPrecision, Moveable, Override, \
     Param, PositionError, floatrange, intrange, listof, oneof, status, \
     tupleof
-from nicos.devices.tango import WindowTimeoutAO
+from nicos.devices.entangle import WindowTimeoutAO
 from nicos.utils import clamp
 
 from nicos_mlz.kws1.devices.daq import KWSDetector
@@ -41,14 +41,14 @@ SPEED = 3.956
 class ChopperFrequency(WindowTimeoutAO):
     """Chopper frequency setting with timing."""
 
-    def doTime(self, old, new):
-        if old is None or new is None:
+    def doTime(self, old_value, target):
+        if old_value is None or target is None:
             return 0.
-        if old == new:
-            return 20.                   # phase adjustment
-        total = 30.                      # phase adjustment
-        total += abs(old - new) / 0.25   # frequency speedup
-        total += 60. if new == 0 else 0  # complete stop adds ~1min
+        if old_value == target:
+            return 20.                            # phase adjustment
+        total = 30.                               # phase adjustment
+        total += abs(old_value - target) / 0.25   # frequency speedup
+        total += 60. if target == 0 else 0        # complete stop adds ~1min
         return total
 
 
@@ -79,15 +79,15 @@ class ChopperParams(Moveable):
                 '0-5 Hz and 25-32 Hz is not allowed'
         return True, ''
 
-    def doStart(self, pos):
-        if pos[0] == 0:
+    def doStart(self, target):
+        if target[0] == 0:
             if self._attached_freq1.read(0) == 0:
                 return
             for dev in (self._attached_phase1, self._attached_phase2,
                         self._attached_freq1, self._attached_freq2):
                 dev.start(0)
             return
-        (freq, opening) = pos
+        (freq, opening) = target
         self._attached_freq1.start(freq)
         self._attached_freq2.start(freq)
         # calculate phases of the two choppers (they should be around 180deg)
@@ -216,17 +216,17 @@ class Chopper(Moveable):
         if self._mode == MASTER and 'nmax' in self._params:
             self.calcresult = (0, 0, 0)
 
-    def doStart(self, value):
-        if value == 'off':
+    def doStart(self, target):
+        if target == 'off':
             if self._attached_daq.mode == 'tof':  # don't touch realtime
                 self._attached_daq.mode = 'standard'
             self._attached_params.start((0, 0))
             return
-        elif value == 'manual':
+        elif target == 'manual':
             if self._attached_daq.mode == 'standard':
                 self._attached_daq.mode = 'tof'
             return
-        reso = float(value.strip('%')) / 100.0
+        reso = float(target.strip('%')) / 100.0
 
         sel_target = self._attached_selector.target
         det_target = self._attached_det_pos.target

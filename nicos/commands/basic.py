@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -41,8 +41,8 @@ from nicos.core.sessions.utils import EXECUTIONMODES
 from nicos.core.spm import AnyDev, Bool, DeviceName, Multi, Num, Oneof, \
     SetupName, String, spmsyntax
 from nicos.devices.notifiers import Mailer
-from nicos.utils import fixupScript, formatArgs, formatDuration, printTable, \
-    reexecProcess, resolveClasses
+from nicos.utils import LOCALE_ENCODING, fixupScript, formatArgs, \
+    formatDuration, printTable, reexecProcess, resolveClasses
 from nicos.utils.timer import Timer
 
 __all__ = [
@@ -683,32 +683,31 @@ def _RunScript(filename, statdevices, debug=False):
             dev._sim_max = None
     session.log.info('running user script: %s', fn)
     try:
-        fp = open(fn, 'r')
+        with open(fn, 'r', encoding=LOCALE_ENCODING) as fp:
+            code = fp.read()
     except Exception as e:
         if session.mode == SIMULATION:
             session.log.exception('Dry run: error opening script')
             return
         raise NicosError('cannot open script %r: %s' % (filename, e)) from e
-    with fp:
-        code = fp.read()
-        # guard against bare excepts
-        code = fixupScript(code)
-        # quick guard against self-recursion
-        if session.experiment and session.experiment.scripts and \
-                code.strip() == session.experiment.scripts[-1].strip():
-            raise NicosError('script %r would call itself, aborting' %
-                             filename)
+    # guard against bare excepts
+    code = fixupScript(code)
+    # quick guard against self-recursion
+    if session.experiment and session.experiment.scripts and \
+            code.strip() == session.experiment.scripts[-1].strip():
+        raise NicosError('script %r would call itself, aborting' %
+                         filename)
 
-        def compiler(src):
-            return compile(src + '\n', fn, 'exec')
-        compiled = session.scriptHandler(code, fn, compiler)
-        with _ScriptScope(path.basename(fn), code):
-            try:
-                exec(compiled, session.namespace)
-            except Exception:
-                if debug:
-                    traceback.print_exc()
-                raise
+    def compiler(src):
+        return compile(src + '\n', fn, 'exec')
+    compiled = session.scriptHandler(code, fn, compiler)
+    with _ScriptScope(path.basename(fn), code):
+        try:
+            exec(compiled, session.namespace)
+        except Exception:
+            if debug:
+                traceback.print_exc()
+            raise
     session.log.info('finished user script: %s', fn)
     if session.mode == SIMULATION:
         session.log.info('simulated minimum runtime: %s',

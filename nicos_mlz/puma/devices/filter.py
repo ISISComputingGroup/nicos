@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Klaudia Hradil <klaudia.hradil@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -62,19 +62,19 @@ class PumaFilter(HasTimeout, Moveable):
 
     valuetype = oneof('in', 'out')
 
-    def doStart(self, position):
+    def doStart(self, target):
         motor = self._attached_motor
         currentpos = self.read(0)
         motorpos = motor.read(0)
 
-        if position == currentpos and motorpos == self.justpos:
+        if target == currentpos and motorpos == self.justpos:
             return
 
         if abs(motorpos - self.justpos) > 0.5:
             motorpos = motor.maw(0)
 
-        self._attached_io_set.start(1 if position == 'in' else 0)
-        if self.wait() != position:
+        self._attached_io_set.start(1 if target == 'in' else 0)
+        if self.wait() != target:
             raise PositionError(self, 'device returned wrong position')
 
         if (self.doStatus()[0] == status.OK) and (motorpos != self.justpos):

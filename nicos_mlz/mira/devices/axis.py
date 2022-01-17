@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Jens Krüger <jens.krueger@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -47,8 +47,9 @@ class HoveringAxis(Axis):
                               type=tupleof(anytype, anytype), default=(0, 1)),
     }
 
-    def doTime(self, start, end):
-        return Axis.doTime(self, start, end) + self.startdelay + self.stopdelay
+    def doTime(self, old_value, target):
+        return Axis.doTime(
+            self, old_value, target) + self.startdelay + self.stopdelay
 
     def _preMoveAction(self):
         self._adevs['switch'].maw(self.switchvalues[1])

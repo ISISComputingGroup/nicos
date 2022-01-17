@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,16 +18,16 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Jens Krüger <jens.krueger@frm2.tum.de>
 #
 # *****************************************************************************
 
 """Detector classes for NICOS."""
 
-import IOCommon
-import TACOStates
-from IO import Counter, Timer
+import IOCommon  # pylint: disable=import-error
+import TACOStates  # pylint: disable=import-error
+from IO import Counter, Timer  # pylint: disable=import-error
 
 from nicos.core import Param, UsageError, oneofdict
 from nicos.devices.generic import ActiveChannel, CounterChannelMixin, \

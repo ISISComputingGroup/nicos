@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -48,6 +48,7 @@ Contributors:
 * Peter Link <peter.link@frm2.tum.de>
 * Kenan Muric <kenan.muric@ess.eu>
 * Pascal Neubert <pascal.neubert@frm2.tum.de>
+* Tobias Neuwirth <tobias.neuwirth@frm2.tum.de>
 * Adrian Potter <adrian.potter@tessella.com>
 * Jörg Pulz <joerg.pulz@frm2.tum.de>
 * Stefan Rainow <s.rainow@fz-juelich.de>
@@ -89,10 +90,10 @@ Instrument-specific code was contributed by:
 * Gaetano Mangiapia <gaetano.mangiapia@hzg.de>
 * Rifai Muslih <rifai@batan.go.id>
 * Thomas Müller <t.mueller@fz-juelich.de>
-* Tobias Neuwirth <tobias.neuwirth@frm2.tum.de>
 * Dominic Oram <dominic.oram@stfc.ac.uk>
 * Ji Tae Park <jitae.park@frm2.tum.de>
 * Matthias Pomm <matthias.pomm@hzg.de>
+* Kirill Pshenichnyi <pshcyrill@mail.ru>
 * Andrew Sazonov <andrew.sazonov@frm2.tum.de>
 * Philipp Schmakat <philipp.schmakat@frm2.tum.de>
 * Astrid Schneidewind <astrid.schneidewind@frm2.tum.de>
@@ -112,10 +113,11 @@ Instrument-specific code was contributed by:
 * Tobias Weber <tobias.weber@frm2.tum.de>
 * Andreas Wilhelm <andreas.wilhelm@frm2.tum.de>
 * Aleks Wischolit <aleks.wischolit@frm2.tum.de>
+* Marcell Wolf <marcell.wolf@frm2.tum.de>
 
 Logos were contributed by:
 
-* Ramona Bucher <ramona.bucher@frm2.tum.de>
+* Ramona Schurek <r.schurek@fz-juelich.de>
 
 It is free software, and can be distributed under the terms of the
 GNU General Public license version 2 or later (see LICENSE).

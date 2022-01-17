@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,8 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
+#   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
 
@@ -27,7 +28,7 @@
 from nicos.clients.base import ConnectionData
 from nicos.clients.gui.utils import loadUi, splitTunnelString
 from nicos.guisupport.qt import QDialog, QFontMetrics, QIcon, \
-    QListWidgetItem, QPalette, QPyNullVariant, QSize
+    QListWidgetItem, QPalette, QPixmap, QPyNullVariant, QSize
 from nicos.protocols.daemon.classic import DEFAULT_PORT
 
 
@@ -59,6 +60,7 @@ class ConnectionDialog(QDialog):
             new_data = ConnectionData(host, port, self.userName.text(),
                                       self.password.text())
         new_data.viewonly = self.viewonly.isChecked()
+        new_data.expertmode = self.expertmode.isChecked()
         if tunnel:
             tunnel = '%s:%s@%s' % (self.remoteUserName.text(),
                                    self.remotePassword.text(),
@@ -72,6 +74,8 @@ class ConnectionDialog(QDialog):
     def __init__(self, parent, connpresets, lastpreset, lastdata, tunnel=''):
         QDialog.__init__(self, parent)
         loadUi(self, 'dialogs/auth.ui')
+        if hasattr(parent, 'facility_logo'):
+            self.logoLabel.setPixmap(QPixmap(parent.facility_logo))
         self.connpresets = connpresets
         if isinstance(lastpreset, QPyNullVariant):
             lastpreset = None
@@ -107,6 +111,7 @@ class ConnectionDialog(QDialog):
             self.presetOrAddr.setEditText(
                 '%s:%s' % (lastdata.host, lastdata.port))
             self.viewonly.setChecked(lastdata.viewonly)
+            self.expertmode.setChecked(lastdata.expertmode)
         self.userName.setText(lastdata.user)
         self.password.setFocus()
 
@@ -131,6 +136,7 @@ class ConnectionDialog(QDialog):
             conn = self.connpresets[text]
             self.userName.setText(conn.user)
             self.viewonly.setChecked(conn.viewonly)
+            self.expertmode.setChecked(conn.expertmode)
             self.presetFrame.hide()
         else:
             self.presetFrame.show()
@@ -140,6 +146,7 @@ class ConnectionDialog(QDialog):
         self.presetOrAddr.setEditText(item.text())
         self.userName.setText(conn.user)
         self.viewonly.setChecked(conn.viewonly)
+        self.expertmode.setChecked(conn.expertmode)
         self.password.setFocus()
 
     def on_quickList_itemDoubleClicked(self, item):

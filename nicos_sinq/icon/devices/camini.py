@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,7 +23,8 @@
 # *****************************************************************************
 
 import datetime
-from time import time as currenttime
+from logging import DEBUG
+from time import monotonic
 
 from nicos import session
 from nicos.core import Attach, Moveable, Param, Readable, Value, pvname, status
@@ -45,7 +46,7 @@ class WaitPV(SequenceItem):
         SequenceItem.__init__(self)
 
     def run(self):
-        self._endtime = currenttime() + self._timeout
+        self._endtime = monotonic() + self._timeout
 
     def stop(self):
         self._stopped = True
@@ -53,7 +54,7 @@ class WaitPV(SequenceItem):
     def isCompleted(self):
         if self._camini._timedout:
             return True
-        if self._timeout != 0 and currenttime() > self._endtime:
+        if self._timeout != 0 and monotonic() > self._endtime:
             self._camini._timedout = True
             return True
         return bool(self._camini.readPV(self._pv) ==
@@ -89,7 +90,7 @@ class WaitNotPV(SequenceItem):
         SequenceItem.__init__(self)
 
     def run(self):
-        self._endtime = currenttime() + self._timeout
+        self._endtime = monotonic() + self._timeout
 
     def stop(self):
         self._stopped = True
@@ -97,7 +98,7 @@ class WaitNotPV(SequenceItem):
     def isCompleted(self):
         if self._camini._timedout:
             return True
-        if self._timeout != 0 and currenttime() > self._endtime:
+        if self._timeout != 0 and monotonic() > self._endtime:
             self._camini._timedout = True
             return True
         return bool(self._camini.readPV(self._pv) !=
@@ -203,6 +204,7 @@ class CaminiDetector(EpicsDeviceEss, SequencerMixin,
         pass
 
     def doStart(self):
+        SequencerMixin.doReset(self)
         self._timedout = False
         self._timestamp = None
         self._startSequence(self._generateSequence())
@@ -212,12 +214,20 @@ class CaminiDetector(EpicsDeviceEss, SequencerMixin,
         if self._timedout:
             return status.ERROR, 'Timeout'
         if self._seq_is_running():
-            return status.BUSY, 'Executing Sequence'
-        stat = SequencerMixin.doStatus(self, maxage)
-        if stat[0] not in self.busystates and not self._timestamp:
+            stat = SequencerMixin.doStatus(self, maxage)
+            if stat[0] == status.DISABLED:
+                session.log.error(
+                    'Automatic shutter requested, but shutter disabled')
+                self.stop()
+                return stat
+            # Ensure that the status is always busy as long as the sequence
+            # is running
+            stat = (status.BUSY, stat[1])
+            return stat
+        if not self._timestamp:
             now = datetime.datetime.now()
             self._timestamp = now.strftime('%Y-%m-%dT%H:%M:%S')
-        return stat
+        return status.OK, 'idle'
 
     def doReset(self):
         self._timedout = False
@@ -232,6 +242,8 @@ class CaminiDetector(EpicsDeviceEss, SequencerMixin,
             seq.append(SeqDev(self._attached_shutter, 'open'))
 
         # Wait for arm to become 0
+        if self.loglevel == DEBUG:
+            seq.append(Message(self, 'Waiting for arm'))
         seq.append(WaitPV(self, 'armpv', 0, timeout=self.arm_timeout))
 
         # set valid 0
@@ -248,6 +260,8 @@ class CaminiDetector(EpicsDeviceEss, SequencerMixin,
         seq.append(PutPV(self, 'trigpv', 1))
 
         # wait for the detector to actually start
+        if self.loglevel == DEBUG:
+            seq.append(Message(self, 'Waiting for detector start'))
         s = WaitNotPV(self, 'shutpv', 1, timeout=self.shutter_timeout)
         seq.append(s)
 
@@ -255,13 +269,19 @@ class CaminiDetector(EpicsDeviceEss, SequencerMixin,
         seq.append(PutPV(self, 'trigpv', 0))
 
         # Wait for counting to finish
+        if self.loglevel == DEBUG:
+            seq.append(Message(self, 'Waiting for count to finish ...'))
         s = WaitPV(self, 'shutpv', 1, timeout=self.exposure_timeout)
         seq.append(s)
 
         # Write the metadata
+        if self.loglevel == DEBUG:
+            seq.append(Message(self, 'Writing meta data...'))
         seq.append(SeqMethod(self, '_writeMetaData'))
 
         # Camini is tired, needs a little sleep
+        if self.loglevel == DEBUG:
+            seq.append(Message(self, 'Taking a nap...'))
         seq.append(SeqSleep(.1))
 
         # set valid 1
@@ -302,13 +322,12 @@ class CaminiDetector(EpicsDeviceEss, SequencerMixin,
             s_devlist = [d for d in s_devlist if d in devlist]
             self.log.debug(s_devlist)
             for d in s_devlist:
-                if s not in setups_log.keys():
-                    setups_log[s] = []
+                setups_log.setdefault(s, [])
                 setups_log[s].append(session.devices[d])
 
         self.log.debug(str(setups_log))
 
-        for s in setups_log:
+        for s in setups_log:  # pylint: disable=consider-using-dict-items
             for dev in setups_log[s]:
 
                 # The FITS standard defines max 8 characters for a header key.
@@ -343,7 +362,8 @@ class CaminiDetector(EpicsDeviceEss, SequencerMixin,
 
     def valueInfo(self):
         return (Value('Image File', unit=self.unit, fmtstr='%s'),
-                Value('Timestamp', unit='s', fmtstr='%s'))
+                Value('Timestamp', unit='s', fmtstr='%s')
+                )
 
     def arrayInfo(self):
         return ()

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,7 @@
 
 from nicos.core import HasLimits, HasWindowTimeout, Moveable, MoveError, \
     Param, PositionError, Readable, oneof, status
-from nicos.devices.tango import StringIO
+from nicos.devices.entangle import StringIO
 
 
 class TemperatureSensor(StringIO, Readable):
@@ -57,7 +57,7 @@ class TemperatureController(HasWindowTimeout, HasLimits, StringIO, Moveable):
     def doPoll(self, n, maxage):
         self._pollParam('setpoint', 1)
 
-    def doTime(self, oldvalue, newvalue):
+    def doTime(self, old_value, target):
         return self.window
 
     def doRead(self, maxage=0):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -50,7 +50,7 @@ class SXTalBase(Instrument, Moveable):
     """
 
     attached_devices = {
-        'mono': Attach('Monochromator device', Monochromator),
+        'mono': Attach('Monochromator device', Moveable),
     }
 
     parameters = {
@@ -76,6 +76,10 @@ class SXTalBase(Instrument, Moveable):
                           type=bool, default=False,
                           settable=True,
                           userparam=True),
+        'orienting_reflections': Param('Reflections from which the UB'
+                                       'was calculated',
+                                       type=tupleof(int, int), settable=True,
+                                       default=(0, 0)),
     }
 
     parameter_overrides = {
@@ -184,9 +188,7 @@ class SXTalBase(Instrument, Moveable):
         """
         Test if this position it to close to the incoming beam
         """
-        if poslist[0] > 3.:
-            return True
-        return False
+        return abs(poslist[0][1]) <= 3
 
     def doIsAllowed(self, hkl):
         try:
@@ -194,7 +196,7 @@ class SXTalBase(Instrument, Moveable):
         except Exception as err:
             return False, str(err)
         zero = np.zeros((len(poslist),))
-        if np.allclose(poslist, zero):
+        if np.allclose([p[1] for p in poslist], zero):
             return False, 'Failed to calculate angles for ' + str(hkl)
         if self._isToClose(poslist):
             return False, 'Reflection %s to close to incoming beam'\
@@ -220,13 +222,13 @@ class SXTalBase(Instrument, Moveable):
         self._sim_min = tuple(map(min, pos, self._sim_min or pos))
         self._sim_max = tuple(map(max, pos, self._sim_max or pos))
 
-    def doStart(self, hkl):
-        poslist = self._extractPos(self._calcPos(hkl))
+    def doStart(self, target):
+        poslist = self._extractPos(self._calcPos(target))
         for (devname, devvalue) in poslist:
             dev = self._adevs[devname]
             dev.start(devvalue)
         # store the min and max values of h,k,l, and E for simulation
-        self._sim_setValue(hkl)
+        self._sim_setValue(target)
 
     def doFinish(self):
         # make sure index members read the latest value
@@ -253,7 +255,7 @@ class SXTalBase(Instrument, Moveable):
         if self._attached_mono.unit != 'A':
             oldunit = self._attached_mono.unit
             self._attached_mono.unit = 'A'
-        result = self._attached_mono.read(0)
+        result = float(self._attached_mono.read(0))
         if oldunit:
             self._attached_mono.unit = oldunit
         return result
@@ -297,7 +299,7 @@ class EulerSXTal(SXTalBase):
     }
 
     def _extractPos(self, pos):
-        om, chi, phi = z1ToBisecting(self._attached_mono.read(0),
+        om, chi, phi = z1ToBisecting(self.wavelength,
                                      pos)
         tth = 2. * om
         poslist = [
@@ -484,21 +486,20 @@ class TASSXTal(SXTalBase):
             if name in self.__dict__:
                 self.__dict__[name].shutdown()
 
-    def _calcPos(self, hkle, wavelength=None):
-        return hkle
+    def _calcPos(self, hkl, wavelength=None):
+        return hkl
 
-    def _extractPos(self, hkle):
+    def _extractPos(self, pos):
         ki = self._attached_mono.read(0)
         kf = self._attached_ana.read(0)
         if self.inelastic:
             if self.emode == 'FKI':
-                kf = ki - hkle[3]
+                kf = ki - pos[3]
             else:
-                ki = kf + hkle[3]
+                ki = kf + pos[3]
         ki = to_k(ki, self._attached_mono.unit)
         kf = to_k(kf, self._attached_ana.unit)
-        qepos = tasQEPosition(ki, kf, hkle[0], hkle[1],
-                              hkle[2], 0)
+        qepos = tasQEPosition(ki, kf, pos[0], pos[1], pos[2], 0)
         ub = session.experiment.sample.getUB()
         try:
             angpos = calcTasQAngles(ub, np.array(self.plane_normal),
@@ -557,9 +558,7 @@ class TASSXTal(SXTalBase):
         """
         Test if this position it to close to the incoming beam
         """
-        if poslist[3] > 3.:
-            return True
-        return False
+        return abs(poslist[1][1]) <= 3
 
     def _rfl_to_reflection(self, r):
         """convert a reflection from reflection list format to internal
@@ -575,7 +574,7 @@ class TASSXTal(SXTalBase):
         tref1 = self._rfl_to_reflection(r1)
         tref2 = self._rfl_to_reflection(r2)
         self.plane_normal = calcPlaneNormal(tref1, tref2)
-        return calcTasUBFromTwoReflections(cell, tref1, tref2)
+        return calcTasUBFromTwoReflections(cell, tref1, tref2)/(np.pi * 2.)
 
 
 class SXTalIndex(AutoDevice, Moveable):
@@ -598,7 +597,7 @@ class SXTalIndex(AutoDevice, Moveable):
     def doRead(self, maxage=0):
         return self._attached_sxtal.read(maxage)[self.index]
 
-    def doStart(self, pos):
+    def doStart(self, target):
         current = list(self._attached_sxtal.read(0.5))
-        current[self.index] = pos
+        current[self.index] = target
         self._attached_sxtal.start(current)

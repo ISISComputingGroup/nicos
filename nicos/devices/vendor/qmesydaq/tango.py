@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@ import numpy as np
 
 from nicos.core.constants import SIMULATION
 from nicos.core.params import Override, Param, Value, listof, oneof
-from nicos.devices.tango import CounterChannel as BaseCounterChannel, \
+from nicos.devices.entangle import CounterChannel as BaseCounterChannel, \
     ImageChannel as BaseImageChannel, TimerChannel as BaseTimerChannel
 from nicos.devices.vendor.qmesydaq import Image as QMesyDAQImage
 
@@ -72,6 +72,10 @@ class ImageChannel(QMesyDAQImage, BaseImageChannel):
         'listmode': Override(volatile=True),
         'histogram': Override(volatile=True),
     }
+
+    def doReadRoisize(self):
+        tmp = self._dev.roiSize.tolist()
+        return tmp if sum(tmp) else (1, 1)
 
     def doWriteListmode(self, value):
         self._dev.SetProperties(['writelistmode', ('%s' % value).lower()])
@@ -142,29 +146,35 @@ class MultiCounter(BaseImageChannel):
 
     def doRead(self, maxage=0):
         if self._mode == SIMULATION:
-            res = [0] * (max(self.channels) + 3)
+            res = [0] * max(self.channels)
         else:
             # read data via Tango and transform it
             val = self._dev.value
             res = val.tolist() if isinstance(val, np.ndarray) else val
-        expected = 3 + max(self.channels or [0])
-        # first 3 values are sizes of dimensions
+        expected = max(self.channels or [0])
         if len(res) >= expected:
-            data = res[3:]
             # ch is 1 based, data is 0 based
-            total = sum([data[ch - 1] for ch in self.channels])
+            total = sum(res[ch - 1] for ch in self.channels)
         else:
             self.log.warning('not enough data returned, check config! '
                              '(got %d elements, expected >=%d)',
                              len(res), expected)
-            data = None
+            res = None
             total = 0
         resultlist = [total]
-        if data is not None:
+        if res is not None:
             for ch in self.channels:
                 # ch is 1 based, data is 0 based
-                resultlist.append(data[ch - 1])
+                resultlist.append(res[ch - 1])
         return resultlist
+
+    def doFinish(self):
+        self.doStatus(0)
+        return BaseImageChannel.doFinish(self)
+
+    def doStop(self):
+        self.doStatus(0)
+        return BaseImageChannel.doStop(self)
 
     def valueInfo(self):
         resultlist = [Value('ch.sum', unit='cts', errors='sqrt',

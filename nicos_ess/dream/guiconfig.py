@@ -26,6 +26,8 @@ main_window = docked(
                       panel('nicos.clients.flowui.panels.scans.ScansPanel')),
                      ('Detector Image',
                       panel('nicos.clients.flowui.panels.live.MultiLiveDataPanel')),
+                     ('Comparison Panel',
+                      panel('nicos_ess.dream.gui.comparison_panel.ComparisonPanel')),
                      ('Script Status',
                       panel('nicos.clients.flowui.panels.status.ScriptStatusPanel',
                             eta=True)),
@@ -61,13 +63,6 @@ main_window = docked(
                     'nicos.clients.gui.panels.logviewer.LogViewerPanel')),
             ),
          ),
-
-
-        ('  ', panel('nicos.clients.flowui.panels.empty.EmptyPanel')),
-
-        ('Finish Experiment',
-         panel('nicos.clients.flowui.panels.setup_panel.FinishPanel')),
-
         position='left',
     ), # tabbed
 
@@ -81,5 +76,7 @@ tools = [
 ]
 
 options = {
+    'reader_classes': ['nicos.devices.datasinks.text',
+                       'nicos_ess.dream.devices.datasinks.numpy_reader'],
     'facility': 'ess',
 }

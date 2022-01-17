@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -184,9 +184,9 @@ class Experiment(BaseExperiment):
         # collect info
         stats = self._statistics()
         # encode all text that may be Unicode into RTF \u escapes
-        for key in stats:
-            if isinstance(stats[key], str):
-                stats[key] = stats[key].encode('rtfunicode')
+        for key, stat in stats.items():
+            if isinstance(stat, str):
+                stats[key] = stat.encode('rtfunicode')
 
         # template data
         newcontent, _, _ = expandTemplate(data, stats)

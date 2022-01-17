@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -177,13 +177,6 @@ class TestEpicsKafkaForwarderStatus(TestCase):
         self.device.new_messages_callback([(12345, message_fb)])
         assert self.device.curstatus == (status.OK, 'Forwarding..')
 
-    def test_update_forwarded_many_pvs_set_forwarding_status_json(self):
-        assert self.device.curstatus == (0, '')
-        pvnames = {f'mypv{d}' for d in range(10)}
-        message_json = {'streams': [create_stream(pv) for pv in pvnames]}
-        self.device.new_messages_callback([(12345, json.dumps(message_json))])
-        assert self.device.curstatus == (status.OK, 'Forwarding..')
-
     def test_empty_message_gives_idle_state(self):
         message_json = {'streams': []}
         message_fb = create_x5f2_buffer(message_json)
@@ -206,15 +199,6 @@ class TestEpicsKafkaForwarderStatus(TestCase):
         for update_interval in [1000, 2000]:
             message_fb = create_x5f2_buffer(message_json, update_interval)
             self.device.new_messages_callback([(123456, message_fb)])
-            assert self.device.statusinterval == update_interval // 1000
-
-    def test_next_update_json(self):
-        message_json = {'streams': []}
-        for update_interval in [1000, 2000]:
-            message_json['update_interval'] = update_interval
-            self.device.new_messages_callback(
-                [(123456, json.dumps(message_json))]
-            )
             assert self.device.statusinterval == update_interval // 1000
 
 
@@ -243,7 +227,7 @@ class TestEpicsKafkaForwarderControl(TestCase):
 
     def test_empty_status_update_nothrows_if_no_issued(self):
         try:
-            self.device.status_update(dict())
+            self.device.status_update({})
             assert True
         except Exception as e:
             assert False, str(e)
@@ -251,7 +235,7 @@ class TestEpicsKafkaForwarderControl(TestCase):
     def test_empty_status_update_throws_if_issued(self):
         self.device._issued = {'pv': ()}
         with pytest.raises(KeyError):
-            assert self.device.status_update(dict())
+            assert self.device.status_update({})
 
     def test_status_message_on_empty_issued_gives_none_issued(self):
         message = {'streams': [create_stream('pv')]}

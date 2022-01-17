@@ -94,16 +94,14 @@ devices = dict(
     # Magnetic Lock
     mlock_op = device('nicos_mlz.puma.devices.virtual.LogoFeedBack',
         input = 'mlock_set',
-        unit = '',
         lowlevel = True,
     ),
     mlock_cl = device('nicos_mlz.puma.devices.virtual.LogoFeedBack',
         input = 'mlock_set',
-        unit = '',
+        inverted = True,
         lowlevel = True,
     ),
     mlock_set = device('nicos_mlz.puma.devices.virtual.DigitalOutput',
-        unit = '',
         lowlevel = True,
     ),
     mlock = device('nicos_mlz.puma.devices.maglock.MagLock',
@@ -178,8 +176,8 @@ devices = dict(
         mlock = 'mlock',
         holdstat = 'holdstat',
         mono_stat = 'mono_stat',
-        # foch = 'mfhpg',
-        # focv = 'mfvpg',
+        focush = 'mfhpg',
+        focusv = 'mfvpg',
         changing_positions = dict(
             # taking into account mth offset 90.0, /2017.07.27
             mth = 90.222,

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,7 @@
 
 """Special device for Julabo temperature controllers."""
 
-from nicos.devices.tango import TemperatureController as BaseController
+from nicos.devices.entangle import TemperatureController as BaseController
 
 
 class TemperatureController(BaseController):
@@ -34,8 +34,8 @@ class TemperatureController(BaseController):
     Use an average value of 3.5 K/min to get a better time estimate.
     """
 
-    def doTime(self, old, new):
-        if old is None or new is None or old == new:
+    def doTime(self, old_value, target):
+        if old_value is None or target is None or old_value == target:
             return 0.
         ramp = 3.5  # see docstring
-        return abs(new - old) * (60 / ramp) + self.window
+        return abs(target - old_value) * (60 / ramp) + self.window

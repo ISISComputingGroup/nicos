@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -36,10 +36,11 @@ class AddParameterDialog(QDialog):
                                           'ui',
                                           'dialogs',
                                           'addparameterdialog.ui')), self)
-        self.lineEditCustomParameter.setHidden(True)
+        self.lineEditCustomParameter.hide()
         missingParameters = [key for key in parameters.keys()
                              if key not in existingParameters.keys() and
-                             not key.startswith('_')]
+                             not key.startswith('_') and
+                             key not in ('classes', 'name')]
         if missingParameters:
             for key in sorted(missingParameters):
                 listItem = QListWidgetItem(key, self.listWidgetSelectParameter)
@@ -53,5 +54,4 @@ class AddParameterDialog(QDialog):
     def getValue(self):
         if self.checkBoxCustomParameter.checkState() == Qt.Checked:
             return self.lineEditCustomParameter.text()
-        else:
-            return self.listWidgetSelectParameter.currentItem().text()
+        return self.listWidgetSelectParameter.currentItem().text()

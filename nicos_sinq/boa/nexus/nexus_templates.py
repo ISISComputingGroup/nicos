@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -96,7 +96,7 @@ class BOATemplateProvider(NexusTemplateProvider):
             self._detector = det
             table.removeSetup(det)
         devices = table.getTableDevices()
-        content = dict()
+        content = {}
         for d in devices:
             if d in self._excluded_devices:
                 continue
@@ -120,7 +120,7 @@ class BOATemplateProvider(NexusTemplateProvider):
         name = self._detector
         if 'single' in name:
             name = 'single'
-        content = dict()
+        content = {}
         if name == 'single':
             content['data'] = DetectorDataset('countval', 'int32',
                                               units=NXAttribute(
@@ -140,7 +140,7 @@ class BOATemplateProvider(NexusTemplateProvider):
         return name, content
 
     def makeData(self, name):
-        content = dict()
+        content = {}
         content['data'] = NXLink('/entry/%s/data' % (name))
         content['None'] = NXScanLink()
         return content

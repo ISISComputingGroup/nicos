@@ -2,7 +2,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@fz-juelich.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -37,10 +37,11 @@ import psutil
 thisfile = path.realpath(__file__)
 bin_path = path.normpath(path.dirname(thisfile))
 
+# pylint: disable=consider-using-with
 dev_null = open(os.devnull, 'wb')
 background_processes = []
 
-from configparser import NoOptionError, NoSectionError, ConfigParser
+from configparser import ConfigParser, NoOptionError, NoSectionError
 
 
 def echo(s):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -30,8 +30,8 @@ from nicos.core.device import Moveable
 from nicos.core.errors import LimitError
 from nicos.core.params import Override, Param
 from nicos.devices.abstract import Motor as NicosMotor
+from nicos.devices.entangle import Motor as TangoMotor
 from nicos.devices.generic.sequence import BaseSequencer, SeqDev, SeqSleep
-from nicos.devices.tango import Motor as TangoMotor
 
 
 class MicrostepMotor(BaseSequencer, NicosMotor):

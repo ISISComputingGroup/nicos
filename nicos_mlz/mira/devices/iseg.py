@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -26,7 +26,7 @@
 
 from nicos import session
 from nicos.core import Param
-from nicos.devices.tango import Actuator
+from nicos.devices.entangle import Actuator
 
 
 class CascadeIsegHV(Actuator):
@@ -37,11 +37,11 @@ class CascadeIsegHV(Actuator):
                           type=int, settable=True, default=60),
     }
 
-    def doStart(self, value):
+    def doStart(self, target):
         if abs(self.read(0)) < 10 and self.waittime:
             self.log.warning('Please make sure the Cascade detector '
                              'is supplied with counting gas!  Waiting '
                              'for %d seconds before ramping up the HV.',
                              self.waittime)
             session.delay(self.waittime)
-        return Actuator.doStart(self, value)
+        return Actuator.doStart(self, target)

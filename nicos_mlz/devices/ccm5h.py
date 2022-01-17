@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,7 @@
 """Devices for the SANS-1 oxford magnet (ccm5h)."""
 
 from nicos.core import HasTimeout, Override, Param, oneof
-from nicos.devices.tango import Actuator
+from nicos.devices.entangle import Actuator
 
 
 class AsymmetricMagnet(HasTimeout, Actuator):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -78,6 +78,9 @@ class EssExperiment(Experiment):
         else:
             return self.propinfo.get('title', '')
 
+    def doReadUsers(self):
+        return self.propinfo.get('users', [])
+
     def _canQueryProposals(self):
         if self._client:
             return True
@@ -130,33 +133,33 @@ class EssExperiment(Experiment):
     def _extract_samples(self, query_result):
         samples = []
         for sample in query_result.samples:
+            mass = f'{sample.mass_or_volume[0]} {sample.mass_or_volume[1]}'.strip()
+            density = f'{sample.density[0]} {sample.density[1]}'.strip()
             samples.append({
                 'name': sample.name,
                 'formula': sample.formula,
-                'number of': sample.number,
-                'mass/volume':
-                    f'{sample.mass_or_volume[0]} {sample.mass_or_volume[1]}'.strip(),
-                'density': f'{sample.density[0]} {sample.density[1]}'.strip(),
+                'number_of': sample.number,
+                'mass_volume': mass,
+                'density': density
             })
         return samples
 
     def _extract_users(self, query_result):
         users = []
-        for first, last, _ in query_result.users:
-            users.append(
-                {
-                    'name': f'{first} {last}',
-                    'email': '',
-                    'affiliation': '',
-                }
-            )
+        for first, last, fed_id, org in query_result.users:
+            users.append(self._create_user(f'{first} {last}', '', org, fed_id))
         if query_result.proposer:
-            first, last, _ = query_result.proposer
-            users.append(
-                {
-                    'name': f'{first} {last}',
-                    'email': '',
-                    'affiliation': '',
-                }
-            )
+            first, last, fed_id, org = query_result.proposer
+            users.append(self._create_user(f'{first} {last}', '', org, fed_id))
         return users
+
+    def _create_user(self, name, email, affiliation, fed_id):
+        return {
+            'name': name,
+            'email': email,
+            'affiliation': affiliation,
+            'facility_user_id': fed_id
+        }
+
+    def get_samples(self):
+        return [dict(x) for x in self.sample.samples.values()]

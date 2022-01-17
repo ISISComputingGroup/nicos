@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -73,8 +73,8 @@ class VSTiltMotor(EpicsMotor):
                    'Velocity Selector must be stopped before moving tilt'
         return True, ''
 
-    def doStart(self, pos):
-        EpicsMotor.doStart(self, pos)
+    def doStart(self, target):
+        EpicsMotor.doStart(self, target)
 
 
 class VSLambda(Moveable):
@@ -119,8 +119,8 @@ class VSLambda(Moveable):
             why = 'requested %d rpm, %s' % (speed, why)
         return allowed, why
 
-    def doStart(self, value):
+    def doStart(self, target):
         A, B = self._calcCoefficients()
-        speed = B/(value - A)
+        speed = B/(target - A)
         self.log.debug('moving selector to %d rpm', speed)
         self._attached_seldev.start(speed)

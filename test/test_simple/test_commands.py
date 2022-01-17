@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -57,7 +57,7 @@ from nicos.utils import ensureDirectory
 
 from test.utils import ErrorLogged, raises
 
-session_setup = 'test_commands'
+session_setup = 'commands'
 
 
 class TestBasic:
@@ -186,7 +186,8 @@ def test_run_command(session, log):
     exp.new(0, user='user')
     # create a test script in the current scriptpath
     ensureDirectory(session.experiment.scriptpath)
-    with open(os.path.join(session.experiment.scriptpath, 'test.py'), 'w') as f:
+    with open(os.path.join(session.experiment.scriptpath, 'test.py'), 'w',
+              encoding='utf-8') as f:
         f.write('read()')
     run('test')
 

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -233,14 +233,6 @@ devices = dict(
         abslimits = (-120, 1000),
         unit = 'mm',
     ),
-    h2_width = device('nicos.devices.generic.VirtualMotor',
-        unit = 'mm',
-        abslimits = (-69.5, 69.5),
-    ),
-    h2_center = device('nicos.devices.generic.VirtualMotor',
-        unit = 'mm',
-        abslimits = (0.05, 69.5),
-    ),
     top_phi = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-10.5, 10.5),
         unit = 'deg',
@@ -419,7 +411,7 @@ devices = dict(
     ),
     image = device('nicos.devices.generic.VirtualImage',
         fmtstr = '%d',
-        sizes = (256, 256),
+        size = (256, 256),
         background = 0,
     ),
     det = device('nicos.devices.generic.Detector',
@@ -458,6 +450,27 @@ devices = dict(
     dix = device('nicos_mlz.refsans.devices.dimetix.DimetixLaser',
         value = 'dix_value',
         signal = 'dix_signal',
+    ),
+    h2l = device('nicos.devices.generic.VirtualMotor',
+        abslimits = (-69.5, 5),
+        unit = 'mm',
+        lowlevel = True,
+    ),
+    h2r = device('nicos.devices.generic.VirtualMotor',
+        abslimits = (-5, 69.5),
+        unit = 'mm',
+        lowlevel = True,
+    ),
+    h2 = device('nicos_mlz.refsans.devices.slits.Gap',
+        left = 'h2l',
+        right = 'h2r',
+        opmode = 'offcentered',
+    ),
+    h2opposite = device('nicos_mlz.refsans.devices.slits.Gap',
+        left = 'h2l',
+        right = 'h2r',
+        opmode = 'offcentered',
+        coordinates = 'opposite',
     ),
 )
 

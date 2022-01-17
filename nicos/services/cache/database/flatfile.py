@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -207,7 +207,7 @@ class FlatfileCacheDatabase(CacheDatabase):
         for category, (fd, _, db) in self._cat.items():
             if fd:
                 fd.close()
-                self._cat[category][0] = None
+                self._cat[category][0] = None  # pylint: disable=unnecessary-dict-index-lookup
             fd = self._create_fd(category)
             for subkey, entry in db.items():
                 if entry.value:
@@ -394,7 +394,7 @@ class FlatfileCacheDatabase(CacheDatabase):
                                                   time, None)
                                 if fd is None:
                                     fd = self._create_fd(cat)
-                                    self._cat[cat][0] = fd
+                                    self._cat[cat][0] = fd  # pylint: disable=unnecessary-dict-index-lookup
                                 fd.write('%s\t%s\t-\t-\n' % (subkey, time))
                                 fd.flush()
         while not self._stoprequest:

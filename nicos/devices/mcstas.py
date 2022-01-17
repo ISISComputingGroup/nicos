@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,17 +28,17 @@
 
 import os
 import shutil
-import time
 from os import path
 from signal import SIGTERM, SIGUSR2
 from subprocess import PIPE
+from time import monotonic
 
 import numpy as np
 from psutil import AccessDenied, NoSuchProcess, Popen
 
 from nicos import session
-from nicos.core import ArrayDesc, Param, Value, floatrange, intrange, status, \
-    tupleof, Override, Attach, MASTER, Waitable, Readable, oneof
+from nicos.core import MASTER, ArrayDesc, Attach, Override, Param, Readable, \
+    Value, Waitable, floatrange, intrange, oneof, status, tupleof
 from nicos.core.constants import FINAL, LIVE
 from nicos.devices.generic import ActiveChannel, ImageChannelMixin, \
     PassiveChannel
@@ -78,7 +78,7 @@ class McStasSimulation(Readable):
         'intensityfactor': Param('Constant multiplied with simulated McStas '
                                  'intensity to get a simulated neutron counts '
                                  'per second', settable=True,
-                                 type=floatrange(1.)),
+                                 type=floatrange(1e-10), default=1),
         'preselection':    Param('Simulation preset value (should be set by '
                                  'the timer device)', type=float,
                                  settable=True, default=1., unit='s'),
@@ -183,18 +183,25 @@ class McStasSimulation(Readable):
     def _getDatafile(self, name):
         """Return a file object for the McStas data file with given name."""
         # pylint: disable=consider-using-with
-        return open(path.join(self._mcstasdirpath, name), 'r')
+        return open(path.join(self._mcstasdirpath, name), 'r', encoding='utf-8')
 
     def _getTime(self):
         """Return elapsed time for simulation."""
         if self._started:
-            return min(time.time() - self._start_time, self.preselection)
+            return min(monotonic() - self._start_time, self.preselection)
         else:
             return self.preselection
 
     def _getScaleFactor(self):
         """Return scale factor for simulation intensity data."""
         return self._getTime() * self.intensityfactor
+
+    def _getNeutronsToSimulate(self):
+        """Return number of neutrons to simulate.
+
+        default: neutronspersec * preselection
+        """
+        return self.neutronspersec * self.preselection
 
     def _run(self):
         """Thread to run McStas simulation executable.
@@ -207,23 +214,19 @@ class McStasSimulation(Readable):
         except OSError:
             self.log.warning('could not remove old data')
         command = '%s -n %d -d %s %s' % (
-            self.mcstasprog, self.neutronspersec * self.preselection,
+            self.mcstasprog, self._getNeutronsToSimulate(),
             self._mcstasdirpath, self._mcstas_params,
         )
         self.log.debug('run %s', command)
         try:
-            self._start_time = time.time()
+            self._start_time = monotonic()
             self._process = Popen(command.split(), stdout=PIPE, stderr=PIPE,
                                   cwd=self._workdir)
             out, err = self._process.communicate()
-            if out:
-                self.log.debug('McStas output:')
-                for line in out.splitlines():
-                    self.log.debug('[McStas] %s', line.decode('utf-8', 'ignore'))
-            if err:
-                self.log.warning('McStas found some problems:')
-                for line in err.splitlines():
-                    self.log.warning('[McStas] %s', line.decode('utf-8', 'ignore'))
+            for line in out.splitlines():
+                self.log.debug('[McStas out] %s', line.decode('utf-8', 'ignore'))
+            for line in err.splitlines():
+                self.log.debug('[McStas err] %s', line.decode('utf-8', 'ignore'))
         except OSError as e:
             self.log.error('Execution failed: %s', e)
         if self._process:

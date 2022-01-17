@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -409,8 +409,8 @@ class Monitor(BaseMonitor):
     def newWidgetInfo(self, info):
         self._statuslabel.setText(info)
 
-    def updateTitle(self, title):
-        self._master.updateTitle.emit(title)
+    def updateTitle(self, text):
+        self._master.updateTitle.emit(text)
 
     def switchWarnPanel(self, on):
         self._master.switchWarnPanel.emit(on)

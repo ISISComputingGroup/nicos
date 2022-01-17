@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -407,7 +407,7 @@ class CARESSDevice(HasCommunication):
                 session.delay(self.comdelay)
                 try:
                     return function(*args)
-                except (CORBA.COMM_FAILURE, CORBA.TRANSIENT) as err:
+                except (CORBA.COMM_FAILURE, CORBA.TRANSIENT):
                     tries -= 1
             raise CommunicationError(
                 self, 'CARESS error: %s%r: %s' % (

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -26,7 +26,7 @@
 
 import threading
 import types
-from time import time as currenttime
+from time import monotonic, time as currenttime
 
 from nicos import session
 from nicos.core import status
@@ -56,8 +56,6 @@ class DeviceMixinMeta(type):
                     if pinfo.classname is None:
                         pinfo.classname = base.__module__ + '.' + base.__name__
         newtype = type.__new__(mcs, name, bases, attrs)
-        if '__constructed__' in attrs:
-            return newtype
         for entry in newtype.__mergedattrs__:
             newentry = {}
             for base in reversed(bases):
@@ -389,7 +387,7 @@ class HasTimeout(DeviceMixinBase):
     parameters = {
         'timeout':   Param('Time limit for the device to reach its target'
                            ', or None', unit='s', fmtstr='%.1f',
-                           type=none_or(float),
+                           type=none_or(floatrange(0)),
                            settable=True, mandatory=False, chatty=True),
         '_timesout': Param('Device movement should finish between these '
                            'timestamps',
@@ -445,7 +443,7 @@ class HasTimeout(DeviceMixinBase):
             return False
         timeoutTime = self._timeoutTime
         if timeoutTime is not None:
-            remaining = timeoutTime - currenttime()
+            remaining = timeoutTime - monotonic()
             if remaining > 0:
                 self.log.debug("%.2f s left before timeout", remaining)
             else:
@@ -458,7 +456,7 @@ class HasTimeout(DeviceMixinBase):
         a new target.
         """
         self._timeoutActionCalled = False
-        timesout = self._getTimeoutTimes(self.read(), target, currenttime())
+        timesout = self._getTimeoutTimes(self.read(), target, monotonic())
         self._setROParam('_timesout', timesout)
 
     def _clearTimeout(self):
@@ -510,7 +508,7 @@ class HasTimeout(DeviceMixinBase):
             elif self._timesout:
                 # give indication about the phase of the movement
                 for m, t in self._timesout or []:
-                    if t > currenttime():
+                    if t > monotonic():
                         msg = statusString(m, msg)
                         break
         elif code == status.ERROR:
@@ -616,13 +614,13 @@ class HasWindowTimeout(HasPrecision, HasTimeout):
             return True
         return False
 
-    def doTime(self, old, new):
-        if old is None or new is None or old == new:
+    def doTime(self, old_value, target):
+        if old_value is None or target is None or old_value == target:
             return 0.
         if 'speed' in self.parameters and self.speed != 0:
-            return abs(new - old) / self.speed + self.window
+            return abs(target - old_value) / self.speed + self.window
         elif 'ramp' in self.parameters and self.ramp != 0:
-            return abs(new - old) / (self.ramp / 60.) + self.window
+            return abs(target - old_value) / (self.ramp / 60.) + self.window
         return self.window
 
     def doEstimateTime(self, elapsed):

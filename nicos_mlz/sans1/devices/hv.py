@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,14 +27,14 @@
 
 from time import localtime, strftime, time as currenttime
 
-import PyTango
+from tango import DevState
 
 from nicos.core import Attach, HasPrecision, InvalidValueError, Moveable, \
     Override, Param, PositionError, Readable, listof, status, tupleof
+from nicos.devices.entangle import Motor as TangoMotor, PowerSupply
 from nicos.devices.generic.sequence import BaseSequencer, \
     LockedDevice as NicosLockedDevice, SeqDev, SeqMethod, SeqParam, SeqSleep
 from nicos.devices.generic.switcher import Switcher
-from nicos.devices.tango import Motor as TangoMotor, PowerSupply
 
 
 class VoltageSwitcher(Switcher):
@@ -47,10 +47,10 @@ class VoltageSwitcher(Switcher):
                                     % (target, positions))
         return self.mapping.get(target)[0]
 
-    def _mapReadValue(self, pos):
+    def _mapReadValue(self, value):
         """Override default inverse mapping to allow a deviation <= precision"""
         for name, values in self.mapping.items():
-            value, prec = values
+            pos, prec = values
             if pos == value:
                 return name
             elif prec:
@@ -60,7 +60,7 @@ class VoltageSwitcher(Switcher):
             return self.fallback
         raise PositionError(self, 'unknown position of %s: %s' %
                             (self._attached_moveable,
-                             self._attached_moveable.format(pos, True))
+                             self._attached_moveable.format(value, True))
                             )
 
     def doStatus(self, maxage=0):
@@ -241,9 +241,9 @@ class Sans1HV(BaseSequencer):
     def doIsAllowed(self, target):
         return self._attached_supply.isAllowed(target)
 
-    def doTime(self, pos, target):
+    def doTime(self, old_value, target):
         # duration is in minutes...
-        duration = abs(pos - target) / float(self.fastramp)
+        duration = abs(old_value - target) / float(self.fastramp)
         if not self.lasthv or (currenttime() - self.lasthv > self.maxofftime):
             # cold start
             fromVolts = 0
@@ -286,10 +286,11 @@ class Sans1HVOffDuration(Readable):
 
 class Sans1ZMotor(TangoMotor):
     tango_status_mapping = TangoMotor.tango_status_mapping.copy()
-    tango_status_mapping[PyTango.DevState.FAULT] = status.WARN
+    tango_status_mapping[DevState.FAULT] = status.WARN
 
 
 class LockedDevice(HasPrecision, NicosLockedDevice):
-    def doStart(self, pos):
-        if abs(self.read(0) - pos) >= self.precision:
-            NicosLockedDevice.doStart(self, pos)
+
+    def doStart(self, target):
+        if abs(self.read(0) - target) >= self.precision:
+            NicosLockedDevice.doStart(self, target)

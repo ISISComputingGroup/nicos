@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -48,9 +48,9 @@ class FocusPoint(HasLimits, Moveable):
     def doRead(self, maxage=0):
         return self._attached_table.read(maxage)
 
-    def doStart(self, pos):
+    def doStart(self, target):
         # self.moveToFocus() or move table
-        self._attached_table.move(pos)
+        self._attached_table.move(target)
 
     def _calculation(self, pivot=None):
         if pivot is None:

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,7 +22,7 @@
 #
 # *****************************************************************************
 
-from time import time as currenttime
+from time import monotonic
 
 from nicos.core import Override, Param, pvname, status
 from nicos.core.errors import PositionError
@@ -78,7 +78,7 @@ class SpsSwitch(EpicsDeviceEss, MappedMoveable):
         if epics_status[0] != status.OK:
             return epics_status
 
-        now = currenttime()
+        now = monotonic()
         if self.lasttarget is not None and \
                 self.lasttarget != self._readRaw(maxage):
             if now > self.lasttoggle+10:
@@ -105,7 +105,7 @@ class SpsSwitch(EpicsDeviceEss, MappedMoveable):
 
     def _startRaw(self, target):
         if self._readRaw() != target:
-            self.lasttoggle = currenttime()
+            self.lasttoggle = monotonic()
             self.lasttarget = target
             self._put_pv('commandpv', self.commandstr)
 

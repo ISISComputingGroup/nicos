@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -362,7 +362,9 @@ class Watchdog(BaseCacheClient):
                                                       entry.message))
         if entry.type and not type_change:
             for notifier in self._notifiers[entry.type]:
-                notifier.send('New warning from NICOS', warning_desc)
+                notifier.send(f'Warning: {entry.message}',
+                              f'{warning_desc}\n   Condition: {entry}',
+                              short=entry.message)
         if not type_change:
             self._put_message('warning', entry, entry.message)
         self._warnings[entry.id] = (True, warning_desc)
@@ -404,7 +406,7 @@ class Watchdog(BaseCacheClient):
                 msg += '%s\n\nWarning was: %s' % (entry.okmessage,
                                                   entry.message)
                 for notifier in self._notifiers[entry.type]:
-                    notifier.send('NICOS warning resolved', msg)
+                    notifier.send(f'Resolved {entry.message}', msg)
             if entry.okaction:
                 self._put_message('action', entry, entry.okaction)
                 self._spawn_action(entry.okaction, entry.actiontimeout)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2018-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2018-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -38,14 +38,14 @@ class ProvidesTitleSetter:
 
 
 class SingleDetectorLiveWidget(ProvidesTitleSetter, BaseLiveWidget1D):
-    def __init__(self, parent):
-        BaseLiveWidget1D.__init__(self, parent)
+    def __init__(self, parent, **kwargs):
+        BaseLiveWidget1D.__init__(self, parent, **kwargs)
         self.plot.viewport = [0.1, .95, 0.1, .85]
 
 
 class IntegralLiveWidget(ProvidesTitleSetter, BaseIntegralLiveWidget):
-    def __init__(self, parent):
-        BaseIntegralLiveWidget.__init__(self, parent)
+    def __init__(self, parent, **kwargs):
+        BaseIntegralLiveWidget.__init__(self, parent, **kwargs)
         self.plot.viewport = [.1, .75, .1, .70]
         self.plotxint.viewport = [.8, .95, .1, .70]
 

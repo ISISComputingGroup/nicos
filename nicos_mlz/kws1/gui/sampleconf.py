@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -362,7 +362,7 @@ class KWSSamplePanel(Panel):
 
     @pyqtSlot()
     def on_retrieveBtn_clicked(self):
-        sampleconf = self.client.eval('Exp.sample.samples', [])
+        sampleconf = self.client.eval('Exp.sample.samples', {})
         sampleconf = sorted(sampleconf.items())
         self.configs = [dict(c[1]) for c in sampleconf if 'thickness' in c[1]]
         # convert readonlydict to normal dict

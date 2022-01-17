@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -174,9 +174,9 @@ class IDS3010Control(Moveable):
     def doRead(self, maxage=0):
         return 'on' if self.status()[1] == "measurement running" else 'off'
 
-    def doStart(self, value):
+    def doStart(self, target):
         self._attached_server.communicate('system.startMeasurement'
-                                          if value == 'on' else
+                                          if target == 'on' else
                                           'system.stopMeasurement')
 
     def doReadPilot(self):

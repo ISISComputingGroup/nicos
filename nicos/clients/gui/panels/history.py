@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -473,6 +473,9 @@ class BaseHistoryWindow:
             item.setForeground(QBrush(QColor('#aaaaaa')))
             item.setData(Qt.UserRole, view)
 
+        self.viewList.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.viewList.customContextMenuRequested['QPoint'].connect(self.showContextMenu)
+
         self.menus = None
         self.bar = None
 
@@ -659,6 +662,7 @@ class BaseHistoryWindow:
             settings.setValue(key, json.dumps(info))
         settings.endGroup()
         settings.beginGroup('views_new')
+        settings.remove('')  # empty the existing entries before add new
         for view in self.views:
             settings.setValue(view.name, json.dumps(view.dlginfo))
         settings.endGroup()
@@ -748,6 +752,12 @@ class BaseHistoryWindow:
             self.actionLines, self.actionFitPeak, self.actionFitArby,
         ]:
             action.setEnabled(on)
+
+    def showContextMenu(self, point):
+        if self.askQuestion('Remove this view?'):
+            self.viewList.takeItem(self.viewList.currentRow())
+            if self.viewStack:
+                self.on__actionDeleteView_triggered()
 
     def enableAutoScaleActions(self, on):
         for action in [self.actionAutoScale, self.actionScaleX,
@@ -1273,8 +1283,8 @@ class StandaloneHistoryApp(CacheClient):
             pass
         self._stoprequest = True
 
-    def _propagate(self, data):
-        self._window.newValue.emit(data)
+    def _propagate(self, args):
+        self._window.newValue.emit(args)
 
 
 class SettingsDialog(QDialog):

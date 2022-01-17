@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -174,7 +174,7 @@ class DevicesPanel(Panel):
 
           filters = [
               ('All', ''),
-              ('Default', 'T|UBahn'),
+              ('Default', 'T|MVG'),
               ('Foo', 'bar$'),
           ]
 
@@ -333,9 +333,9 @@ class DevicesPanel(Panel):
                 self._control_dialogs[ldevname].close()
 
         # add all toplevel items to the tree, sorted
-        for cat in self._catitems:
-            self.tree.addTopLevelItem(self._catitems[cat])
-            self._catitems[cat].setExpanded(True)
+        for citem in self._catitems.values():
+            citem.setExpanded(True)
+            self.tree.addTopLevelItem(citem)
         for devitem in self._devitems.values():
             devitem.setExpanded(True)
         self.tree.sortItems(0, Qt.AscendingOrder)
@@ -622,8 +622,7 @@ class DevicesPanel(Panel):
         retval = OK
         for i in range(item.childCount()):
             lstatus = self._devinfo[item.child(i).text(0).lower()].status[0]
-            if retval < lstatus:
-                retval = lstatus
+            retval = max(retval, lstatus)
         return retval
 
     def on_tree_itemCollapsed(self, item):

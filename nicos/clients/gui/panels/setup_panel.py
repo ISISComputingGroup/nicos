@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -659,8 +659,9 @@ class SetupsPanel(Panel):
         if to_add and not to_remove and not new_basic:
             cmd = 'AddSetup'
             setups = to_add
-        else:
-            cmd = 'NewSetup'
+        elif to_remove and not new_basic:
+            cmd = 'RemoveSetup'
+            setups = to_remove
         if setups:
             if self.client.run('%s(%s)' % (cmd, ', '.join(map(repr, setups))),
                                noqueue=True) is None:

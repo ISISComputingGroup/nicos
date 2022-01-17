@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Klaudia Hradil <klaudia.hradil@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -137,12 +137,12 @@ class Monochromator(HasLimits, HasPrecision, BaseMonochromator):
             th -= tt
         return th, tt
 
-    def doStart(self, pos):
-        th, tt = self._calc_angles(to_k(pos, self.unit))
+    def doStart(self, target):
+        th, tt = self._calc_angles(to_k(target, self.unit))
         self._attached_twotheta.start(tt)
         self._attached_theta.start(th)
         self._movefoci(self.focmode, self.hfocuspars, self.vfocuspars)
-        self._sim_setValue(pos)
+        self._sim_setValue(target)
 
     def _movefoci(self, focmode, hfocuspars, vfocuspars):
         lam = from_k(to_k(self.target, self.unit), 'A')  # get goalposition in A

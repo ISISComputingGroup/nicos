@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -65,28 +65,15 @@ class Sans1ColliSlit(Switcher):
         'blockingmove': Override(default=False, mandatory=False),
     }
 
-    def _mapReadValue(self, pos):
-        prec = self.precision
+    def _mapReadValue(self, value):
         if self._attached_table.read() != self.activeposition:
             return 'N.A.'
-        for name, value in self.mapping.items():
-            if prec:
-                if abs(pos - value) <= prec:
-                    return name
-            elif pos == value:
-                return name
-        if self.fallback is not None:
-            return self.fallback
-        if self.relax_mapping:
-            return self._attached_moveable.format(pos, True)
-        raise PositionError(self, 'unknown position of %s' %
-                            self._attached_moveable)
+        return Switcher._mapReadValue(self, value)
 
     def doStatus(self, maxage=0):
         if self._attached_table.read() != self.activeposition:
             return multiStatus(self._adevs, maxage)
-        else:
-            return Switcher.doStatus(self, maxage)
+        return Switcher.doStatus(self, maxage)
 
 
 class Sans1ColliSwitcher(Switcher):
@@ -94,10 +81,10 @@ class Sans1ColliSwitcher(Switcher):
     parameter_overrides = {
         'precision':    Override(default=0.1, mandatory=False),
         'fallback':     Override(default='Unknown', mandatory=False),
-        'blockingmove': Override(default='False', mandatory=False),
+        'blockingmove': Override(default=False, mandatory=False),
     }
 
-    def _mapReadValue(self, pos):
+    def _mapReadValue(self, value):
         """Override default inverse mapping to allow a deviation <= precision"""
         prec = self.precision
 
@@ -109,7 +96,7 @@ class Sans1ColliSwitcher(Switcher):
             for name, value in mapping.items():
                 if name[0] == 'P':
                     yield name, value
-        for name, value in myiter(self.mapping):
+        for name, pos in myiter(self.mapping):
             if prec:
                 if abs(pos - value) <= prec:
                     return name
@@ -118,7 +105,7 @@ class Sans1ColliSwitcher(Switcher):
         if self.fallback is not None:
             return self.fallback
         if self.relax_mapping:
-            return self._attached_moveable.format(pos, True)
+            return self._attached_moveable.format(value, True)
         raise PositionError(self, 'unknown position of %s' %
                             self._attached_moveable)
 
@@ -664,9 +651,9 @@ class Sans1ColliMotorAllParams(Sans1ColliMotor):
     }
 
     parameter_overrides = {
-        'microsteps':  Override(mandatory=False, settable=True,
-                                volatile=True),
-        'refpos':      Override(settable=True),
+        'microsteps': Override(mandatory=False, settable=True,
+                               volatile=True),
+        'refpos':     Override(settable=True),
     }
 
     # more advanced stuff: setting/getting parameters

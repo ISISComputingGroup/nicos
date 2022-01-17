@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,9 +22,6 @@
 #
 # *****************************************************************************
 
-"""Template for TEX-2 setup from demo NICOS skeleteon"""
-
-
 def determine_instrument(setup_package_path):
-    """TEX-2 Texture difractometor instruement on PNPI"""
-    return 'tex2'
+    # for now, I'll just leave it like that
+    return 'tex3'

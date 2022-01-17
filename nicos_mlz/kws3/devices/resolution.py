@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -79,8 +79,8 @@ class Beamstop(Moveable):
     def _getWaiters(self):
         return [self._attached_moveable]
 
-    def doStart(self, pos):
-        if pos == 'out':
+    def doStart(self, target):
+        if target == 'out':
             self._attached_moveable.start(self.outpos)
             return
         respos = self._attached_resolution.target

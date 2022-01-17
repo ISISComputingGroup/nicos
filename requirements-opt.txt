@@ -1,7 +1,7 @@
 --extra-index-url https://forge.frm2.tum.de/simple
+-r requirements-epics.txt
 pyserial>=2.5
 astropy>=3.0
-pyepics>=3.2.4
 nicos-quickyaml>=1.1.0
 docutils>=0.12
 redbaron>=0.6.3
@@ -19,3 +19,4 @@ systemd-python>=230;sys_platform!='win32' and sys_platform!='darwin'
 secop-core>=0.10.5
 requests_oauthlib>=1.2.0
 opencv-python-headless>=3.0.0
+h5py>=2.6

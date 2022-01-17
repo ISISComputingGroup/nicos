@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -208,8 +208,8 @@ class NicosMetaWriterMixin:
                 stat = device.status()
                 # also map stat[0] to a string
                 if stat[1]:
-                    stat = ('%s_status' % devname, ('%s: %s' %
-                        (statuses[stat[0]].lower(), stat[1].strip())))
+                    stat = ('%s_status' % devname, ('%s: %s' % (
+                        statuses[stat[0]].lower(), stat[1].strip())))
                 else:
                     stat = ('%s_status' % devname, statuses[stat[0]].lower())
                 bycategory[category].append(stat)

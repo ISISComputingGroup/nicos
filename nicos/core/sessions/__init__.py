@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -671,9 +671,9 @@ class Session:
             inner_load(setupname, sysconfig, devlist, startupcode)
 
         # sort the preferred aliases by priority
-        for aliasname in self.alias_config:
+        for ac in self.alias_config.values():
             # first element has the highest priority
-            self.alias_config[aliasname].sort(key=lambda x: -x[1])
+            ac.sort(key=lambda x: -x[1])
 
         # initialize the cache connection
         if sysconfig.get('cache') and self._mode != SIMULATION:

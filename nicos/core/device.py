@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -116,24 +116,16 @@ class DeviceMeta(DeviceMixinMeta):
                 seen_nonmixin = True
         newtype = DeviceMixinMeta.__new__(mcs, name, bases, attrs)
 
-        # hack around a class creation bug in Python 2
-        attrs['__constructed__'] = True
-
         # to debug MRO problems you could use this line
-        # print 'MRO:', newtype, newtype.mro()
+        # print('MRO:', newtype, newtype.mro())
         for adevname, entry in list(newtype.attached_devices.items()):
             # adev names are always lowercased
             if adevname != adevname.lower():
                 raise ProgrammingError('%r device: attached device name %r is '
                                        'not all-lowercase' % (name, adevname))
-            # backwards compatibility: convert all entries to Attach objects
             if not isinstance(entry, Attach):
-                session.log.warning("Please use 'Attach' to define an attached"
-                                    " device. The use of a tuple is deprecated!")
-                _multiple = isinstance(entry[0], list)
-                _devclass = entry[0][0] if _multiple else entry[0]
-                newtype.attached_devices[adevname] = \
-                    Attach(entry[1], _devclass, multiple=_multiple)
+                raise ProgrammingError("Please use 'Attach' to define an "
+                                       "attached device.")
 
         # create parameter properties
         for param, info in newtype.parameters.items():

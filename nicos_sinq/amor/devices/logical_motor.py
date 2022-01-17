@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -138,11 +138,11 @@ class InterfaceLogicalMotorHandler(Moveable):
         # Return True if everything ok
         return True, ''
 
-    def doStart(self, targets):
-        for motor, target in self._get_move_list(self._get_targets(targets)):
+    def doStart(self, target):
+        for motor, pos in self._get_move_list(self._get_targets(target)):
             self.log.debug('New target for %s: %s', motor,
-                           motor.format(target, motor.unit))
-            motor.move(target)
+                           motor.format(pos, motor.unit))
+            motor.move(pos)
 
     def _get_targets(self, targets):
         targets_dict = {}
@@ -379,8 +379,8 @@ class AmorLogicalMotor(Motor):
     def doIsCompleted(self):
         return self._attached_controller.doIsCompleted()
 
-    def doStart(self, pos):
-        self._attached_controller.doStart({self.motortype: pos})
+    def doStart(self, target):
+        self._attached_controller.doStart({self.motortype: target})
 
     def doStop(self):
         if self.status(0)[0] == status.BUSY:

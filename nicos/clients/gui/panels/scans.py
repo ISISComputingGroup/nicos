@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -29,6 +29,7 @@ import os
 from math import sqrt
 
 from nicos.clients.gui.data import DataProxy
+from nicos.clients.gui.dialogs.filesystem import FileFilterDialog
 from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.utils import dialogFromUi, loadUi
 from nicos.clients.gui.widgets.plotting import ArbitraryFitter, CosineFitter, \
@@ -36,6 +37,7 @@ from nicos.clients.gui.widgets.plotting import ArbitraryFitter, CosineFitter, \
     PearsonVIIFitter, PseudoVoigtFitter, SigmoidFitter, TcFitter
 from nicos.core.data import ScanData
 from nicos.core.params import INFO_CATEGORIES
+from nicos.devices.datasinks.scan import AsciiScanfileReader
 from nicos.guisupport.qt import QActionGroup, QByteArray, QCheckBox, \
     QComboBox, QDialog, QFont, QFrame, QHBoxLayout, QKeySequence, \
     QListWidgetItem, QMenu, QPalette, QShortcut, QSizePolicy, QStatusBar, Qt, \
@@ -157,6 +159,7 @@ class ScansPanel(Panel):
         self.data.fitAdded.connect(self.on_data_fitAdded)
         client.experiment.connect(self.on_client_experiment)
 
+        self._fileopen_filter = None
         self.setCurrentDataset(None)
         self.updateList()
 
@@ -223,6 +226,7 @@ class ScansPanel(Panel):
     def getMenus(self):
         if not self.menus:
             menu1 = QMenu('&Data plot', self)
+            menu1.addAction(self.actionOpen)
             menu1.addAction(self.actionSavePlot)
             menu1.addAction(self.actionPrint)
             menu1.addAction(self.actionAttachElog)
@@ -281,6 +285,7 @@ class ScansPanel(Panel):
     def getToolbars(self):
         if not self.bars:
             bar = QToolBar('Scans')
+            bar.addAction(self.actionOpen)
             bar.addAction(self.actionSavePlot)
             bar.addAction(self.actionPrint)
             bar.addSeparator()
@@ -506,6 +511,26 @@ class ScansPanel(Panel):
         self.setitems = {}
         self.currentPlot = None
         self.setUidStack = []
+
+    @pyqtSlot()
+    def on_actionOpen_triggered(self):
+        """Open image file using registered reader classes."""
+        ftypes = {'Scan files (*.dat)': 'dat'}
+        fdialog = FileFilterDialog(self, "Open data files", "",
+                                   ";;".join(ftypes.keys()))
+        if self._fileopen_filter:
+            fdialog.selectNameFilter(self._fileopen_filter)
+        if fdialog.exec_() != fdialog.Accepted:
+            return
+        files = fdialog.selectedFiles()
+        if not files:
+            return
+        self._fileopen_filter = fdialog.selectedNameFilter()
+        for f in files:
+            try:
+                self.data.on_client_dataset(AsciiScanfileReader(f).scandata)
+            except Exception as err:
+                self.showError("Can't load scan file: %s (%s)" % (f, err))
 
     @pyqtSlot()
     def on_actionClosePlot_triggered(self):

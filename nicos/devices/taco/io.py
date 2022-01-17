@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,13 +18,13 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
 """Implementation of TACO I/O devices."""
 
-import IO
+import IO  # pylint: disable=import-error
 
 from nicos.core import Attach, HasLimits, Moveable, NicosError, Override, \
     Param, Readable, dictof, oneof, oneofdict, tupleof
@@ -50,8 +50,8 @@ class AnalogOutput(TacoDevice, HasLimits, Moveable):
 
     taco_class = IO.AnalogOutput
 
-    def doStart(self, value):
-        self._taco_guard(self._dev.write, value)
+    def doStart(self, target):
+        self._taco_guard(self._dev.write, target)
 
 
 class DigitalInput(TacoDevice, Readable):

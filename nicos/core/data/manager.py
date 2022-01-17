@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -372,7 +372,7 @@ class DataManager:
         # translate entries
         filenames = []
         for nametmpl in nametemplates:
-            kwds = dict(additionalinfo) if additionalinfo else dict()
+            kwds = dict(additionalinfo) if additionalinfo else {}
             kwds.update(session.experiment.propinfo)
             kwds.update(self.getCounters())
             try:

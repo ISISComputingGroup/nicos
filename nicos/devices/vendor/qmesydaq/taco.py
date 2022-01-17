@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,10 +24,10 @@
 
 """Detector devices for QMesyDAQ type detectors."""
 
-import IO
-import IOCommon
+import IO  # pylint: disable=import-error
+import IOCommon  # pylint: disable=import-error
 import numpy as np
-from Detector import Detector
+from Detector import Detector  # pylint: disable=import-error
 
 from nicos.core import FINAL, MASTER, SIMULATION, ArrayDesc, Param, Value, \
     listof, oneof

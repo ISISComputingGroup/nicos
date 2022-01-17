@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -518,7 +518,7 @@ class QueuedMeasurement(Measurement):
             return
         new_data = self.extract_data(newreq['script'])
         self.data.update(new_data)
-        for key in new_data:
+        for key, data in new_data.items():
             k = key
             if k == 'at_after':
                 k = 'at/after'
@@ -527,7 +527,7 @@ class QueuedMeasurement(Measurement):
             if '__%s__' % key in self.basic_script and \
                k in self.column_order:
                 index = self.column_order.index(k)
-                self.widgets[index].setValue(new_data[key])
+                self.widgets[index].setValue(data)
 
 
 class Log(Row):

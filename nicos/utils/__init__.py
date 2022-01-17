@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -27,6 +27,7 @@
 import fnmatch
 import inspect
 import linecache
+import locale
 import os
 import re
 import signal
@@ -57,6 +58,11 @@ try:
     import pwd
 except ImportError:
     pwd = grp = None
+
+try:
+    LOCALE_ENCODING = locale.getpreferredencoding(False)
+except Exception:
+    LOCALE_ENCODING = 'utf-8'
 
 
 # all builtin number types (useful for isinstance checks)
@@ -689,7 +695,8 @@ def safeWriteFile(filepath, content, maxbackups=10):
     if isinstance(content, list):
         writeFile(tmpfile, content)
     else:
-        open(tmpfile, 'w', encoding='utf-8').write(content)
+        with open(tmpfile, 'w', encoding='utf-8') as fp:
+            fp.write(content)
     try:
         if maxbackups:
             moveOutOfWay(filepath, maxbackups)
@@ -911,9 +918,9 @@ def daemonize():
     os.close(2)
 
     # redirect standard file descriptors
-    # pylint: disable=consider-using-with
-    sys.stdin = open('/dev/null', 'r')
-    sys.stdout = sys.stderr = open('/dev/null', 'w')
+    # pylint: disable=consider-using-with,unspecified-encoding
+    sys.stdin = open('/dev/null', 'r', encoding=None)
+    sys.stdout = sys.stderr = open('/dev/null', 'w', encoding=None)
 
 
 def setuser(recover=True):
@@ -1188,10 +1195,16 @@ def readFileCounter(counterpath, key):
 
 
 def updateFileCounter(counterpath, key, value):
-    """Update a counter file."""
+    """Update a counter file.
+
+       If the file does not exist, it will get created.
+    """
     if not path.isdir(path.dirname(counterpath)):
         os.makedirs(path.dirname(counterpath))
-    lines = readFile(counterpath)
+    try:
+        lines = readFile(counterpath)
+    except OSError:
+        lines = []
     new_lines = []
     for line in lines:
         linekey, _ = line.split()
@@ -1408,7 +1421,7 @@ def num_sort(x, inf=float('inf')):
 
 
 class ReaderRegistry:
-    readers = dict()
+    readers = {}
 
     @classmethod
     def registerReader(cls, rdcls):
@@ -1430,7 +1443,7 @@ class ReaderRegistry:
 
 
 class FitterRegistry:
-    fitters = dict()
+    fitters = {}
 
     @classmethod
     def registerFitter(cls, rdcls):

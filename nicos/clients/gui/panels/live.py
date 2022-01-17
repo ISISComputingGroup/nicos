@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -36,18 +36,18 @@ from gr import COLORMAPS as GR_COLORMAPS
 
 from nicos.clients.gui.dialogs.filesystem import FileFilterDialog
 from nicos.clients.gui.panels import Panel
-from nicos.clients.gui.utils import enumerateWithProgress, loadUi, uipath, \
-    waitCursor
+from nicos.clients.gui.utils import dialogFromUi, enumerateWithProgress, \
+    loadUi, uipath, waitCursor
 from nicos.core.constants import FILE, LIVE
 from nicos.core.errors import NicosError
 from nicos.guisupport.livewidget import AXES, DATATYPES, IntegralLiveWidget, \
     LiveWidget, LiveWidget1D
-from nicos.guisupport.qt import QActionGroup, QByteArray, QListWidgetItem, \
-    QMenu, QPoint, QSizePolicy, QStatusBar, Qt, QToolBar, QWidget, \
-    pyqtSignal, pyqtSlot
+from nicos.guisupport.qt import QActionGroup, QByteArray, QDialog, \
+    QListWidgetItem, QMenu, QPoint, QSizePolicy, QStatusBar, Qt, QToolBar, \
+    QWidget, pyqtSignal, pyqtSlot
 from nicos.guisupport.qtgr import MouseEvent
 from nicos.protocols.cache import cache_load
-from nicos.utils import BoundedOrderedDict, ReaderRegistry
+from nicos.utils import BoundedOrderedDict, ReaderRegistry, safeName
 
 try:
     from nicos.utils.gammafilter import gam_rem_adp_log
@@ -95,7 +95,10 @@ class LiveDataPanel(Panel):
     * ``liveonlyindex`` (default None) - Enable live only view. This disables
       interaction with the liveDataPanel and only displays the dataset of the
       set index.
-
+    * ``xscale`` - (default 'binary') - Scaling algorithm for the x axis
+      ('binary' or 'decimal')
+    * ``yscale`` - (default 'binary') - Scaling algorithm for the y axis
+      ('binary' or 'decimal')
     * ``defaults`` (default []) - List of strings representing options to be
       set for every configured plot.
       These options can not be set on a per plot basis since they are global.
@@ -161,6 +164,8 @@ class LiveDataPanel(Panel):
         self._axis_labels = {}
         self.params = {}
         self._offset = 0
+        self.xscale = options.get('xscale', 'binary')
+        self.yscale = options.get('yscale', 'binary')
 
         self.statusBar = QStatusBar(self, sizeGripEnabled=False)
         policy = self.statusBar.sizePolicy()
@@ -173,6 +178,7 @@ class LiveDataPanel(Panel):
         self.toolbar.addAction(self.actionOpen)
         self.toolbar.addAction(self.actionPrint)
         self.toolbar.addAction(self.actionSavePlot)
+        self.toolbar.addAction(self.actionAttachElog)
         self.toolbar.addSeparator()
         self.toolbar.addAction(self.actionLogScale)
         self.toolbar.addSeparator()
@@ -290,7 +296,7 @@ class LiveDataPanel(Panel):
             self.widget.deleteLater()
 
         # create a new one
-        self.widget = widgetcls(self)
+        self.widget = widgetcls(self, xscale=self.xscale, yscale=self.yscale)
 
         # enable/disable controls and set defaults for new livewidget instances
         self.setControlsEnabled(True)
@@ -353,6 +359,7 @@ class LiveDataPanel(Panel):
             menu.addAction(self.actionOpen)
             menu.addAction(self.actionPrint)
             menu.addAction(self.actionSavePlot)
+            menu.addAction(self.actionAttachElog)
             menu.addSeparator()
             menu.addAction(self.actionKeepRatio)
             menu.addAction(self.actionUnzoom)
@@ -410,6 +417,25 @@ class LiveDataPanel(Panel):
     def on_actionSymbols_triggered(self):
         if self.widget and isinstance(self.widget, LiveWidget1D):
             self.widget.setSymbols(self.actionSymbols.isChecked())
+
+    @pyqtSlot()
+    def on_actionAttachElog_triggered(self):
+        newdlg = dialogFromUi(self, 'panels/plot_attach.ui')
+        suffix = '.svg'  # self.widget.SAVE_EXT
+        newdlg.filename.setText(
+            safeName('data_%s' % self.params['uid'] + suffix))
+        ret = newdlg.exec_()
+        if ret != QDialog.Accepted:
+            return
+        descr = newdlg.description.text()
+        fname = newdlg.filename.text()
+        pathname = self.widget.gr.saveQuietly()
+        with open(pathname, 'rb') as fp:
+            remotefn = self.client.ask('transfer', fp.read())
+        if remotefn is not None:
+            self.client.eval('_LogAttach(%r, [%r], [%r])' %
+                             (descr, remotefn, fname))
+        os.unlink(pathname)
 
     def _getLiveWidget(self, roi):
         return self._livewidgets.get(roi + '/roi', None)
@@ -522,13 +548,24 @@ class LiveDataPanel(Panel):
             value = None
         if key in self.rois:
             self.on_roiChange(key, value)
-        elif key == self.detectorskey and self.widget:
+        elif key == self._detectorskey() and self.widget:
             self._register_rois(value)
+
+    def _detectorskey(self):
+        if self.detectorskey is None:
+            self.detectorskey = self._query_detectorskey()
+        return self.detectorskey
+
+    def _query_detectorskey(self):
+        try:
+            return ('%s/detlist' % self.client.eval(
+                'session.experiment.name')).lower()
+        except AttributeError:
+            pass
 
     def on_client_connected(self):
         self.client.tell('eventunmask', ['livedata'])
-        self.detectorskey = (self.client.eval('session.experiment.name')
-                             + '/detlist').lower()
+        self.detectorskey = self._query_detectorskey()
 
     def normalizeType(self, dtype):
         normalized_type = numpy.dtype(dtype).str
@@ -970,8 +1007,7 @@ class LiveDataPanel(Panel):
 class AutoScaleLiveWidget1D(LiveWidget1D):
 
     def __init__(self, parent=None):
-        LiveWidget1D.__init__(self, parent)
-        self.axes.xdual = False
+        LiveWidget1D.__init__(self, parent, xscale='decimal')
 
     def getYMax(self):
         minupperedge = 1
@@ -1170,6 +1206,10 @@ class ImagingLiveDataPanel(LiveDataPanel):
     """
 
     def __init__(self, parent, client, options):
+        if 'xscale' not in options:
+            options['xscale'] = 'decimal'
+        if 'yscale' not in options:
+            options['yscale'] = 'decimal'
         LiveDataPanel.__init__(self, parent, client, options)
         self._spectra = options.get('spectra', False)
         self._initLiveWidget(None)
@@ -1228,9 +1268,6 @@ class ImagingLiveDataPanel(LiveDataPanel):
         else:
             self.initLiveWidget(ImagingLiveWidget)
             # self.initLiveWidget(LiveWidget)
-        # No 2**n values
-        self.widget.axes.xdual = False
-        self.widget.axes.ydual = False
         # Set the grayscale as default
         for action in self.actionsColormap.actions():
             if action.data().upper() == 'GRAYSCALE':

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -44,6 +44,5 @@ class WallTimeScan(SweepScan):
 
         # Reset the preset depending on the elapsed time and expected time
         preset = num * self.walltime - self._etime.retrieve()
-        if preset < 0:
-            preset = 0
+        preset = max(preset, 0)
         self._preset = {'t': preset}

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Klaudia Hradil <klaudia.hradil@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -60,13 +60,13 @@ class SR7Shutter(HasTimeout, Moveable):
             return False, 'can only close shutter from remote'
         return True, ''
 
-    def doStart(self, pos):
-        if pos == self.read(0):
+    def doStart(self, target):
+        if target == self.read(0):
             return
-        self._attached_sr7set.start(self.positions.index(pos))
-        if self.wait() != pos:
+        self._attached_sr7set.start(self.positions.index(target))
+        if self.wait() != target:
             raise PositionError(self, 'device returned wrong position')
-        self.log.info('SR7: %s', pos)
+        self.log.info('SR7: %s', target)
 
     def doRead(self, maxage=0):
         res = self.doStatus()[0]

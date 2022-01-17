@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,7 +25,7 @@
 from nicos.core import Moveable, Readable, status
 from nicos.core.mixins import HasLimits
 from nicos.core.params import Attach, Param, floatrange
-from nicos.devices.tango import StringIO
+from nicos.devices.entangle import StringIO
 
 
 class Base(Readable):
@@ -93,8 +93,8 @@ class MoveName(HasLimits, ReadName, Moveable):
         else:
             self.log.debug('result >%s<', res)
 
-    def doStart(self, pos):
-        self._command('%s:%f:%f' % (self.name[5:], pos, self.speed))
+    def doStart(self, target):
+        self._command('%s:%f:%f' % (self.name[5:], target, self.speed))
 
     def doStop(self):
         self._command('stop')

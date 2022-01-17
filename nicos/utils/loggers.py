@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -141,8 +141,8 @@ class NicosConsoleFormatter(Formatter):
         else:
             self.colorize = lambda c, s: s
 
-    def formatException(self, exc_info):
-        return traceback.format_exception_only(*exc_info[0:2])[-1]
+    def formatException(self, ei):
+        return traceback.format_exception_only(*ei[0:2])[-1]
 
     def formatTime(self, record, datefmt=None):
         return time.strftime(datefmt or DATEFMT,
@@ -169,11 +169,11 @@ class NicosConsoleFormatter(Formatter):
                 # do not display input again
                 return ''
             elif levelno <= WARNING:
-                fmtstr = self.colorize('fuchsia', '%s%%(levelname)s: %%(message)s'
-                                       % namefmt)
+                fmtstr = self.colorize(
+                    'fuchsia', '%s%%(levelname)s: %%(message)s' % namefmt)
             else:
-                fmtstr = self.colorize('red', '%s%%(levelname)s: %%(message)s'
-                                       % namefmt)
+                fmtstr = self.colorize(
+                    'red', '%s%%(levelname)s: %%(message)s' % namefmt)
             fmtstr = '%(filename)s' + datefmt + fmtstr
             if not getattr(record, 'nonl', False):
                 fmtstr += '\n'

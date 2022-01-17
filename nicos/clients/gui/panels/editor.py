@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -44,7 +44,7 @@ from nicos.guisupport.qt import QAction, QActionGroup, QByteArray, QColor, \
     QsciScintilla, Qt, QTabWidget, QToolBar, QTreeWidgetItem, QWidget, \
     pyqtSlot
 from nicos.guisupport.utils import setBackgroundColor
-from nicos.utils import formatDuration, formatEndtime
+from nicos.utils import LOCALE_ENCODING, formatDuration, formatEndtime
 
 has_scintilla = QsciScintilla is not None
 
@@ -210,7 +210,7 @@ class EditorPanel(Panel):
         self.toolconfig = options.get('tools')
         self.sim_window = options.get('sim_window', 'inline')
         if self.sim_window not in ('single', 'multi', 'inline'):
-            self.log.warning('invalid sim_window option %r, using inline',
+            self.log.warning("invalid sim_window option %r, using 'inline'",
                              self.sim_window)
             self.sim_window = 'inline'
 
@@ -681,7 +681,8 @@ class EditorPanel(Panel):
         else:
             # reload without asking
             try:
-                with open(self.filenames[editor]) as f:
+                with open(self.filenames[editor], encoding=LOCALE_ENCODING
+                          ) as f:
                     text = f.read()
             except Exception:
                 return
@@ -731,7 +732,7 @@ class EditorPanel(Panel):
         if not self.checkDirty(self.currentEditor):
             return
         try:
-            with open(fn, 'r') as f:
+            with open(fn, 'r', encoding=LOCALE_ENCODING) as f:
                 text = f.read()
         except Exception as err:
             return self.showError('Opening file failed: %s' % err)
@@ -743,7 +744,8 @@ class EditorPanel(Panel):
 
     def openFile(self, fn, quiet=False):
         try:
-            with open(fn.encode(sys.getfilesystemencoding())) as f:
+            with open(fn.encode(sys.getfilesystemencoding()),
+                      encoding=LOCALE_ENCODING) as f:
                 text = f.read()
         except Exception as err:
             if quiet:
@@ -806,7 +808,8 @@ class EditorPanel(Panel):
         try:
             self.saving = True
             try:
-                with open(self.filenames[editor], 'w') as f:
+                with open(self.filenames[editor], 'w', encoding=LOCALE_ENCODING
+                          ) as f:
                     f.write(editor.text())
             finally:
                 self.saving = False

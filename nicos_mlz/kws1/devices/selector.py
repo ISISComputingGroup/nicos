@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,8 @@
 """Class for KWS selector."""
 
 from nicos.core import Attach, Moveable, Param, dictof, dictwith
+from nicos.devices.entangle import WindowTimeoutAO
 from nicos.devices.generic.switcher import MultiSwitcher
-from nicos.devices.tango import WindowTimeoutAO
 
 from nicos_mlz.kws1.devices.detector import DetectorPosSwitcherMixin
 
@@ -36,8 +36,8 @@ class SelectorSpeed(WindowTimeoutAO):
     Control selector speed.
     """
 
-    def doTime(self, old, new):
-        return abs(new - old) / 110.0
+    def doTime(self, old_value, target):
+        return abs(target - old_value) / 110.0
 
 
 class SelectorLambda(Moveable):
@@ -75,8 +75,8 @@ class SelectorLambda(Moveable):
         speed = int(round(60 * self.constant / (value - self.offset)))
         return self._attached_seldev.isAllowed(speed)
 
-    def doStart(self, value):
-        speed = int(round(60 * self.constant / (value - self.offset)))
+    def doStart(self, target):
+        speed = int(round(60 * self.constant / (target - self.offset)))
         self.log.debug('moving selector to %f rpm', speed)
         self._attached_seldev.start(speed)
 
@@ -101,6 +101,6 @@ class SelectorSwitcher(MultiSwitcher):
     def _getWaiters(self):
         return self._attached_moveables
 
-    def _start_unchecked(self, position):
-        MultiSwitcher._start_unchecked(self, position)
-        self._attached_det_pos._updateMapping(position)
+    def _start_unchecked(self, pos):
+        MultiSwitcher._start_unchecked(self, pos)
+        self._attached_det_pos._updateMapping(pos)

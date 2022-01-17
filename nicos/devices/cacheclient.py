@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -524,14 +524,13 @@ class CacheClient(BaseCacheClient):
         if op not in (OP_TELL, OP_TELLOLD):
             return
         if not key.startswith(self._prefix):
-            for cb in self._prefixcallbacks:
-                if key.startswith(cb):
+            for cbkey, callback in self._prefixcallbacks.items():
+                if key.startswith(cbkey):
                     if value is not None:
                         value = cache_load(value)
                     time = time and float(time)
                     try:
-                        self._prefixcallbacks[cb](key, value, time,
-                                                  op != OP_TELL)
+                        callback(key, value, time, op != OP_TELL)
                     except Exception:
                         self.log.warning('error in cache callback', exc=1)
             return
@@ -808,11 +807,14 @@ class CacheClient(BaseCacheClient):
 
     def query_db(self, query, tries=3):
         with self._dblock:
+            # pylint: disable=consider-using-dict-items
             if isinstance(query, str):
-                return [(k, self._db[k][0]) for k in self._db if k.startswith(query)]
+                return [(k, self._db[k][0])
+                        for k in self._db if k.startswith(query)]
             else:
                 query = set(query)
                 return [(k, self._db[k][0]) for k in self._db if k in query]
+            # pylint: enable=consider-using-dict-items
 
 
 class DaemonCacheClient(CacheClient):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -111,11 +111,11 @@ class EchoTime(Moveable):
         # if the echo time could not be determined
         return 0.0
 
-    def doStart(self, value):
+    def doStart(self, target):
         # filter unsupported echotimes
         # find best match from table
         for entry in self.currenttable:
-            if abs(entry - value) < 1e-12:
+            if abs(entry - target) < 1e-12:
                 value = entry
                 break
         else:

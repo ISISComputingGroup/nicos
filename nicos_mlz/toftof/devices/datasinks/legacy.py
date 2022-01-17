@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -194,8 +194,7 @@ class TofImageSinkHandler(TofSinkHandler):
             # is not finished yet. If the time between start time and current
             # time is less then the preset the counting is running or stopped
             time = min(currenttime() - self.dataset.started, float(info[0]))
-            if time > preset:
-                time = preset
+            time = min(time, preset)
             if time < preset:
                 lines.append('ToGo: %.0f s' % (preset - time))
             lines.append('Status: %5.1f %% completed' %

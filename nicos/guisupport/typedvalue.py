@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -248,7 +248,7 @@ def create(parent, typ, curvalue, fmtstr='', unit='',
     elif typ in (int, float, str, params.string):
         return EditWidget(parent, typ, curvalue, fmtstr or '%.4g',
                           allow_enter=allow_enter)
-    elif typ == bool:
+    elif typ in (bool, params.boolean):
         if allow_buttons:
             return ButtonWidget(parent, [True, False])
         return ComboWidget(parent, [True, False], curvalue)
@@ -282,6 +282,15 @@ def create(parent, typ, curvalue, fmtstr='', unit='',
     elif typ == SXTalCellType:
         return TableWidget(parent, float, curvalue.rmat.T.round(10), '%.4g',
                            client, allow_enter=allow_enter)
+    elif typ == list:
+        if curvalue:
+            ltype = type(curvalue[0])
+            if all(isinstance(sub, ltype) for sub in curvalue):
+                return ListOfWidget(parent, ltype, curvalue, client,
+                                    allow_enter=allow_enter)
+        else:
+            return ListOfWidget(parent, str, curvalue, client,
+                                allow_enter=allow_enter)
     return MissingWidget(parent, curvalue)
 
 

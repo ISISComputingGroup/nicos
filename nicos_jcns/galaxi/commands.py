@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -117,7 +117,7 @@ def SetDetectorEnergy(radiation=None, **value):
       * *xray* -- x-ray energy in kilo electron volt
       * *threshold* -- threshold energy in kilo electron volt
       * *wait* -- whether the command should wait until all detectors
-        completed the parameter update (defaults to 'True')
+        completed the parameter update (defaults to `True`)
 
     Examples:
 

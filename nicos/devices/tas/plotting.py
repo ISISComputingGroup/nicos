@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -75,11 +75,11 @@ class SpaceMap:
 
         self.taus = []
         self.hkls = []
-        for kwd in kwds:
-            if kwd.startswith('tau'):
-                self.taus.append(kwds[kwd])
-            elif kwd.startswith('hkl'):
-                self.hkls.append(kwds[kwd])
+        for key, value in kwds.items():
+            if key.startswith('tau'):
+                self.taus.append(value)
+            elif key.startswith('hkl'):
+                self.hkls.append(value)
 
         mode = self.tasinfo['scanmode']
         const = self.tasinfo['scanconstant']
@@ -107,7 +107,7 @@ class SpaceMap:
             return
         pylab.scatter([x], [y], **props)
         if label is not None:
-            pylab.text(x, y-0.1, label, size='x-small',
+            pylab.text(x, y - 0.1, label, size='x-small',
                        horizontalalignment='center', verticalalignment='top')
 
     def plot_hkls(self, hkls, labels=None, **props):
@@ -125,7 +125,7 @@ class SpaceMap:
         pylab.scatter(xs, ys, **props)
         if labels is not None:
             for i, x, y in zip(indices, xs, ys):
-                pylab.text(x, y-0.1, labels[i], size='x-small',
+                pylab.text(x, y - 0.1, labels[i], size='x-small',
                            horizontalalignment='center', verticalalignment='top')
 
     def check_hkls(self, hkls):

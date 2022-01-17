@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -81,8 +81,8 @@ class DigitalOutput(Pyro4Device, HasTimeout, Moveable):
         with globalLock, self._dev:
             return self._dev.afp_state_get()
 
-    def doStart(self, value):
-        if self.read(0) != value:
+    def doStart(self, target):
+        if self.read(0) != target:
             with globalLock, self._dev:
                 self._dev.afp_flip_do()
 

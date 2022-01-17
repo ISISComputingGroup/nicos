@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -636,8 +636,12 @@ class CaressScanfileSinkHandler(DataSinkHandler):
                 for v in addvalues:
                     buf += pack('<f', v)
                 if self._detvalues is not None:
-                    for i in np.nditer(self._detvalues.T):
-                        buf += pack('<i', i)
+                    if self.sink.flipimage:
+                        for i in np.nditer(np.flipud(self._detvalues.T)):
+                            buf += pack('<i', i)
+                    else:
+                        for i in np.nditer(self._detvalues.T):
+                            buf += pack('<i', i)
                 self._file_write(buf)
         if self._scan_type == 'SGEN2':
             chis = point.metainfo.get(('chis', 'value'), [None])[0]
@@ -697,6 +701,9 @@ class CaressScanfileSink(FileSink):
                                   'off': 0,
                                   'open': 1,
                                   'closed': 0}),
+        'flipimage': Param('Flipping image bottom-top before writing',
+                           type=bool, default=False, settable=False,
+                           userparam=False),
     }
 
     parameter_overrides = {

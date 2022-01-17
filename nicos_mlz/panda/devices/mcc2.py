@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -433,11 +433,11 @@ class MCC2Motor(MCC2core, NicosMotor):
         self.comm('XP15S%d' % int(f))
         return self.doReadAccel()
 
-    def doStart(self, pos):
+    def doStart(self, target):
         """go to a absolute postition"""
         if self.doStatus(0)[0] != status.OK:
             raise MoveError('Can not start, please check status!')
-        pos = int(pos * self.slope * self.microstep)
+        pos = int(target * self.slope * self.microstep)
         self.comm('XE%d' % pos)
 
     def doStop(self):
@@ -447,9 +447,9 @@ class MCC2Motor(MCC2core, NicosMotor):
                 return
         self.log.error('Stopping failed! no ACK!')
 
-    def doSetPosition(self, newpos):
+    def doSetPosition(self, pos):
         ''' set current position to given value'''
-        d = int(newpos * self.slope * self.microstep)
+        d = int(pos * self.slope * self.microstep)
         self.comm('XP20S%d XP21S%d XP19S%d' % (d, d, d))  # set all counters
 
     def doStatus(self, maxage=0):

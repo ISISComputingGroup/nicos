@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -65,9 +65,9 @@ class Attenuator(HasLimits, Moveable):
     def doStatus(self, maxage=0):
         return status.OK, ''
 
-    def doStart(self, value):
+    def doStart(self, target):
         for pos in range(8):
-            if value <= self._attenuation(pos) or pos == 7:
+            if target <= self._attenuation(pos) or pos == 7:
                 # Move first in all needed blades into the beam to reduce the
                 # activation and/or save the detector and then move out the not
                 # needed ones

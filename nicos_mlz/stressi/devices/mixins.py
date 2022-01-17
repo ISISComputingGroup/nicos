@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -52,6 +52,16 @@ class Formula:
     def eval(self, x):
         return eval(self._formula, self._globals, {'x': x})
 
+    def __str__(self):
+        return self._formula
+
+
+ext_formula_desc = '''
+    The formula must be given in the form that all parameters are numbers, but
+    the value to be transformed is called 'x'. The 'x' value may occur more
+    than once.
+'''
+
 
 class TransformRead(DeviceMixinBase):
     """This mixin converts a single raw read value into a calculated value.
@@ -66,14 +76,8 @@ class TransformRead(DeviceMixinBase):
 
     parameters = {
         'informula': Param('Input conversion formula',
-                           type=str, settable=False,
-                           default='x',
-                           ext_desc='''
-                           The formula must be given in the form that all
-                           parameters are numbers, but the value to be
-                           transformed is called 'x'. The 'x' value may occur
-                           more than once.
-                           '''
+                           type=str, settable=False, default='x',
+                           ext_desc=ext_formula_desc,
                            ),
     }
 
@@ -85,16 +89,19 @@ class TransformRead(DeviceMixinBase):
         'dev': Attach('Base device', Readable),
     }
 
-    def doRead(self, maxage):
+    def _mapReadValue(self, value):
+        return self._informula.eval(value)
+
+    def _readRaw(self, maxage=0):
         raw = self._attached_dev.read(maxage)
         self.log.debug('Raw value: %r', raw)
-        return self._informula.eval(raw)
+        return raw
 
     def doReadUnit(self):
         return self._attached_dev.unit
 
     def doUpdateInformula(self, formula):
-        self.log.info('Informula: %r' % formula)
+        self.log.debug('Informula: %r' % formula)
         self._informula = Formula(formula)
         return formula
 
@@ -116,20 +123,18 @@ class TransformMove(TransformRead):
 
     parameters = {
         'outformula': Param('Output conversion formula',
-                            type=str, settable=False,
-                            default='x',
-                            ext_desc='''
-                            The formula must be given in the form that all
-                            parameters are numbers, but the value to be
-                            transformed is called 'x'. The 'x' value may occur
-                            more than once.
-                            '''
+                            type=str, settable=False, default='x',
+                            ext_desc=ext_formula_desc,
                             ),
     }
 
-    def doStart(self, target):
-        self._attached_dev.start(self._outformula.eval(target))
+    def _mapTargetValue(self, target):
+        return self._outformula.eval(target)
+
+    def _startRaw(self, target):
+        self._attached_dev.start(target)
 
     def doUpdateOutformula(self, formula):
+        self.log.debug('Outformula: %r', formula)
         self._outformula = Formula(formula)
         return formula

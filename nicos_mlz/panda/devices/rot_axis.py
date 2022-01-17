@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -146,7 +146,7 @@ class RefAxis(Axis):
             # Step 3) Now SLOWLY crawl onto the refswitch
             if self.refspeed:
                 m.speed = self.refspeed
-            tries = 7
+            maxtries = tries = 7
             self.log.info('Referencing: SLOW Mode: find refswitch')
             while not(refsw(m)) and tries > 0:
                 self.log.debug('Another %d slots left to try', tries)
@@ -162,7 +162,7 @@ class RefAxis(Axis):
             m.speed = oldspeed
             if tries == 0:
                 self.log.error('Referencing: RefSwitch still not active after '
-                               '%.1f %s, exiting!', self.wraparound, self.unit)
+                               '%d tries, exiting!', maxtries)
                 self.start(oldpos)
                 return
 
@@ -356,12 +356,12 @@ class VirtualRotAxisMotor(VirtualMotor):
     def _refswitch(self):
         return 200. <= self.doRead() <= 220.
 
-    def doStart(self, pos):
-        if self.curvalue > pos:  # going backwards
+    def doStart(self, target):
+        if self.curvalue > target:  # going backwards
             if self._refswitch():
                 raise NicosError(self, 'Can\'t go backwards, Limit-switch is '
                                  'active!')
-        return VirtualMotor.doStart(self, pos)
+        return VirtualMotor.doStart(self, target)
 
     def doStatus(self, maxage=0):
         if self._refswitch():

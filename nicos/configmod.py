@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -26,6 +26,7 @@
 Global configuration for the NICOS system.
 """
 
+import importlib
 import os
 import sys
 from configparser import ConfigParser
@@ -103,34 +104,36 @@ class config:
 # read nicos.conf files
 
 class NicosConfigParser(ConfigParser):
-    def optionxform(self, key):
-        return key
+    def optionxform(self, optionstr):
+        return optionstr
 
 
-def findSetupPackage(nicos_root, global_cfg):
-    """Get the setup package of the NICOS install.
+def findSetupPackageAndInstrument(nicos_root, global_cfg):
+    """Get the setup package and instrument of the NICOS install.
 
-    The package can be specified by:
+    The setup package and instrument can be specified by:
 
-    * environment variable NICOS_SETUP_PACKAGE
-    * setup_package in main `nicos.conf`
+    * environment variable INSTRUMENT
+    * setup_package and instrument in main `nicos.conf`
 
-    Default is `nicos_demo`.
+    Default is `nicos_demo, None`.
     """
-    setup_package = None
 
+    instr = None
     if 'INSTRUMENT' in os.environ:
         if '.' in os.environ['INSTRUMENT']:
-            setup_package = os.environ['INSTRUMENT'].split('.')[0]
+            return os.environ['INSTRUMENT'].rsplit('.', 1)
+        instr = os.environ['INSTRUMENT']
 
-    if setup_package is None and \
-       global_cfg.has_option('nicos', 'setup_package'):
-        setup_package = global_cfg.get('nicos', 'setup_package')
+    setup_package = global_cfg.get('nicos', 'setup_package',
+                                   fallback='nicos_demo')
 
-    if setup_package is None:
-        setup_package = 'nicos_demo'
+    # Try to find a good value for the instrument name, either from the
+    # environment, from the local config,  or from the hostname.
+    if instr is None:
+        instr = global_cfg.get('nicos', 'instrument', fallback=None)
 
-    return setup_package
+    return setup_package, instr
 
 
 def readConfig():
@@ -154,9 +157,10 @@ def readConfig():
         sys.path[:0] = pypath.split(':')
 
     # Find setup package and its path.
-    setup_package = findSetupPackage(nicos_root, global_cfg)
+    setup_package, instr = findSetupPackageAndInstrument(
+        nicos_root, global_cfg)
     try:
-        setup_package_mod = __import__(setup_package)
+        setup_package_mod = importlib.import_module(setup_package)
     except ImportError:
         print('Setup package %r does not exist, cannot continue.' %
               setup_package, file=sys.stderr)
@@ -164,16 +168,7 @@ def readConfig():
             'Setup package %r does not exist.' % setup_package) from None
     setup_package_path = path.dirname(setup_package_mod.__file__)
 
-    # Try to find a good value for the instrument name, either from the
-    # environment, from the local config,  or from the hostname.
-    instr = None
-    if 'INSTRUMENT' in os.environ:
-        instr = os.environ['INSTRUMENT']
-        if '.' in instr:
-            instr = instr.split('.')[1]
-    elif global_cfg.has_option('nicos', 'instrument'):
-        instr = global_cfg.get('nicos', 'instrument')
-    elif hasattr(setup_package_mod, 'determine_instrument'):
+    if instr is None and hasattr(setup_package_mod, 'determine_instrument'):
         # Let the setup package have a try.
         instr = setup_package_mod.determine_instrument(setup_package_path)
 

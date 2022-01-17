@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -82,24 +82,19 @@ class Monochromator(Moveable):
 
     hardware_access = False
 
-    parameters = {}
-
     parameter_overrides = {
-        'unit':
-            Override(
-                default='A-1',
-                type=oneof('A-1', 'A', 'meV', 'THz'),
-                chatty=True),
-        'fmtstr':
-            Override(default='%.3f'), }
+        'unit': Override(default='A-1', type=oneof('A-1', 'A', 'meV', 'THz'),
+                         chatty=True),
+        'fmtstr': Override(default='%.3f'),
+    }
 
     def doInit(self, mode):
         if ('target' not in self._params or not self.target or
             self.target == 'unknown'):
             self._setROParam('target', from_k(to_k(0.73, 'A'), self.unit))
 
-    def doStart(self, pos):
-        self._sim_setValue(pos)
+    def doStart(self, target):
+        self._sim_setValue(target)
 
     def doIsAllowed(self, pos):
         return True, ''

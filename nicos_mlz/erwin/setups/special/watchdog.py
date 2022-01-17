@@ -40,6 +40,7 @@ watchlist = [
          # setup = 'source',
          message = 'Small detector high voltage current too high',
          type = 'critical',
+         setup = 'charmsmall',
          action = 'maw(s_hv, "off")',
          actiontimeout = 600,
          # gracetime = 5,
@@ -50,6 +51,7 @@ watchlist = [
          # setup = 'source',
          message = 'Big detector high voltage current too high',
          type = 'critical',
+         setup = 'charmbig',
          action = 'maw(b_hv, "off")',
          actiontimeout = 600,
          # gracetime = 5,
@@ -65,6 +67,6 @@ devices = dict(
         notifiers = {'default': [],
                      'critical': []},
         watch = watchlist,
-        loglevel = 'debug',
+        loglevel = 'info',
     ),
 )

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
@@ -39,9 +39,9 @@ from nicos.utils import TB_CAUSE_MSG, Repeater, allDays, bitDescription, \
     checkSetupSpec, chunks, closeSocket, comparestrings, extractKeyAndIndex, \
     formatDuration, formatExtendedFrame, formatExtendedStack, \
     formatExtendedTraceback, lazy_property, moveOutOfWay, num_sort, \
-    parseConnectionString, parseDuration, readonlydict, readonlylist, \
-    safeName, safeWriteFile, squeeze, tcpSocket, timedRetryOnExcept, \
-    tupelize
+    parseConnectionString, parseDuration, readFileCounter, readonlydict, \
+    readonlylist, safeName, safeWriteFile, squeeze, tcpSocket, \
+    timedRetryOnExcept, tupelize, updateFileCounter
 from nicos.utils.timer import Timer
 
 from test.utils import raises
@@ -396,7 +396,8 @@ def test_moveOutOfWay(tmpdir, maxbackup):
     i = 0
     fn1 = str(tmpdir.join('test1'))
     while i < 3:
-        open(fn1, 'w').write('Test %r %i' % (maxbackup, i))
+        with open(fn1, 'w', encoding='utf-8') as fp:
+            fp.write('Test %r %i' % (maxbackup, i))
         moveOutOfWay(fn1, maxbackup)
         i += 1
 
@@ -487,10 +488,11 @@ def test_safeWriteFile(tmpdir, maxbackup, content):
     files = [f for f in os.listdir(str(tmpdir)) if f.startswith('test1')]
     assert 'test1' in files
     assert len(files) == maxbackup + 1 if maxbackup is not None else 4
-    if isinstance(content, list):
-        assert len(open(fn1).readlines()) == len(content)
-    else:
-        assert len(open(fn1).read()) == len(content)
+    with open(fn1, encoding='utf-8') as fp:
+        if isinstance(content, list):
+            assert len(fp.readlines()) == len(content)
+        else:
+            assert len(fp.read()) == len(content)
 
 
 def test_tupelize():
@@ -499,3 +501,44 @@ def test_tupelize():
     assert list(tupelize(ilist[:3])) == [('a', 1)]
     assert list(tupelize(ilist, 3)) == [('a', 1, 'b'), (2, 'c', 3)]
     assert list(tupelize(ilist[:4], 3)) == [('a', 1, 'b')]
+
+
+@pytest.fixture(scope='function')
+def nonexistantfile(tmpdir):
+    fc1 = str(tmpdir.join('testcounter1'))
+    try:
+        os.unlink(fc1)
+    except FileNotFoundError:
+        pass
+    yield fc1
+    try:
+        os.unlink(fc1)
+    except FileNotFoundError:
+        pass
+
+@pytest.fixture(scope='function')
+def filecounterfile(tmpdir):
+    fc = str(tmpdir.join('testcounter2'))
+    with open(fc, "w", encoding="utf-8") as f:
+        f.write('key1 1234\n')
+        f.write('key2 5678\n')
+    yield fc
+    os.unlink(fc)
+
+def test_readfilecounter_exist(filecounterfile):
+    assert readFileCounter(filecounterfile, 'key1') == 1234
+    assert readFileCounter(filecounterfile, 'key3') == 0
+
+def test_readfilecounter_nofile(nonexistantfile):
+    assert readFileCounter(nonexistantfile, 'key') == 0
+    assert os.path.exists(nonexistantfile)
+
+def test_updatefilecounter_exist(filecounterfile):
+    updateFileCounter(filecounterfile, 'key1', 222)
+    assert readFileCounter(filecounterfile, 'key1') == 222
+    assert readFileCounter(filecounterfile, 'key2') == 5678
+
+def test_updatefilecounter_nofile(nonexistantfile):
+    updateFileCounter(nonexistantfile, 'key', 9876)
+    assert os.path.exists(nonexistantfile)
+    assert readFileCounter(nonexistantfile, 'key') == 9876

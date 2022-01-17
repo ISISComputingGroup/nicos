@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -149,7 +149,7 @@ devices = dict(
     ),
     strimage = device('nicos.devices.generic.VirtualImage',
         fmtstr = '%d',
-        sizes = (64, 64),
+        size = (64, 64),
         background = 0,
     ),
     adet = device('nicos.devices.generic.Detector',
@@ -166,5 +166,11 @@ devices = dict(
     csink = device('nicos_mlz.stressi.devices.datasinks.CaressScanfileSink',
         filenametemplate = ['m2%(scancounter)08d.dat'],
         detectors = ['adet'],
+    ),
+    tthm_r = device('nicos_mlz.stressi.devices.wavelength.TransformedMoveable',
+        dev = 'tthm',
+        informula = '1./0.5 * x - 11.5 / 0.5',
+        outformula = '0.5 * x + 11.5',
+        precision = 0.001,
     ),
 )

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -95,7 +95,7 @@ class Channel(QMesydaqCaressDevice, ActiveChannel):
     def doStart(self):
         self._reset()
 
-        if not self.ismaster:
+        if not self.iscontroller:
             self._load_preset(LOADSLAVE)
             # self._start(0)
         else:
@@ -138,7 +138,7 @@ class Channel(QMesydaqCaressDevice, ActiveChannel):
         if hasattr(self._caressObject, 'stop_module'):
             result = self._caress_guard(self._caressObject.stop_module, kind,
                                         self.cid)
-        elif self.ismaster:
+        elif self.iscontroller:
             result = \
                 self._caress_guard(self._caressObject.stop_acquisition_orb,
                                    kind)

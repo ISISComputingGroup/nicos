@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,6 +22,7 @@
 #
 # *****************************************************************************
 import time
+from datetime import datetime
 
 import numpy as np
 
@@ -259,7 +260,7 @@ class DeviceDataset(NexusElementBase):
         for dev in sinkhandler.dataset.devices:
             if dev.name == self.device:
                 dset = h5parent[name]
-                parent = sinkhandler.h5file[linkroot]
+                parent = h5parent[linkroot]
                 parent[name] = dset
                 dset.attrs['target'] = np.string_(dset.name)
 
@@ -455,7 +456,7 @@ class NXLink(NexusElementBase):
     def update(self, name, h5parent, sinkhandler, values):
         if not self.linkCreated:
             try:
-                other = sinkhandler.h5file[self.target]
+                other = h5parent[self.target]
             except KeyError:
                 session.log.warning(
                     'Cannot link %s to %s, target does not exist',
@@ -480,9 +481,7 @@ class NXTime(NexusElementBase):
     """Placeholder for a NeXus compatible time entry."""
 
     def formatTime(self):
-        time_str = time.strftime('%Y-%m-%d %H:%M:%S',
-                                 time.localtime(time.time()))
-        return time_str
+        return datetime.now().isoformat(sep=' ', timespec='seconds')
 
     def create(self, name, h5parent, sinkhandler):
         time_str = self.formatTime()
@@ -494,6 +493,34 @@ class NXTime(NexusElementBase):
         if name.find('end') >= 0:
             dset = h5parent[name]
             dset[0] = np.string_(self.formatTime())
+
+
+class StartTime(NXTime):
+    """Place holder for the start time of a measurement."""
+
+    def __init__(self):
+        NXTime.__init__(self)
+        self.time = 0
+
+    def formatTime(self):
+        return datetime.fromtimestamp(self.time).isoformat(timespec='seconds')
+
+    def create(self, name, h5parent, sinkhandler):
+        self.time = sinkhandler.dataset.started
+        NXTime.create(self, name, h5parent, sinkhandler)
+
+
+class EndTime(StartTime):
+    """Place holder for the end time of a measurement."""
+
+    def create(self, name, h5parent, sinkhandler):
+        self.time = sinkhandler.dataset.finished or time.time()
+        NXTime.create(self, name, h5parent, sinkhandler)
+
+    def update(self, name, h5parent, sinkhandler, values):
+        self.time = sinkhandler.dataset.finished or time.time()
+        dset = h5parent[name]
+        dset[0] = np.string_(self.formatTime())
 
 
 class NexusSampleEnv(NexusElementBase):

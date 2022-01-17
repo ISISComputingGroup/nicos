@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Björn Pedersen <bjoern.pedersen@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -243,12 +243,12 @@ def activation(formula=None, instrument=None,
             % locals()
     qs = ACTIVATIONURL + qs
     try:
-        response = urllib.request.urlopen(qs)
+        with urllib.request.urlopen(qs) as response:
+            data = json.load(response)
     except urllib.error.HTTPError as e:
         session.log.warning('Error opening: %s', qs)
         session.log.warning(e)
         return None
-    data = json.load(response)
     if data['ecode'] == 'unknown instrument' and flux is None:
         session.log.warning('Instrument %s unknown to calculator, '
                             'specify flux manually', instrument)

@@ -3,35 +3,36 @@
 description = 'detectors'
 
 group = 'lowlevel'  # is included by panda.py
+display_order = 70
 
 excludes = ['qmesydaq']
 
 tango_base = 'tango://phys.panda.frm2:10000/panda/'
 
 devices = dict(
-    timer = device('nicos.devices.tango.TimerChannel',
+    timer = device('nicos.devices.entangle.TimerChannel',
         tangodevice = tango_base + 'frmctr2/timer',
         lowlevel = True,
     ),
-    mon1 = device('nicos.devices.tango.CounterChannel',
+    mon1 = device('nicos.devices.entangle.CounterChannel',
         tangodevice = tango_base + 'frmctr2/mon1',
         type = 'monitor',
         fmtstr = '%d',
         lowlevel = True,
     ),
-    mon2 = device('nicos.devices.tango.CounterChannel',
+    mon2 = device('nicos.devices.entangle.CounterChannel',
         tangodevice = tango_base + 'frmctr2/mon2',
         type = 'monitor',
         fmtstr = '%d',
         lowlevel = True,
     ),
-    det1 = device('nicos.devices.tango.CounterChannel',
+    det1 = device('nicos.devices.entangle.CounterChannel',
         tangodevice = tango_base + 'frmctr2/det1',
         type = 'counter',
         fmtstr = '%d',
         lowlevel = True,
     ),
-    det2 = device('nicos.devices.tango.CounterChannel',
+    det2 = device('nicos.devices.entangle.CounterChannel',
         tangodevice = tango_base + 'frmctr2/det2',
         type = 'counter',
         fmtstr = '%d',

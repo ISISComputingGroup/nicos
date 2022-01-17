@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,9 +29,9 @@ from nicos.commands.basic import sleep
 from nicos.core import SIMULATION, UsageError, dictwith, floatrange, \
     oneofdict_or, status
 from nicos.core.params import Attach, Param
+from nicos.devices.entangle import NamedDigitalOutput, VectorInput
 from nicos.devices.generic.sequence import SeqCall, SeqDev, SequencerMixin
 from nicos.devices.generic.switcher import MultiSwitcher
-from nicos.devices.tango import NamedDigitalOutput, VectorInput
 from nicos.protocols.daemon import STATUS_INBREAK
 from nicos.utils import number_types
 
@@ -130,7 +130,7 @@ class Doppler(SequencerMixin, MultiSwitcher):
         if not self.waitForAcq(10):
             return
 
-        seq = list()
+        seq = []
         # to change the doppler speed it has to be stopped first
         seq.append(SeqDev(self._attached_switch, 'off'))
         seq.append(SeqCall(session.delay, 0.5))
@@ -213,12 +213,12 @@ class Doppler(SequencerMixin, MultiSwitcher):
     def inRange(self, speed):
         return self.customrange[0] < speed < self.customrange[-1]
 
-    def _mapReadValue(self, pos):
-        value = MultiSwitcher._mapReadValue(self, pos)
-        if value == self.fallback and self.inRange(pos[0]):
-            value = pos[0]
+    def _mapReadValue(self, value):
+        pos = MultiSwitcher._mapReadValue(self, value)
+        if pos == self.fallback and self.inRange(value[0]):
+            pos = value[0]
 
-        return value
+        return pos
 
     def doReadCustomrange(self):
         return self._attached_moveables[0].userlimits

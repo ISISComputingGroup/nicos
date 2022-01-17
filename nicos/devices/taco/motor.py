@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Jens Krüger <jens.krueger@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -59,8 +59,8 @@ class Motor(CanReference, TacoDevice, AbstractMotor):
     def doStart(self, target):
         self._taco_guard(self._dev.start, target)
 
-    def doSetPosition(self, target):
-        self._taco_guard(self._dev.setpos, target)
+    def doSetPosition(self, pos):
+        self._taco_guard(self._dev.setpos, pos)
 
     def doStop(self):
         self._taco_guard(self._dev.stop)

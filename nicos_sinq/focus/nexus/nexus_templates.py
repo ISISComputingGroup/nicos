@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,15 +24,16 @@
 from copy import deepcopy
 
 from nicos import session
+
+from nicos_sinq.focus.nexus.focus import FocusCoordinates, ScaledImage, \
+    SliceTofImage, SumImage
 from nicos.nexus.elements import ConstDataset, DetectorDataset, \
     DeviceAttribute, DeviceDataset, NamedImageDataset, NexusSampleEnv, \
     NXAttribute, NXLink, NXTime
 from nicos.nexus.nexussink import NexusTemplateProvider
-
-from nicos_sinq.focus.nexus.focus import FocusCoordinates, ScaledImage, \
-    SliceTofImage, SumImage
 from nicos_sinq.nexus.specialelements import ConfArray, FixedArray, \
     TwoThetaArray
+
 
 focus_default = {"NeXus_Version": "4.4.0",
                  "instrument": "FOCUS at SINQ",
@@ -149,8 +150,7 @@ det_common = {
     "time_binning": ConfArray("hm_tof_array",
                               units=NXAttribute("us", "string"),
                               axis=NXAttribute(2, "int32"),
-                              scale=.1,
-                              ),
+                              scale=.1),
 }
 
 middlebank = {
