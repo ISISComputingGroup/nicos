@@ -11,6 +11,7 @@
 # contents of the RELEASE-VERSION file.
 
 from os import path
+from sys import platform
 from subprocess import PIPE, Popen
 
 # read config file and set environment variables
@@ -35,11 +36,30 @@ def translate_version(ver):
 
 def get_git_version(abbrev=4, cwd=None):
     try:
+        print("Getting nicos git version")
+        if platform == "win32":
+            # make sure running git does not pop up a console window. As this
+            # gets called every time a new connection is made, if there are
+            # connection issues this would otherwise result in a flashing
+            # console window until connection succeeded
+            from subprocess import (
+                STARTUPINFO, STARTF_USESHOWWINDOW, SW_HIDE, CREATE_NO_WINDOW
+            )
+            si = STARTUPINFO(dwFlags = STARTF_USESHOWWINDOW,
+                             wShowWindow = SW_HIDE)
+            cflag = CREATE_NO_WINDOW
+        else:
+            si = None
+            cflag = None
         p = Popen(['git', 'describe', '--abbrev=%d' % abbrev],
-                  cwd=cwd or config.nicos_root, stdout=PIPE, stderr=PIPE)
+                  cwd=cwd or config.nicos_root, stdout=PIPE, stderr=PIPE,
+                  startupinfo = si, creationflags = cflag)
         stdout, _stderr = p.communicate()
-        return translate_version(stdout.strip().decode('utf-8', 'ignore'))
-    except Exception:
+        ver = translate_version(stdout.strip().decode('utf-8', 'ignore'))
+        print(f"nicos git version: {ver}")
+        return ver
+    except Exception as ex:
+        print(f"No nicos git version: {ex}")
         return None
 
 
