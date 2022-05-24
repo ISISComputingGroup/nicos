@@ -37,6 +37,7 @@ def translate_version(ver):
 def get_git_version(abbrev=4, cwd=None):
     try:
         print("Getting nicos git version")
+        extra_args = {}
         if platform == "win32":
             # make sure running git does not pop up a console window. As this
             # gets called every time a new connection is made, if there are
@@ -45,15 +46,14 @@ def get_git_version(abbrev=4, cwd=None):
             from subprocess import (
                 STARTUPINFO, STARTF_USESHOWWINDOW, SW_HIDE, CREATE_NO_WINDOW
             )
-            si = STARTUPINFO(dwFlags = STARTF_USESHOWWINDOW,
-                             wShowWindow = SW_HIDE)
-            cflag = CREATE_NO_WINDOW
-        else:
-            si = None
-            cflag = None
+            extra_args = {
+                'startupinfo' : STARTUPINFO(dwFlags = STARTF_USESHOWWINDOW,
+                                wShowWindow = SW_HIDE),
+                'creationflags' : CREATE_NO_WINDOW
+            }
         p = Popen(['git', 'describe', '--abbrev=%d' % abbrev],
                   cwd=cwd or config.nicos_root, stdout=PIPE, stderr=PIPE,
-                  startupinfo = si, creationflags = cflag)
+                  **extra_args)
         stdout, _stderr = p.communicate()
         ver = translate_version(stdout.strip().decode('utf-8', 'ignore'))
         print(f"nicos git version: {ver}")
