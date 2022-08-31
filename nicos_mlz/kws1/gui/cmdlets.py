@@ -40,9 +40,9 @@ class MeasureTable(Cmdlet):
 
     meas_def_class = MeasDef
 
-    def __init__(self, parent, client):
+    def __init__(self, parent, client, options):
         uipath = findResource('nicos_mlz/kws1/gui/table.ui')
-        Cmdlet.__init__(self, parent, client, uipath)
+        Cmdlet.__init__(self, parent, client, options, uipath)
         self.measdef = self.meas_def_class(rtmode=False)
         self.rt_settings = RtConfigDialog.DEFAULT_SETTINGS.copy()
         self.rtConfBtn.setEnabled(False)
@@ -68,7 +68,7 @@ class MeasureTable(Cmdlet):
                                 'a daemon to be able to select samples.')
             return
         dlg = SampleDialog(self, self.measdef, self.client)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         self.measdef.samplefile = dlg.samplefile
         self.measdef.samples = dlg.toDefs()
@@ -81,7 +81,7 @@ class MeasureTable(Cmdlet):
                                 'a daemon to be able to select settings.')
             return
         dlg = DetsetDialog(self, self.measdef, self.client)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         self.measdef.detsets = dlg.toDefs()
         self.updateTable()
@@ -93,7 +93,7 @@ class MeasureTable(Cmdlet):
                                 'a daemon to be able to select devices.')
             return
         dlg = DevicesDialog(self, self.measdef, self.client)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         self.measdef.devices = dlg.toDefs()
         self.updateTable()
@@ -136,7 +136,7 @@ class MeasureTable(Cmdlet):
     def on_rtConfBtn_clicked(self):
         dlg = RtConfigDialog(self)
         dlg.setSettings(self.rt_settings)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         self.rt_settings = dlg.getSettings()
 

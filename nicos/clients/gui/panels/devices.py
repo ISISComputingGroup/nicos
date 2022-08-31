@@ -24,6 +24,7 @@
 
 """NICOS GUI panel with a list of all devices."""
 
+from os import path
 from logging import WARNING
 
 from nicos.clients.gui.dialogs.error import ErrorDialog
@@ -33,8 +34,8 @@ from nicos.core.status import BUSY, DISABLED, ERROR, NOTREACHED, OK, UNKNOWN, \
     WARN
 from nicos.guisupport.qt import QBrush, QByteArray, QColor, QComboBox, \
     QCursor, QDialog, QDialogButtonBox, QFont, QIcon, QInputDialog, QMenu, \
-    QMessageBox, QPalette, QPushButton, QRegExp, Qt, QTreeWidgetItem, \
-    pyqtSignal, pyqtSlot, sip
+    QMessageBox, QPalette, QPushButton, QRegularExpression, Qt, \
+    QTreeWidgetItem, pyqtSignal, pyqtSlot, sip
 from nicos.guisupport.typedvalue import DeviceParamEdit, DeviceValueEdit
 from nicos.protocols.cache import OP_TELL, cache_dump, cache_load
 from nicos.utils import AttrDict
@@ -111,12 +112,14 @@ class SetupTreeWidgetItem(QTreeWidgetItem):
 class DevInfo(AttrDict):
     """Collects device infos."""
 
-    def __init__(self, name, value='-', status=(OK, ''), fmtstr='%s', unit='',
+    def __init__(self, name, value='-', target='-', status=(OK, ''),
+                 fmtstr='%s', unit='',
                  expired=False, fixed=False, classes=None,
                  valtime=0, stattime=0, failure=None):
         AttrDict.__init__(self, {
             'name': name,
             'value': value,
+            'target': target,
             'status': status,
             'fmtstr': fmtstr,
             'unit': unit,
@@ -134,6 +137,13 @@ class DevInfo(AttrDict):
             fmted = self.fmtstr % self.value
         except Exception:
             fmted = str(self.value)
+        return fmted + ' ' + self.unit
+
+    def fmtTargetUnit(self):
+        try:
+            fmted = self.fmtstr % self.target
+        except Exception:
+            fmted = str(self.target)
         return fmted + ' ' + self.unit
 
     def fmtParam(self, param, value):
@@ -158,6 +168,9 @@ class DevicesPanel(Panel):
     * ``useicons`` (default True) -- if set to False, the list widget does not
       display status icons for the devices.
 
+    * ``show_target`` (default False) -- if set to True, show the device
+      targets in a separate column.
+
     * ``param_display`` (default {}) -- a dictionary containing the device name
       as key and a parameter name or a list of the parameter names which should
       be displayed in the device tree as subitems of the device item, for
@@ -181,7 +194,7 @@ class DevicesPanel(Panel):
     """
 
     panelName = 'Devices'
-    ui = 'panels/devices.ui'
+    ui = path.join('panels', 'devices.ui')
 
     @classmethod
     def _createIcons(cls):
@@ -211,6 +224,9 @@ class DevicesPanel(Panel):
         for (key, value) in param_display.items():
             value = [value] if isinstance(value, str) else list(value)
             self.param_display[key.lower()] = value
+
+        if not bool(options.get('show_target')):
+            self.tree.header().hideSection(2)
 
         self.tree.header().restoreState(self._headerstate)
         self.clear()
@@ -387,7 +403,7 @@ class DevicesPanel(Panel):
         params = self.client.getDeviceParams(devname)
         if not params and not failure:
             return
-        lowlevel_device = params.get('lowlevel') or False
+        lowlevel_device = 'devlist' not in params.get('visibility', {'devlist'})
         if lowlevel_device and not self._show_lowlevel:
             return
         if 'nicos.core.data.sink.DataSink' in params.get('classes', []) and \
@@ -423,14 +439,15 @@ class DevicesPanel(Panel):
             catitem = self._catitems[cat]
 
         # create a tree node for the device
-        devitem = QTreeWidgetItem(catitem, [devname, '', ''], DEVICE_TYPE)
+        devitem = QTreeWidgetItem(catitem, [devname, '', '', ''], DEVICE_TYPE)
 
         devitem.setForeground(0, lowlevelBrush[lowlevel_device])
         devitem.setFont(0, lowlevelFont[lowlevel_device])
 
         if failure:
             short_failure = failure.split('\n')[0]
-            devitem.setText(2, 'creating device failed: %s' % short_failure)
+            devitem.setText(3,
+                            'creating device failed: %s' % short_failure)
             if self.useicons:
                 devitem.setIcon(0, self.statusIcon[ERROR])
         else:
@@ -527,6 +544,18 @@ class DevicesPanel(Panel):
             if not devitem.parent().isExpanded():
                 if ldevname == devitem.parent().representative:
                     devitem.parent().setText(1, fmted)
+        elif subkey == 'target':
+            if time < devinfo.valtime:
+                return
+            if not value:
+                fvalue = ''
+            else:
+                fvalue = cache_load(value)
+                if isinstance(fvalue, list):
+                    fvalue = tuple(fvalue)
+            devinfo.target = fvalue
+            fmted = devinfo.fmtTargetUnit()
+            devitem.setText(2, fmted)
         elif subkey == 'status':
             if time < devinfo.stattime:
                 return
@@ -536,14 +565,14 @@ class DevicesPanel(Panel):
                 status = cache_load(value)
             devinfo.status = status
             devinfo.stattime = time
-            devitem.setText(2, str(status[1]))
+            devitem.setText(3, str(status[1]))
             if status[0] not in self.statusIcon:
                 # old or wrong status constant
                 return
             if self.useicons:
                 devitem.setIcon(0, self.statusIcon[status[0]])
-                devitem.setForeground(2, foregroundBrush[status[0]])
-                devitem.setBackground(2, backgroundBrush[status[0]])
+                devitem.setForeground(3, foregroundBrush[status[0]])
+                devitem.setBackground(3, backgroundBrush[status[0]])
             else:
                 devitem.setForeground(0, foregroundBrush[BUSY])
                 devitem.setBackground(0, backgroundBrush[status[0]])
@@ -564,11 +593,13 @@ class DevicesPanel(Panel):
                 return
             devinfo.fmtstr = cache_load(value)
             devitem.setText(1, devinfo.fmtValUnit())
+            devitem.setText(2, devinfo.fmtTargetUnit())
         elif subkey == 'unit':
             if not value:
                 value = "''"
             devinfo.unit = cache_load(value)
             devitem.setText(1, devinfo.fmtValUnit())
+            devitem.setText(2, devinfo.fmtTargetUnit())
         elif subkey == 'fixed':
             if not value:
                 value = "''"
@@ -651,16 +682,16 @@ class DevicesPanel(Panel):
     def on_filter_editTextChanged(self, text):
         for i in range(self.filter.count()):
             if text == self.filter.itemText(i):
-                rx = QRegExp(self.filter.itemData(i))
+                rx = QRegularExpression(self.filter.itemData(i))
                 break
         else:
-            rx = QRegExp(text)
+            rx = QRegularExpression(text)
         for i in range(self.tree.topLevelItemCount()):
             setupitem = self.tree.topLevelItem(i)
             all_children_hidden = True
             for j in range(setupitem.childCount()):
                 devitem = setupitem.child(j)
-                if rx.indexIn(devitem.text(0)) == -1:
+                if rx.match(devitem.text(0)).hasMatch():
                     devitem.setHidden(True)
                 else:
                     devitem.setHidden(False)
@@ -768,7 +799,7 @@ class DevicesPanel(Panel):
     def exec_command(self, command, ask_queue=True, immediate=False):
         if ask_queue and not immediate and self._current_status != 'idle':
             qwindow = ScriptExecQuestion()
-            result = qwindow.exec_()
+            result = qwindow.exec()
             if result == QMessageBox.Cancel:
                 return
             elif result == QMessageBox.Apply:
@@ -862,9 +893,10 @@ class ControlDialog(QDialog):
         else:
             self.description.setVisible(False)
 
-        # check how to refer to the device in commands: if it is lowlevel,
-        # we need to use quotes
-        self.devrepr = repr(self.devname) if params.get('lowlevel', True) \
+        # check how to refer to the device in commands: if it is not in the
+        # namespace, we need to use quotes
+        self.devrepr = repr(self.devname) \
+            if 'namespace' not in params.get('visibility', ('namespace',)) \
             else self.devname
 
         # show "Set alias" group box if it is an alias device
@@ -1006,7 +1038,7 @@ class ControlDialog(QDialog):
         menu.addAction('Refresh all')
 
         # QCursor.pos is more reliable then the given pos
-        action = menu.exec_(QCursor.pos())
+        action = menu.exec(QCursor.pos())
 
         if action:
             cmd = 'session.getDevice(%r).pollParams(volatile_only=False%s)' \
@@ -1051,7 +1083,7 @@ class ControlDialog(QDialog):
             dlg.reject()
         btn.clicked.connect(callback)
         dlg.targetLayout.addWidget(target)
-        res = dlg.exec_()
+        res = dlg.exec()
         if res != QDialog.Accepted:
             return
         newlimits = target.getValue()
@@ -1073,7 +1105,7 @@ class ControlDialog(QDialog):
         target.setClient(self.client)
         dlg.targetLayout.addWidget(target)
         target.setFocus()
-        res = dlg.exec_()
+        res = dlg.exec()
         if res != QDialog.Accepted:
             return None
         return target.getValue()
@@ -1161,7 +1193,7 @@ class ControlDialog(QDialog):
         dlg.targetLayout.addWidget(dlg.target)
         dlg.resize(dlg.sizeHint())
         dlg.target.setFocus()
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         try:
             new_value = dlg.target.getValue()

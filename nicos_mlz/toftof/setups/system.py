@@ -29,7 +29,7 @@ devices = dict(
     Sample = device('nicos.devices.sample.Sample',
         description = 'The currently used sample',
     ),
-    Exp = device('nicos_mlz.toftof.devices.experiment.Experiment',
+    Exp = device('nicos_mlz.toftof.devices.Experiment',
         description = 'The currently running experiment',
         dataroot = '/data',
         sample = 'Sample',
@@ -69,7 +69,7 @@ devices = dict(
     LogSpace = device('nicos.devices.generic.FreeSpace',
         description = 'Free space on the log drive',
         path = '/toftofcontrol/log',
-        lowlevel = True,
+        visibility = (),
         warnlimits = (0.5, None),
     ),
 )

@@ -70,7 +70,7 @@ def directToReciprocalLattice(directLattice):
 
     arg = 1 + 2 * cos_alfa * cos_beta * cos_gamma - cos_alfa * cos_alfa -\
         cos_beta * cos_beta - cos_gamma * cos_gamma
-    if (arg < 0.0):
+    if arg < 0.0:
         raise AttributeError('Reciprocal lattice has negative volume!')
     vol = ad * bd * cd * np.sqrt(arg)/(2 * np.pi)
     reciprocal.a = bd * cd * sin_alfa / vol
@@ -106,6 +106,20 @@ def calculateBMatrix(direct):
 def cellFromUB(UB):
     GINV = np.einsum('ji,jk->ik', UB, UB)
     G = np.linalg.inv(GINV)*(2*np.pi)**2
+    a = np.sqrt(G[0][0])
+    b = np.sqrt(G[1][1])
+    c = np.sqrt(G[2][2])
+    alpha = Acosd(G[1][2] / (b * c))
+
+    beta = Acosd(G[2][0] / (a * c))
+    gamma = Acosd(G[0][1] / (a * b))  # Change c -> b
+    return Cell(a=a, b=b, c=c, alpha=alpha, beta=beta, gamma=gamma)
+
+
+def cellFromUBX(UB):
+    ubtran = UB.transpose()
+    GINV = UB * ubtran
+    G = np.linalg.inv(GINV)
     a = np.sqrt(G[0][0])
     b = np.sqrt(G[1][1])
     c = np.sqrt(G[2][2])

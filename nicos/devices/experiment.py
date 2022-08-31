@@ -36,7 +36,6 @@ from textwrap import dedent
 from nicos import config, session
 # import for side-effects
 from nicos._vendor import rtfunicode  # pylint: disable=unused-import
-from nicos.commands.basic import run
 from nicos.core import MASTER, SIMULATION, Attach, ConfigurationError, \
     Device, Measurable, NicosError, Param, Readable, UsageError, anytype, \
     dictof, listof, mailaddress, none_or, oneof, usermethod
@@ -70,6 +69,9 @@ class Experiment(Device):
 
     The experiment singleton is available at runtime as
     `nicos.session.experiment`.
+
+    If mailuser is specified, password should be stored in the nicos keyring
+    (domain: nicos) using the *mailserver_password* as identifier.
     """
 
     parameters = {
@@ -132,6 +134,12 @@ class Experiment(Device):
                                 type=none_or(mailaddress)),
         'mailtemplate':   Param('Mail template file name (in templates)',
                                 type=str, default='mailtext.txt'),
+        'mailsecurity':   Param('Used encryption layer for smtp communication',
+                                type=oneof('none', 'tls', 'ssl'),
+                                default='none', settable=True),
+        'mailuser':       Param('Username used to login to SMTP server',
+                                type=none_or(nonemptystring), default=None,
+                                settable=True),
         'serviceexp':     Param('Name of proposal to switch to after user '
                                 'experiment', type=nonemptystring,
                                 default='service'),
@@ -238,7 +246,7 @@ class Experiment(Device):
         """Paths where all template files are stored."""
         return [path.abspath(path.join(self.dataroot, self.templates))] + \
             [path.join(config.setup_package_path, p.strip(), 'template')
-             for p in config.setup_subdirs.split(',')]
+             for p in config.setup_subdirs]
 
     @property
     def proposalsymlink(self):
@@ -486,7 +494,8 @@ class Experiment(Device):
                 self._setROParam('proposalpath',
                                  self.proposalpath_of(self.serviceexp))
                 self._setROParam('proptype', 'service')
-            ensureDirectory(path.join(self.proposalpath, 'logbook'))
+            ensureDirectory(path.join(self.proposalpath, 'logbook'),
+                            **self.managerights)
             session.elogEvent('directory', (self.proposalpath,
                                             instname, self.proposal))
             self._eloghandler = ELogHandler()
@@ -687,7 +696,7 @@ class Experiment(Device):
         # set new experiment properties given by caller
         self._setROParam('proptype', proptype)
 
-        # give an opportunity to check propsal database etc.
+        # give an opportunity to check proposal database etc.
         propinfo = self._newPropertiesHook(proposal, kwds)
         self._setROParam('propinfo', propinfo)
         # Update cached values of the volatile parameters
@@ -726,6 +735,7 @@ class Experiment(Device):
             self.log.info('New experiment %s started', proposal)
         else:
             if self.servicescript:
+                from nicos.commands.basic import run
                 run(self.servicescript)
             else:
                 self.log.debug('not running service script, none configured')
@@ -979,17 +989,18 @@ class Experiment(Device):
                 (proposal, instname, stats.get('from_date'), stats.get('to_date'))
 
         self.log.info('Sending data files via eMail to %s', receivers)
+        attach_files = []
         if os.stat(zipname).st_size < maxAttachmentSize:
             # small enough -> send directly
-            sendMail(self.mailserver, receivers, self.mailsender, topic, mailbody,
-                     [zipname], 1 if self.loglevel == 'debug' else 0)
+            attach_files = [zipname]
         else:
             # not small enough -> upload and send link
             self.log.info('Zipfile is too big to send via email and will be '
                           'uploaded to a temporary storage for download.')
             mailbody += self._upload(zipname)
-            sendMail(self.mailserver, receivers, self.mailsender, topic, mailbody,
-                     [], 1 if self.loglevel == 'debug' else 0)
+        sendMail(self.mailserver, receivers, self.mailsender, topic, mailbody,
+                 attach_files, self.loglevel == 'debug',
+                 security=self.security, username=self.mailuser)
 
     def _finish(self, pzip, proposalpath, proposal, proptype, stats, receivers):
         if pzip:
@@ -1033,7 +1044,8 @@ class Experiment(Device):
             return
 
         # create symlink
-        ensureDirectory(path.dirname(self.customproposalsymlink))
+        ensureDirectory(path.dirname(self.customproposalsymlink),
+                        **self.managerights)
         try:
             self.log.debug('create custom proposal symlink %r -> %r',
                            self.customproposalsymlink, self.proposalpath)
@@ -1225,14 +1237,13 @@ class Experiment(Device):
                 newlist.append(devname)
         self.detlist = newlist
         newlist = []
-        for devname in self.envlist:
-            if ':' in devname:
-                devname = devname.split(':')[0]
+        for entry in self.envlist:
+            devname = entry.split(':')[0]
             if devname not in session.configured_devices:
                 self.log.warning('removing device %r from environment, it '
                                  'does not exist in any loaded setup', devname)
             else:
-                newlist.append(devname)
+                newlist.append(entry)
         self.envlist = newlist
 
 

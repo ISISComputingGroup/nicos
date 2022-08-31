@@ -16,7 +16,7 @@
 .. autoclass:: Sans1HVOffDuration()
 .. autoclass:: Sans1ZMotor()
 
-.. module:: nicos_mlz.sans1.devices.sans1_sample
+.. module:: nicos_mlz.sans1.devices.sample
 .. autoclass:: Sans1Sample()
 
 .. module:: nicos_mlz.sans1.devices.spinflipper
@@ -25,16 +25,10 @@
 .. module:: nicos_mlz.sans1.devices.ccmsanssc
 .. autoclass:: SwordAxis()
 
-.. module:: nicos_mlz.sans1.devices.k34461a
-.. autoclass:: VoltageMeter()
-
 .. module:: nicos_mlz.sans1.devices.tisane
 .. autoclass:: Burst()
 
-.. module:: nicos_mlz.sans1.devices.wmirfgen
-.. autoclass:: Frequency()
-
-.. module:: nicos_mlz.sans1.devices.bersans
+.. module:: nicos_mlz.sans1.devices.ieee
 .. autoclass:: IEEEDevice()
 
 .. module:: nicos_mlz.sans1.devices.wut
@@ -48,10 +42,10 @@
 Data Sinks
 ----------
 
-.. currentmodule:: nicos_mlz.sans1.devices.bersans
+.. currentmodule:: nicos_mlz.sans1.datasinks.bersans
 .. autoclass:: BerSANSImageSink()
 
-.. module:: nicos_mlz.sans1.devices.copysink
+.. currentmodule:: nicos_mlz.sans1.datasinks.copysink
 .. autoclass:: CopySink()
 
 Instrument specific widgets

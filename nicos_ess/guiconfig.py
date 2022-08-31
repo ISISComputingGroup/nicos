@@ -29,21 +29,15 @@ main_window = docked(
              panel(
                  'nicos.clients.flowui.panels.devices.DevicesPanel',
                  dockpos='right',
-                 param_display={'tas': 'scanmode',
-                                'Exp': ['lastpoint', 'lastscan']},
-                 filters=[('Detector', 'det'),
-                          ('Temperatures', '^T'),
-                          ],
+                 param_display={'Exp': ['lastpoint', 'lastscan']},
+                 filters=[],
              ),
          ),  # hsplit
          ),
         (
             'Batch file generation',
-            vsplit(
-                panel('nicos.clients.gui.panels.scriptbuilder.CommandsPanel'),
-                panel('nicos.clients.flowui.panels.editor.EditorPanel',
-                      tools=None),
-            ), # vsplit
+            panel('nicos.clients.flowui.panels.editor.EditorPanel',
+                  tools=None),
         ),
         (
             'History',
@@ -51,17 +45,18 @@ main_window = docked(
         ),
         ('Logs',
             tabbed(
-                ('Errors', panel('nicos.clients.gui.panels.errors.ErrorPanel')),
+                ('Errors', panel('nicos.clients.flowui.panels.errors.ErrorPanel')),
                 ('Log files', panel(
-                    'nicos.clients.gui.panels.logviewer.LogViewerPanel')),
+                    'nicos.clients.flowui.panels.logviewer.LogViewerPanel')),
             ),
          ),
         position='left',
+        margins=(0, 0, 0, 0),
+        textpadding=(30, 20),
     ), # tabbed
+    ) # docked
 
-    ) #docked
-
-windows = [ ]
+windows = []
 
 tools = [
     tool('Report NICOS bug or request enhancement',

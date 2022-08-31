@@ -190,6 +190,13 @@ class DeviceDataset(NexusElementBase):
             self.attrs[key] = val
         NexusElementBase.__init__(self)
 
+    def testAppend(self, sinkhandler):
+        NexusElementBase.testAppend(self, sinkhandler)
+        if self.device not in (v.name for v in (
+                sinkhandler.startdataset.devvalueinfo +
+                sinkhandler.startdataset.envvalueinfo)):
+            self.doAppend = False
+
     def create(self, name, h5parent, sinkhandler):
         if (self.device, self.parameter) in sinkhandler.dataset.metainfo:
             self.value = sinkhandler.dataset.metainfo[
@@ -248,13 +255,18 @@ class DeviceDataset(NexusElementBase):
         if name not in h5parent:
             # can happen, when we cannot find the device on creation
             return
+        if not self.doAppend:
+            return
+
         dset = h5parent[name]
-        for dev in sinkhandler.dataset.devices:
+        devices = (sinkhandler.dataset.devices +
+                   sinkhandler.dataset.environment)
+        values = (sinkhandler.dataset.devvaluelist +
+                  sinkhandler.dataset.envvaluelist)
+        for dev, val in zip(devices, values):
             if dev.name == self.device:
-                value = dev.read()
-                if self.doAppend:
-                    self.resize_dataset(dset)
-                    dset[self.np] = value
+                self.resize_dataset(dset)
+                dset[self.np] = val
 
     def scanlink(self, name, sinkhandler, h5parent, linkroot):
         for dev in sinkhandler.dataset.devices:
@@ -531,13 +543,17 @@ class NexusSampleEnv(NexusElementBase):
     data is appended whenever data can be found.
     """
 
-    def __init__(self, update_interval=10):
+    def __init__(self, update_interval=10, postfix=None):
         self._update_interval = update_interval
         self._last_update = {}
+        self._postfix = postfix
         NexusElementBase.__init__(self)
 
     def createNXlog(self, h5parent, dev):
-        loggroup = h5parent.create_group(dev.name)
+        logname = dev.name
+        if self._postfix:
+            logname += self._postfix
+        loggroup = h5parent.create_group(logname)
         loggroup.attrs['NX_class'] = np.string_('NXlog')
         dset = loggroup.create_dataset('time', (1,), maxshape=(None,),
                                        dtype='float32')
@@ -562,7 +578,10 @@ class NexusSampleEnv(NexusElementBase):
         for devidx, dev in enumerate(dataset.environment):
             if not isinstance(dev, Readable):
                 continue
-            loggroup = h5parent[dev.name]
+            logname = dev.name
+            if self._postfix:
+                logname += self._postfix
+            loggroup = h5parent[logname]
             dset = loggroup['value']
             val = dataset.envvaluelist[devidx]
             if val is None:
@@ -573,7 +592,8 @@ class NexusSampleEnv(NexusElementBase):
             # - The value has changed at all
             # - Against a maximum update interval
             if val != dset[idx - 1] and \
-               current_time > self._last_update[dev.name] + self._update_interval:
+               current_time > self._last_update[dev.name] +\
+                    self._update_interval:
                 dset.resize((idx + 1,))
                 dset[idx] = val
                 dset = loggroup['time']

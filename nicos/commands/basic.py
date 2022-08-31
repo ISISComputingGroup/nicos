@@ -50,7 +50,7 @@ __all__ = [
     'NewSetup', 'AddSetup', 'RemoveSetup', 'ListSetups',
     '_Restart', 'Keep',
     'CreateDevice', 'RemoveDevice', 'CreateAllDevices',
-    'NewExperiment', 'FinishExperiment', 'AddUser',
+    'NewExperiment', 'FinishExperiment', 'AddUser', 'ListUsers',
     'Remark', 'SetMode', 'SetSimpleMode',
     'sync', 'ClearCache', 'UserInfo', '_RunScript', '_RunCode', 'run', 'sim',
     'notify', 'SetMailReceivers', 'ListMailReceivers', 'SetDataReceivers',
@@ -307,7 +307,8 @@ def ListSetups(listall=False):
                       info['description'],
                       ', '.join(sorted(info['devices']))))
     items.sort()
-    printTable(('name', 'loaded', 'description', 'devices'), items, session.log.info)
+    printTable(('name', 'loaded', 'description', 'devices'), items,
+               session.log.info)
 
 
 @hiddenusercommand
@@ -350,7 +351,7 @@ def CreateDevice(*devnames):
     >>> CreateDevice('det')                 # create "det" device
     >>> CreateDevice('stx', 'sty', 'stz')   # create all of "stx", "sty", "stz"
 
-    CreateDevice can also be used to make lowlevel devices accessible in the
+    CreateDevice can also be used to make non-visible devices accessible in the
     user namespace.
 
     see also: `CreateAllDevices`, `RemoveDevice`
@@ -393,8 +394,8 @@ def CreateAllDevices(**kwargs):
 
     >>> CreateAllDevices()
 
-    Note: Devices that are marked as lowlevel will not be automatically
-    created, unless you set the lowlevel flag like:
+    Note: Devices that are marked as invisible in the user namespace will not
+    be automatically created, unless you set the lowlevel flag like:
 
     >>> CreateAllDevices(lowlevel=True)
 
@@ -409,7 +410,8 @@ def CreateAllDevices(**kwargs):
     session.startMultiCreate()
     try:
         for devname, (_, devconfig) in session.configured_devices.items():
-            if devconfig.get('lowlevel', False) and not lowlevel:
+            if 'namespace' not in devconfig.get('visibility', ('namespace,')) \
+               and not lowlevel:
                 continue
             try:
                 session.createDevice(devname, explicit=True)
@@ -462,6 +464,24 @@ def AddUser(name, email=None, affiliation=None):
     if session.mode == SIMULATION:
         return
     session.experiment.addUser(name, email, affiliation)
+
+
+@usercommand
+@parallel_safe
+def ListUsers():
+    """List the current users of the experiment.
+
+    Example:
+
+    >>> ListUsers()
+    """
+    session.log.info('Current users:')
+    items = []
+    for user in session.experiment.propinfo['users']:
+        items.append((user['name'], user.get('email', ''),
+                      user.get('affiliation', '')))
+    items.sort()
+    printTable(('name', 'email', 'affiliation'), items, session.log.info)
 
 
 @usercommand
@@ -950,7 +970,8 @@ def ListDataReceivers():
 @usercommand
 def _trace():
     if session._lastUnhandled:
-        session.log.info(''.join(traceback.format_exception(*session._lastUnhandled)))
+        session.log.info(''.join(
+            traceback.format_exception(*session._lastUnhandled)))
     else:
         session.log.info('No previous traceback.')
 

@@ -233,7 +233,7 @@ var1supp2 = Block('Variox - pressures', [
         Field(dev='var1_p', name='p reg.', width=10),
     ),
     BlockRow(
-        Field(key='var1_p/status', name='Status', item=1, maxlen=6),
+        Field(key='var1_p/status[1]', name='Status', maxlen=6),
     ),
     BlockRow(
         Field(key='var1_p/setpoint', name='p (sp)'),
@@ -260,15 +260,7 @@ di1 = Block('Kelvinox', [
     setups='di1',
 )
 
-ccm8v = Block('8T Magnet', [
-    BlockRow(
-        Field(dev='B'),
-        Field(dev='T'),
-        Field(dev='Ts'),
-    ),
-    ],
-    setups='ccm8v',
-)
+ccm8v = SetupBlock('ccm8v', 'short')
 
 column2 = Column(shutters, collimation, ccm8v) + Column(*cryos) + Column(*ccrs) + \
           Column(var1, di1)

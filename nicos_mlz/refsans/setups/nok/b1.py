@@ -38,7 +38,7 @@ devices = dict(
         nok_end = 2387.5,
         nok_gap = 0,
         unit = 'mm',
-        lowlevel = True,
+        visibility = (),
     ),
     b1s = device(code_base + 'slits.SingleSlit',
         # length: 13.5 mm
@@ -53,27 +53,27 @@ devices = dict(
         nok_end = 2387.5,
         nok_gap = 0,
         unit = 'mm',
-        lowlevel = True,
+        visibility = (),
     ),
     b1r_motor = device(code_base + 'beckhoff.nok.BeckhoffMotorCab1M0x',
         description = 'CAB1 controlled Blendenschild (M01), reactorside',
         tangodevice = tango_base + 'optic/io/modbus',
-        address = 0x3020+index_r*10, # word adress
+        address = 0x3020+index_r*10,  # word adress
         slope = 10000,
         unit = 'mm',
         abslimits = (-133, 127),
         ruler = 233.155,
-        lowlevel = True,
+        visibility = (),
     ),
     b1s_motor = device(code_base + 'beckhoff.nok.BeckhoffMotorCab1M0x',
         description = 'CAB1 controlled Blendenschild (M02), sample side',
         tangodevice = tango_base + 'optic/io/modbus',
-        address = 0x3020+index_s*10, # word adress
+        address = 0x3020+index_s*10,  # word adress
         slope = 10000,
         unit = 'mm',
         abslimits = (-102, 170),
         ruler = 140.388,
-        lowlevel = True,
+        visibility = (),
     ),
 )
 

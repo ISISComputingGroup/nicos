@@ -70,12 +70,8 @@ def loadBasicWindowSettings(window, settings):
 
 
 def loadUserStyle(window, settings):
-    window.user_font = QFont(settings.value('font', QFont('Monospace')))
-    color = QColor(settings.value('color'))
-    if color.isValid():
-        window.user_color = color
-    else:
-        window.user_color = QColor(Qt.white)
+    window.user_font = settings.value('font', QFont('Monospace'), QFont)
+    window.user_color = settings.value('color', QColor(Qt.white), QColor)
 
 
 def enumerateWithProgress(seq, text, every=1, parent=None, total=None,
@@ -214,11 +210,11 @@ class ScriptExecQuestion(QMessageBox):
         self.b2 = self.addButton('Execute now!', QMessageBox.ApplyRole)
         self.b2.setIcon(self.style().standardIcon(QStyle.SP_MessageBoxWarning))
 
-    def exec_(self):
-        # According to the docs, exec_() returns an "opaque value" if using
+    def exec(self):
+        # According to the docs, exec() returns an "opaque value" if using
         # non-standard buttons, so we have to check clickedButton(). Do that
         # here and return a valid QMessageBox button constant.
-        QMessageBox.exec_(self)
+        QMessageBox.exec(self)
         btn = self.clickedButton()
         if btn == self.b2:
             return QMessageBox.Apply  # Execute now
@@ -344,3 +340,16 @@ def waitCursor():
         yield
     finally:
         QApplication.restoreOverrideCursor()
+
+
+def split_query(fromtime, totime, func):
+    # if requested period is longer than 1 day it will be sequenced
+    maxquery = 3600 * 24
+    history = []
+    if totime - fromtime > maxquery:
+        for sequence in range(int((totime - fromtime) // maxquery)):
+            if sequence:
+                fromtime += maxquery
+            history.extend(func(fromtime, fromtime+maxquery))
+    history.extend(func(fromtime, totime))
+    return history

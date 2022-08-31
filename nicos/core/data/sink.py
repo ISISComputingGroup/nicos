@@ -85,6 +85,13 @@ class DataSinkHandler:
     There is also a logger present as ``self.log``.
     """
 
+    ordering: int = 50
+    """Used when calling all handlers from a dataset. This is used to be able
+    to call certain handlers before/after others. A lower value means that the
+    handler comes sooner than handlers with higher numbers.
+    Conventional range: 1 - 100
+    Default: 50"""
+
     def __init__(self, sink, dataset, detector):
         """Prepare `DataSinkHandler` for writing this `dataset`."""
         self.log = sink.log
@@ -281,7 +288,7 @@ class DataSink(Device):
     }
 
     parameter_overrides = {
-        'lowlevel': Override(default=True, mandatory=False),
+        'visibility': Override(default=()),
     }
 
     # Set to true in subclasses that are safe for simulation.

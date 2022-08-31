@@ -3,7 +3,7 @@ group = 'basic'
 
 modules = ['nicos.commands.tas']
 
-includes = ['cryo', 'source']
+includes = ['source']
 
 sysconfig = dict(
     instrument = 'tas',
@@ -23,13 +23,13 @@ devices = dict(
         axiscoupling = False,
         collimation = '60 30 30 60',
         cell = 'Sample',
-        phi = 'phi',
+        phi = 'stt',
         psi = 'sth',
         mono = 'mono',
         ana = 'ana',
         alpha = None,
     ),
-    phi = device('nicos.devices.generic.VirtualMotor',
+    stt = device('nicos.devices.generic.VirtualMotor',
         description = 'sample scattering angle',
         abslimits = (-180, 180),
         unit = 'deg',
@@ -41,13 +41,19 @@ devices = dict(
         unit = 'deg',
     ),
     sth = device('nicos.devices.generic.DeviceAlias',
-        alias = 'psi',
+        alias = 'sth_st',
     ),
-    psi = device('nicos.devices.generic.VirtualMotor',
-        description = 'sample rotation angle',
+    sth_st = device('nicos.devices.generic.VirtualMotor',
+        description = 'sample rotation table',
         abslimits = (0, 360),
         unit = 'deg',
         speed = 2,
+    ),
+    sth_magnet = device('nicos.devices.generic.VirtualMotor',
+        description = 'alternate sample rotation table in magnet',
+        abslimits = (0, 120),
+        unit = 'deg',
+        speed = 1,
     ),
     mono = device('nicos.devices.tas.Monochromator',
         description = 'monochromator wavevector',
@@ -135,22 +141,22 @@ devices = dict(
     ),
     ssl = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-20, 40),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
     ),
     ssr = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-40, 20),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
     ),
     ssb = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-50, 30),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
     ),
     sst = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-30, 50),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
     ),
     ss = device('nicos.devices.generic.Slit',
@@ -241,23 +247,22 @@ devices = dict(
 )
 
 alias_config = {
-    'sth': {'psi': 0},
+    'sth': {'sth_st': 100, 'sth_magnet': 80},
 }
 
 startupcode = '''
 if mth() == 0:
-    mth.speed = mtt.speed = ath.speed = att.speed = psi.speed = phi.speed = 0
+    mth.speed = mtt.speed = ath.speed = att.speed = sth.speed = stt.speed = 0
     reset(tas)
     mono(1.55)
     kf(1.55)
     Sample.lattice = [3.5, 3.5, 3.5]
     tas(1,0,0,0)
     mth.speed = mtt.speed = 0.5
-    psi.speed = 2
-    phi.speed = 1
+    sth.speed = 2
+    stt.speed = 1
     ath.speed = att.speed = 0.5
 SetDetectors(vdet)
-AddEnvironment(T)
 printinfo("============================================================")
 printinfo("Welcome to the NICOS triple-axis demo setup.")
 printinfo("This demo is configured as a virtual triple-axis instrument.")

@@ -45,7 +45,7 @@ devices = dict(
         path = 'log',
         warnlimits = (.5, None),
         minfree = 0.5,
-        lowlevel = True,
+        visibility = (),
     ),
 )
 
@@ -59,6 +59,20 @@ if not Exp.proposal and Exp._mode != SIMULATION:
     else:
         NewExperiment(0, 'NICOS demo experiment',
                       localcontact='H. Maier-Leibnitz <heinz.maier-leibnitz@frm2.tum.de>')
-        AddUser('Nico Suser <nico.suser@frm2.tum.de>')
+        AddUser('Nico Suser', 'nico.suser@frm2.tum.de', 'Institute for Science')
         NewSample('Gd3CdB7')
 '''
+
+help_topics = dict(
+    nicos_demo = '''
+NICOS demo
+==========
+
+The NICOS demo is aimed to demonstrate the capabilities of the NICOS system.
+
+There exist simulations for the following basic types of instruments:
+
+#. TAS instrument (to use, please load the setup **tas**)
+#. SANS instrument (to use, please load the setup **sans**)
+''',
+)

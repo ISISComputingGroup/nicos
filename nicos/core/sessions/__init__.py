@@ -116,6 +116,8 @@ class Session:
         self.user_modules = set()
         # contains all loaded setups
         self.loaded_setups = set()
+        # contains help topics for loaded setups
+        self.help_topics = {}
         # contains all setups excluded from the currently loaded
         self.excluded_setups = set()
         # contains all explicitly loaded setups
@@ -126,7 +128,7 @@ class Session:
         self.alias_config = {}
         # paths to setup files
         self._setup_paths = [path.join(config.setup_package_path, p.strip(), 'setups')
-                             for p in config.setup_subdirs.split(',')]
+                             for p in config.setup_subdirs]
         # devices failed and succeeded to create in the current setup process
         self._failed_devices = None
         self._success_devices = None
@@ -289,7 +291,7 @@ class Session:
         if self.simulation_db is None:
             client = SyncCacheClient('Syncer',
                                      cache=self.current_sysconfig['cache'],
-                                     prefix='nicos/', lowlevel=True)
+                                     prefix='nicos/', visibility=())
             try:
                 self.simulation_db = client.get_values()
             finally:
@@ -688,7 +690,7 @@ class Session:
             if not reuse_cache:
                 self.cache = self.cache_class('Cache',
                                               cache=normalized_cache,
-                                              prefix='nicos/', lowlevel=True)
+                                              prefix='nicos/', visibility=())
                 # be notified about plug-and-play sample environment devices
                 self.cache.addPrefixCallback('se/', self._pnpHandler)
                 # be notified about watchdog events
@@ -709,8 +711,9 @@ class Session:
             self.log.debug('autocreating devices...')
             for devname, (_, devconfig) in sorted(devlist.items()):
                 try:
-                    lowlevel = devconfig.get('lowlevel', False)
-                    self.createDevice(devname, explicit=not lowlevel)
+                    explicit = 'namespace' in devconfig.get('visibility',
+                                                            ('namespace',))
+                    self.createDevice(devname, explicit=explicit)
                 except Exception:
                     if raise_failed:
                         raise
@@ -777,6 +780,8 @@ class Session:
                            list(self.explicit_setups))
         if setupnames:
             self.log.info('setups loaded: %s', ', '.join(setupnames))
+
+        self.help_topics = self.readHelpTopics()
 
     def unloadSetup(self):
         """Unload the current setup.
@@ -995,6 +1000,10 @@ class Session:
                 return self.showHelp(self.devices[obj])
             elif obj in self.namespace:
                 return self.showHelp(self.namespace[obj])
+            elif obj in self.help_topics:
+                for line in formatDocstring(self.help_topics[obj]):
+                    self.log.info(line)
+                return
         if obj is None:
             from nicos.commands.basic import ListCommands
             ListCommands()
@@ -1200,7 +1209,7 @@ class Session:
     def notifyConditionally(self, runtime, subject, body, what=None,
                             short=None, important=True):
         """Send a notification if the current runtime exceeds the configured
-        minimum runtimer for notifications.
+        minimum runtime for notifications.
         """
         if self._mode == SIMULATION:
             return
@@ -1427,8 +1436,13 @@ class Session:
     def runSimulation(self, code, uuid='0', wait=True, quiet=False):
         """Spawn a simulation of *code*.
 
-        If *wait* is true, wait until the process is finished.
         If *quiet* is true, only results will be emitted.
+
+        If *wait* is true, wait until the process is finished and return a list
+        of "results" of the simulation, which can be sent back by using the
+        ``session.log_sender.add_result`` method.  Otherwise, the simulation is
+        only started, and the method returns the supervisor object which can be
+        waited for using ``join()``.
         """
         if not self.cache:
             raise NicosError('cannot start dry run, no cache is configured')
@@ -1463,6 +1477,8 @@ class Session:
         supervisor.start()
         if wait:
             supervisor.join()
+            return supervisor.results
+        return supervisor
 
     # -- Session-specific behavior --------------------------------------------
 
@@ -1570,6 +1586,12 @@ class Session:
         if self.cache:
             self.cache.storeSysInfo(self.appname)
 
+    def readHelpTopics(self):
+        """Called when setups are read to add help topics to a session variable"""
+        helpdict = {}
+        for setup in self.loaded_setups:
+            helpdict.update(self._setup_info[setup].get('help_topics', {}))
+        return helpdict
 
 # must be imported after class definitions due to module interdependencies
 from nicos.devices.experiment import Experiment  # isort:skip

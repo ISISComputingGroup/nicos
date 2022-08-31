@@ -24,12 +24,13 @@
 
 """Dialog for selecting an instrument guiconfig."""
 
-import os
 from os import path
+from pathlib import Path
 
 from nicos import config
 from nicos.clients.gui.utils import SettingGroup, loadUi
-from nicos.guisupport.qt import QDialog, QIcon, QTreeWidgetItem
+from nicos.guisupport.qt import QDialog, QDialogButtonBox, QIcon, \
+    QTreeWidgetItem
 
 
 class InstrSelectDialog(QDialog):
@@ -46,18 +47,37 @@ class InstrSelectDialog(QDialog):
             self.saveBox.hide()
 
         self.confTree.itemDoubleClicked.connect(self.handleDoubleClick)
-        for entry in sorted(os.listdir(config.nicos_root)):
-            full = path.join(config.nicos_root, entry)
-            if not (entry.startswith('nicos_') and path.isdir(full)):
+        self.confTree.itemClicked.connect(self.handleClick)
+        self.buttonBox.button(QDialogButtonBox.Ok).setDisabled(True)
+        tree = {}
+
+        for entry in sorted(Path(config.nicos_root).rglob('guiconfig.py')):
+            parent = entry.relative_to(config.nicos_root).parent
+            if not parent.parts[0].startswith('nicos_'):
                 continue
-            pkgitem = QTreeWidgetItem(self.confTree, [entry])
+            ptree = tree
+            for part in parent.parts:
+                ptree = ptree.setdefault(part, {})
+            ptree['config'] = entry
+
+        def add_subitems(pitem, tree):
+            for k, v in tree.items():
+                item = QTreeWidgetItem(pitem, [k])
+                if 'config' in v:
+                    item.setData(0, QTreeWidgetItem.UserType, v['config'])
+                else:
+                    add_subitems(item, v)
+
+        for k, v in tree.items():
+            pkgitem = QTreeWidgetItem(self.confTree, [k])
             pkgitem.setIcon(0, icon)
-            for subentry in sorted(os.listdir(full)):
-                configfile = path.join(full, subentry, 'guiconfig.py')
-                if not path.isfile(configfile):
-                    continue
-                item = QTreeWidgetItem(pkgitem, [subentry])
-                item.setData(0, QTreeWidgetItem.UserType, configfile)
+            if 'config' in v:
+                pkgitem.setData(0, QTreeWidgetItem.UserType, v.pop('config'))
+            add_subitems(pkgitem, v)
+
+    def handleClick(self, item, _col):
+        self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(
+            item.data(0, QTreeWidgetItem.UserType) is not None)
 
     def handleDoubleClick(self, item, _col):
         if item.data(0, QTreeWidgetItem.UserType):
@@ -70,7 +90,7 @@ class InstrSelectDialog(QDialog):
                 (settings.value('guiconfig') or None)
             while not (configfile and path.isfile(configfile)):
                 dlg = cls(reason)
-                result = dlg.exec_()
+                result = dlg.exec()
                 if not result:
                     return None
                 items = dlg.confTree.selectedItems()

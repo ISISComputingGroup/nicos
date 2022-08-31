@@ -24,37 +24,35 @@
 
 """ESS Experiment device."""
 
-import os
 import time
 
 from yuos_query.exceptions import BaseYuosException
-from yuos_query.yuos_client import YuosClient
+from yuos_query.yuos_client import YuosCacheClient
 
-from nicos.core import Override, Param
+from nicos import session
+from nicos.core import Override, Param, SIMULATION, UsageError, listof, \
+    mailaddress
 from nicos.devices.experiment import Experiment
 from nicos.utils import createThread
 
 
 class EssExperiment(Experiment):
     parameters = {
-        'server_url': Param('URL of the proposal system',
-            type=str, category='experiment', mandatory=True,
-        ),
-        'instrument': Param('The instrument name in the proposal system',
-            type=str, category='experiment', mandatory=True,
-        ),
         'cache_filepath': Param('Path to the proposal cache',
-            type=str, category='experiment', mandatory=True,
-        ),
+                                type=str, category='experiment',
+                                mandatory=True, userparam=False),
         'update_interval': Param('Time interval (in hrs.) for cache updates',
-            default=1.0, type=float)
+                                 default=1.0, type=float, userparam=False)
     }
 
     parameter_overrides = {
         'propprefix': Override(default=''),
+        'proptype': Override(settable=True),
         'serviceexp': Override(default='Service'),
         'sendmail': Override(default=False),
         'zipdata': Override(default=False),
+        'users': Override(default=[], type=listof(dict)),
+        'localcontact': Override(default=[], type=listof(dict)),
     }
 
     def doInit(self, mode):
@@ -62,34 +60,97 @@ class EssExperiment(Experiment):
         self._client = None
         self._update_cache_worker = createThread(
             'update_cache', self._update_cache, start=False)
-        # Get secret from the environment
-        token = os.environ.get('YUOS_TOKEN')
-        if token:
-            try:
-                self._client = YuosClient(
-                    self.server_url, token, self.instrument, self.cache_filepath)
-                self._update_cache_worker.start()
-            except BaseYuosException as error:
-                self.log.warn(f'QueryDB not available: {error}')
+        try:
+            self._client = YuosCacheClient.create(self.cache_filepath)
+            self._update_cache_worker.start()
+        except Exception as error:
+            self.log.warn('proposal look-up not available: %s', error)
 
     def doReadTitle(self):
-        if self.proptype == 'service':
-            return 'Service mode'
-        else:
-            return self.propinfo.get('title', '')
+        return self.propinfo.get('title', '')
 
     def doReadUsers(self):
         return self.propinfo.get('users', [])
 
+    def doReadLocalcontact(self):
+        return self.propinfo.get('localcontacts', [])
+
+    def new(self, proposal, title=None, localcontact=None, user=None, **kwds):
+        if self._mode == SIMULATION:
+            raise UsageError('Simulating switching experiments is not '
+                             'supported!')
+
+        proposal = str(proposal)
+
+        if not proposal.isnumeric():
+            raise UsageError('Proposal ID must be numeric')
+
+        # Handle back compatibility
+        users = user if user else kwds.get('users', [])
+        localcontacts = localcontact if localcontact \
+            else kwds.get('localcontacts', [])
+
+        self._check_users(users)
+        self._check_local_contacts(localcontacts)
+
+        # combine all arguments into the keywords dict
+        kwds['proposal'] = proposal
+        kwds['title'] = str(title) if title else ''
+        kwds['localcontacts'] = localcontacts
+        kwds['users'] = users
+
+        # give an opportunity to check proposal database etc.
+        propinfo = self._newPropertiesHook(proposal, kwds)
+        self._setROParam('propinfo', propinfo)
+        self._setROParam('proposal', proposal)
+        self.proptype = 'service' if proposal == '0' else 'user'
+
+        # Update cached values of the volatile parameters
+        self._pollParam('title')
+        self._pollParam('localcontact')
+        self._pollParam('users')
+        self._newSetupHook()
+        session.experimentCallback(self.proposal, None)
+
+    def update(self, title=None, users=None, localcontacts=None):
+        self._check_users(users)
+        self._check_local_contacts(localcontacts)
+        Experiment.update(self, title, users, localcontacts)
+
+    def _check_users(self, users):
+        if not users:
+            return
+        if not isinstance(users, list):
+            raise UsageError('users must be supplied as a list')
+
+        for user in users:
+            if not user.get('name'):
+                raise KeyError('user name must be supplied')
+            mailaddress(user.get('email', ''))
+
+    def _check_local_contacts(self, contacts):
+        if not contacts:
+            return
+        if not isinstance(contacts, list):
+            raise UsageError('local contacts must be supplied as a list')
+        for contact in contacts:
+            if not contact.get('name'):
+                raise KeyError('local contact name must be supplied')
+            mailaddress(contact.get('email', ''))
+
+    def finish(self):
+        self.new(0, 'Service mode')
+        self.sample.set_samples({})
+
     def _canQueryProposals(self):
         if self._client:
             return True
+        return False
 
     def _update_cache(self):
         while True:
-            # Client instantiation updates the cache. Thus wait before updating
-            time.sleep(self.update_interval * 3600)
             self._client.update_cache()
+            time.sleep(self.update_interval * 3600)
 
     def _queryProposals(self, proposal=None, kwds=None):
         if not proposal:
@@ -120,14 +181,14 @@ class EssExperiment(Experiment):
             result = self._client.proposal_by_id(proposal)
             return [result] if result else []
         except BaseYuosException as error:
-            self.log.error(f'{error}')
+            self.log.error('%s', error)
             raise
 
     def _query_by_fed_id(self, name):
         try:
             return self._client.proposals_for_user(name)
         except BaseYuosException as error:
-            self.log.error(f'{error}')
+            self.log.error('%s', error)
             raise
 
     def _extract_samples(self, query_result):

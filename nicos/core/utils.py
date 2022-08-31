@@ -160,6 +160,7 @@ def multiStatus(devices, maxage=None):
     devices.
     """
     from nicos.core.device import Readable
+
     # get to work
     rettext = []
     retstate = 0
@@ -244,7 +245,7 @@ def multiWait(devices):
                     continue
                 if dev in devices:
                     # populate the results dictionary, but only with the values
-                    # of excplicitly given devices
+                    # of explicitly given devices
                     values[dev] = dev.read()
                 # this device is done: don't wait for it anymore
                 devlist.remove(dev)
@@ -257,7 +258,7 @@ def multiWait(devices):
                     eta = {dev.estimateTime(now - first_ts) for dev in devlist}
                     eta.discard(None)
                     # use max here as we wait for ALL movements to finish
-                    eta_str = ('estimated %s left / ' % formatDuration(max(eta))
+                    eta_str = ('Estimated %s left / ' % formatDuration(max(eta))
                                if eta else '')
                     session.action(eta_str + target_str)
                 session.delay(delay)

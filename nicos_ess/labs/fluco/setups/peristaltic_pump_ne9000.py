@@ -13,7 +13,6 @@ devices = dict(
         description='The volume to be pumped',
         readpv='{}VOLUME'.format(pv_root),
         writepv='{}SET_VOLUME'.format(pv_root),
-        epicstimeout=3.0,
         abslimits=(-1e308, 1e308),
     ),
     pump_volume_units_9000=device(
@@ -55,13 +54,13 @@ devices = dict(
         'nicos.devices.epics.EpicsReadable',
         description='The pump status',
         readpv='{}STATUS'.format(pv_root),
-        lowlevel=True,
+        visibility=(),
     ),
     pump_message_9000=device(
         'nicos.devices.epics.EpicsStringReadable',
         description='The pump message',
         readpv='{}MESSAGE'.format(pv_root),
-        lowlevel=True,
+        visibility=(),
     ),
     start_pumping_9000=device(
         'nicos.devices.epics.pva.EpicsMappedMoveable',

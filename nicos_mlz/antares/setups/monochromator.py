@@ -5,7 +5,7 @@ group = 'optional'
 tango_base = 'tango://antareshw.antares.frm2:10000/antares/'
 
 devices = dict(
-    mono = device('nicos_mlz.antares.devices.monochromator.Monochromator',
+    mono = device('nicos_mlz.antares.devices.Monochromator',
         description = 'ANTARES PG Double Crystal Monochromator',
         dvalue1 = 3.354,
         dvalue2 = 3.354,
@@ -34,7 +34,7 @@ devices = dict(
         abslimits = (12, 66),
         maxage = 5,
         pollinterval = 3,
-        lowlevel = True,
+        visibility = (),
         precision = 0.01
     ),
     mr2 = device('nicos.devices.entangle.Motor',
@@ -46,7 +46,7 @@ devices = dict(
         abslimits = (12, 66),
         maxage = 5,
         pollinterval = 3,
-        lowlevel = True,
+        visibility = (),
         precision = 0.01
     ),
     mtz = device('nicos.devices.entangle.Motor',
@@ -59,7 +59,7 @@ devices = dict(
         userlimits = (-120, 260),
         maxage = 5,
         pollinterval = 3,
-        lowlevel = True,
+        visibility = (),
         precision = 0.01
     ),
     mono_io = device('nicos.devices.entangle.DigitalOutput',
@@ -68,7 +68,7 @@ devices = dict(
         unit = '',
         maxage = 5,
         pollinterval = 3,
-        lowlevel = True,
+        visibility = (),
     ),
     mono_inout = device('nicos.devices.generic.Switcher',
         description = 'Moves Monochromator in and out of beam',
@@ -80,12 +80,12 @@ devices = dict(
         maxage = 5,
         pollinterval = 3,
         precision = 0,
-        lowlevel = True,
+        visibility = (),
     ),
     monoswitch_io = device('nicos.devices.entangle.DigitalOutput',
         description = 'Tango device for Monoswitch in/out',
         tangodevice = tango_base + 'fzjdp_digital/Monochromator',
-        lowlevel = True,
+        visibility = (),
     ),
     monoswitch = device('nicos.devices.generic.Switcher',
         description = 'Monochromator switch in/out',
@@ -94,5 +94,22 @@ devices = dict(
                    'out': 2},
         fallback = '<undefined>',
         precision = 0,
+    ),
+)
+
+monitor_blocks = dict(
+    default = Block('Double Crystal PG Monochromator',
+        [
+            BlockRow(
+                Field(name='Lambda', dev='mono'),
+                Field(name='Position', dev='mono_inout')
+            ),
+            BlockRow(
+                Field(dev='mr1'),
+                Field(dev='mr2'),
+                Field(dev='mtz'),
+            ),
+        ],
+        setups=setupname,
     ),
 )

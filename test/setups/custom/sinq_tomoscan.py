@@ -23,7 +23,8 @@
 # *****************************************************************************
 
 from os import path
-from test.utils import runtime_root, module_root
+
+from test.utils import module_root, runtime_root
 
 description = 'Setup for SINQ Tomography scan test'
 
@@ -47,12 +48,11 @@ devices = dict(
         templates = path.join(module_root, 'test', 'script_templates'),
         zipdata = True,
         serviceexp = 'service',
-        lowlevel = False,
     ),
     img_index = device('nicos.devices.generic.manual.ManualMove',
         description = 'Keeps the index of the last measured image',
         unit = '',
         abslimits = (0, 1e9),
-        lowlevel = True,
+        visibility = (),
     ),
 )

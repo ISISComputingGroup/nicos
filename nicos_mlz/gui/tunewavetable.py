@@ -125,8 +125,8 @@ class TimelineWidget(QGraphicsView):
         self.setSceneRect(0, 0, size.width(), size.height() - 5)
 
         if time_points:
-            self.setMinimumWidth(size.width() * 1.2)
-            self.setMaximumWidth(size.width() * 1.2)
+            self.setMinimumWidth(round(size.width() * 1.2))
+            self.setMaximumWidth(round(size.width() * 1.2))
 
     def mousePressEvent(self, event):
         """Handle mouse press events to support item selection."""
@@ -316,8 +316,8 @@ class PreviewDialog(QDialog):
 
     def update_timeline(self):
         """Updates what time points shall be shown on the timeline."""
-        fromtime = self.fromDateTimeEdit.dateTime().toTime_t()
-        totime = self.toDateTimeEdit.dateTime().toTime_t()
+        fromtime = self.fromDateTimeEdit.dateTime().toSecsSinceEpoch()
+        totime = self.toDateTimeEdit.dateTime().toSecsSinceEpoch()
 
         result = self._client.ask('gethistory', 'echotime/tables',
                                   str(fromtime), str(totime))
@@ -523,7 +523,7 @@ class TunewaveTablePanel(Panel):
         dlg = PreviewDialog(self.measurement_mode, self.wavelength,
                             self._header_labels,
                             self._get_current_table_data(), self.client, self)
-        if dlg.exec_():
+        if dlg.exec():
             self._save_current_table(dlg.table)
 
     @pyqtSlot()
@@ -555,7 +555,7 @@ class TunewaveTablePanel(Panel):
         if hasattr(sender, 'viewport'):
             sender = sender.viewport()
 
-        action = menu.exec_(sender.mapToGlobal(point))
+        action = menu.exec(sender.mapToGlobal(point))
 
         if action == add:
             self._add_row(row)

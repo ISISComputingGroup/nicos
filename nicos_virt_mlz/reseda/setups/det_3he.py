@@ -8,7 +8,7 @@ includes = ['det_base']
 excludes = ['det_cascade']
 
 devices = dict(
-    scandet = device('nicos_mlz.reseda.devices.scandet.ScanningDetector',
+    scandet = device('nicos_mlz.reseda.devices.ScanningDetector',
         description = 'Scanning detector for scans per echotime',
         scandev = 'nse1',
         detector = 'det',
@@ -34,7 +34,7 @@ devices = dict(
         description = 'Detector rotation (motor)',
         abslimits = (-20, 20),
         fmtstr = '%.3f',
-        lowlevel = True,
+        visibility = (),
         unit = 'deg',
     ),
     det_rot = device('nicos.devices.generic.Axis',

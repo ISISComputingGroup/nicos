@@ -497,7 +497,7 @@ _notset = object()
 def convdoc(conv):
     if isinstance(conv, type):
         return conv.__name__
-    return conv.__doc__ or ''
+    return (conv.__doc__.splitlines() or [''])[0].strip()
 
 
 def fixup_conv(conv):
@@ -541,7 +541,7 @@ class listof:
 
     def __call__(self, val=None):
         val = val if val is not None else []
-        if not isinstance(val, (list, tuple)):
+        if not isinstance(val, (list, tuple, np.ndarray)):
             raise ValueError('value needs to be a list')
         return readonlylist(map(self.conv, val))
 
@@ -555,7 +555,7 @@ class nonemptylistof:
     def __call__(self, val=None):
         if val is None:
             return readonlylist([self.conv()])
-        if not isinstance(val, (list, tuple)) or len(val) < 1:
+        if not isinstance(val, (list, tuple, np.ndarray)) or len(val) < 1:
             raise ValueError('value needs to be a nonempty list')
         return readonlylist(map(self.conv, val))
 
@@ -590,11 +590,11 @@ class tupleof:
 def limits(val=None):
     """a tuple of lower and upper limit"""
     val = val if val is not None else (0, 0)
-    if not isinstance(val, (list, tuple)) or len(val) != 2:
+    if not isinstance(val, (list, tuple, np.ndarray)) or len(val) != 2:
         raise ValueError('value must be a list or tuple and have 2 elements')
     ll = float(val[0])
     ul = float(val[1])
-    if not ll <= ul:
+    if ll > ul:
         raise ValueError('upper limit must be greater than lower limit')
     return (ll, ul)
 
@@ -652,7 +652,7 @@ class intrange:
                              'A boolean was given!')
         fr = int(fr)
         to = int(to)
-        if not fr <= to:
+        if fr > to:
             raise ValueError('intrange must fulfill from <= to, given was '
                              '[%f, %f]' % (fr, to))
         self.__doc__ = 'an integer in the range [%d, %d]' % (fr, to)
@@ -677,7 +677,7 @@ class floatrange:
         fr = float(fr)
         if to is not None:
             to = float(to)
-            if not fr <= to:
+            if fr > to:
                 raise ValueError('floatrange must fulfill from <= to, given '
                                  'was [%f, %f]' % (fr, to))
             self.__doc__ = 'a float in the range [%f, %f]' % (fr, to)
@@ -694,9 +694,8 @@ class floatrange:
             if not self.fr <= val <= self.to:
                 raise ValueError('value needs to fulfill %f <= x <= %f' %
                                  (self.fr, self.to))
-        else:
-            if not self.fr <= val:
-                raise ValueError('value needs to fulfill %f <= x' % self.fr)
+        elif self.fr > val:
+            raise ValueError('value needs to fulfill %f <= x' % self.fr)
         return val
 
 

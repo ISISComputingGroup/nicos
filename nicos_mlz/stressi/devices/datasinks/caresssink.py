@@ -194,7 +194,7 @@ class CaressScanfileSinkHandler(DataSinkHandler):
         self._defcmd(data + '(%s)' % ' '.join(d.keys()))
         self._string(data)
         for k, v in d.items():
-            if isinstance(v, numbers.Number):
+            if isinstance(v, numbers.Real):
                 self._write_float(v)
             elif isinstance(v, str) and (v in self.sink.mapping):
                 self.log.debug('%s = %r -> %r', k, v, self.sink.mapping[v])
@@ -380,6 +380,7 @@ class CaressScanfileSinkHandler(DataSinkHandler):
                 elif device == 'slite':
                     d1['SLITM_E'] = value
                 elif device == 'transm':
+                    # XXX: should be fixable now?
                     # The position of the moveable is needed, which is normally
                     # lowlevel and therefore not added to the metadata
                     d1[device] = session.getDevice(device). \
@@ -661,10 +662,13 @@ class CaressScanfileSinkHandler(DataSinkHandler):
                 self._write_integer(val)
         if self._scan_type != 'SGEN2':
             for (info, val) in zip(point.envvalueinfo, point.envvaluelist):
-                if hasattr(info, 'name') and \
-                   info.name != 'etime' and \
-                   not info.name.endswith(':elapsedtime'):
-                    self._write_float(val)
+                if (hasattr(info, 'name') and info.name != 'etime' and not
+                        info.name.endswith(':elapsedtime')):
+                    if isinstance(val, numbers.Real):
+                        self._write_float(val)
+                    else:
+                        self.log.info("Ignoring environment device '%s' "
+                                      "returning non-number value", info.name)
         self._detvalues = None
 
     def putResults(self, quality, results):

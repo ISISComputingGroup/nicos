@@ -16,6 +16,7 @@ If not mentioned otherwise, Python packages are available from PyPI
   - numpy
   - pyzmq version >= 2
   - rsa
+  - toml
   - lttb version >= 0.2.2
 
 * For the provided SysV compatible init script and nicos-demo:
@@ -40,8 +41,6 @@ If not mentioned otherwise, Python packages are available from PyPI
   - docutils (for formatting interactive help nicely)
   - matplotlib (for resolution plots)
   - gnuplot (for plots in the electronic logbook)
-  - Grace (for scanplot)
-  - lxml (for U-Bahn service)
   - astropy or pyfits (for the handling of FITS formatted files)
   - ldap3 (for ldap authentication)
   - sendsms tool to use the SMS notifier (See: http://smslink.sourceforge.net/)
@@ -63,7 +62,6 @@ If not mentioned otherwise, Python packages are available from PyPI
   - cfitsio (optional, required by nicos-livewidget, this not a Python package)
   - python-redmine (optional, for the bug reporting dialog)
   - sshtunnel (optional, for the ssh tunneling between GUI and server)
-  - python-nxs (optional, for writing NeXus files, readable by Mantid)
   - dvipng (optional, for the hklplot command, this is not a Python package)
 
 * For development (running tests, generating documentation):
@@ -100,22 +98,21 @@ For Ubuntu::
 Packages to install for common distributions
 --------------------------------------------
 
-GR runtime packages (`gr` and `python-gr`) are available in the repositories linked at:
+GR runtime packages (`gr` and `python-gr`) are available in the repositories
+linked at:
 https://software.opensuse.org/download.html?project=science:gr-framework&package=gr
 
 Debian/Ubuntu
 ^^^^^^^^^^^^^
 
-You might have to use ``deb [trusted=yes]`` for the GR repository as the GPG signing
-is currently broken.
-
-The `pyctl` and `lttb` packages are available in the MLZ repositories linked at:
+The `nicos-pyctl` and `lttb` packages are available in the MLZ repositories
+linked at:
 https://forge.frm2.tum.de/wiki/projects:software_distribution:deb
 
 * Basic system::
 
-     apt-get install python3-{dev,zmq,numpy,scipy,psutil,rsa,systemd} gnuplot
-     apt-get install python3-{keyring,keyrings.alt,crypto,lxml,html2text,lttb,nicos-pyctl}
+     apt-get install python3-{dev,zmq,numpy,scipy,psutil,rsa,systemd,toml} gnuplot
+     apt-get install python3-{keyring,keyrings.alt,crypto,html2text,lttb,nicos-pyctl}
 
 * Optional components::
 

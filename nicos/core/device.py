@@ -41,7 +41,7 @@ from nicos.core.mixins import DeviceMixinMeta, HasLimits, HasOffset, \
     HasPrecision, HasTimeout, IsController
 from nicos.core.params import INFO_CATEGORIES, Attach, Override, Param, \
     Value, anytype, dictof, floatrange, listof, nicosdev, none_or, oneof, \
-    tupleof
+    setof, tupleof
 from nicos.core.utils import formatStatus, multiStatus, multiStop, multiWait, \
     statusString, usermethod
 from nicos.protocols.cache import FLAG_NO_STORE
@@ -287,9 +287,11 @@ class Device(metaclass=DeviceMeta):
                              type=listof(str), settable=False, userparam=False),
         'description': Param('A description of the device', type=str,
                              settable=True),
-        'lowlevel':    Param('Whether the device is not interesting to users',
-                             type=bool, default=False, userparam=False,
-                             prefercache=False),
+        'visibility':  Param('Selects in which context the device should be '
+                             'shown/included',
+                             type=setof('metadata', 'namespace', 'devlist'),
+                             default=['metadata', 'namespace', 'devlist'],
+                             settable=False),
         # Don't allow setting loglevel to > INFO, as it could be confusing.
         'loglevel':    Param('The logging level of the device',
                              type=oneof('debug', 'info'),
@@ -364,6 +366,7 @@ class Device(metaclass=DeviceMeta):
     attribute_whitelist = {
         'valuetype',  # for all devices
         'arraydesc',  # for image producers
+        'autodevices',  # for HasAutoDevices
     }
 
     def __setattr__(self, name, value):
@@ -2211,7 +2214,7 @@ class DeviceAlias(Device):
     }
 
     _ownattrs = ['_obj', '_mode', '_cache', 'alias']
-    _ownparams = {'alias', 'name', 'devclass', 'lowlevel'}
+    _ownparams = {'alias', 'name', 'devclass', 'visibility'}
     _initialized = False
 
     __display__ = True
@@ -2290,7 +2293,10 @@ class DeviceAlias(Device):
         for pname in self._obj.parameters:
             if pname in self._ownparams:
                 continue
-            self._cache.put(self, pname, getattr(self._obj, pname))
+            try:
+                self._cache.put(self, pname, getattr(self._obj, pname))
+            except NicosError:
+                pass  # silently ignore
 
     def _recoverMissingDevice(self, devname):
         """Recover from not having a valid target (it does not exist, cannot be

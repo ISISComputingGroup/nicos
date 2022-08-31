@@ -57,7 +57,7 @@ class ConsolePanel(Panel):
     """
 
     panelName = 'Console'
-    ui = 'panels/console.ui'
+    ui = path.join('panels', 'console.ui')
 
     def __init__(self, parent, client, options):
         Panel.__init__(self, parent, client, options)
@@ -203,7 +203,7 @@ class ConsolePanel(Panel):
         printer = QPrinter()
         printdlg = QPrintDialog(printer, self)
         printdlg.setOption(QAbstractPrintDialog.PrintSelection)
-        if printdlg.exec_() == QDialog.Accepted:
+        if printdlg.exec() == QDialog.Accepted:
             self.outView.print_(printer)
 
     @pyqtSlot()

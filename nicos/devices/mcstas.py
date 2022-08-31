@@ -44,6 +44,11 @@ from nicos.devices.generic import ActiveChannel, ImageChannelMixin, \
     PassiveChannel
 from nicos.utils import createThread
 
+# Minimum time to let McStas run before attempting to save data
+# via SIGUSR2.  If McStas is still in the initialization phase,
+# it can crash with SIGUSR2.
+MIN_RUNTIME = 0.5
+
 
 class McStasSimulation(Readable):
     """Base device for running McStas simulations.
@@ -76,7 +81,7 @@ class McStasSimulation(Readable):
                                  'count times', settable=True,
                                  type=floatrange(1e3), default=1e6),
         'intensityfactor': Param('Constant multiplied with simulated McStas '
-                                 'intensity to get a simulated neutron counts '
+                                 'intensity to get simulated neutron counts '
                                  'per second', settable=True,
                                  type=floatrange(1e-10), default=1),
         'preselection':    Param('Simulation preset value (should be set by '
@@ -101,7 +106,9 @@ class McStasSimulation(Readable):
         return ''  # nothing useful here
 
     def _saveIntermediate(self):
-        self._send_signal(SIGUSR2)
+        # give the simulation some time to initialize
+        if self._getTime() > MIN_RUNTIME:
+            self._send_signal(SIGUSR2)
 
     def _joinProcess(self):
         if self._mythread and self._mythread.is_alive():
@@ -189,8 +196,7 @@ class McStasSimulation(Readable):
         """Return elapsed time for simulation."""
         if self._started:
             return min(monotonic() - self._start_time, self.preselection)
-        else:
-            return self.preselection
+        return self.preselection
 
     def _getScaleFactor(self):
         """Return scale factor for simulation intensity data."""
@@ -253,13 +259,11 @@ class McStasImage(ImageChannelMixin, PassiveChannel):
     }
 
     parameters = {
-        'size': Param('Detector size in pixels (x, y)',
-                      settable=False,
-                      type=tupleof(intrange(1, 8192), intrange(1, 8192)),
-                      default=(1, 1),
-                      ),
+        'size':       Param('Detector size in pixels (x, y)',
+                            type=tupleof(intrange(1, 8192), intrange(1, 8192)),
+                            mandatory=True),
         'mcstasfile': Param('Name of the McStas data file',
-                            type=str, settable=False),
+                            type=str, mandatory=True),
     }
 
     def doInit(self, mode):
@@ -340,6 +344,9 @@ class McStasTimer(ActiveChannel, Waitable):
         ActiveChannel.setChannelPreset(self, name, value)
         self._attached_mcstas.preselection = value
 
+    def doTime(self, preset):
+        return self._attached_mcstas.preselection if self.iscontroller else 0
+
     def doPrepare(self):
         self._attached_mcstas._prepare()
 
@@ -372,10 +379,14 @@ class McStasCounter(PassiveChannel, Waitable):
     }
 
     parameters = {
-        'curvalue':  Param('Current value', settable=True, unit='main'),
-        'type':      Param('Counter type', type=oneof('monitor', 'counter'),
-                           mandatory=True),
-        'mcstasfile': Param('Name of the McStas data file', type=str),
+        'curvalue':        Param('Current value', settable=True, unit='main'),
+        'type':            Param('Counter type', type=oneof('monitor', 'counter'),
+                                 mandatory=True),
+        'mcstasfile':      Param('Name of the McStas data file', type=str,
+                                 mandatory=True),
+        'intensityfactor': Param('Factor to attenuate simulated counts, e.g. '
+                                 'for beam monitors', settable=True,
+                                 type=floatrange(1e-10), default=1),
     }
 
     parameter_overrides = {
@@ -405,9 +416,10 @@ class McStasCounter(PassiveChannel, Waitable):
                         sig = float(line.split()[2])
                         value = sig * self._attached_mcstas._getScaleFactor()
         except Exception:
-            self.log.warning('could not read result file', exc=1)
+            if self._attached_mcstas._getTime() > MIN_RUNTIME:
+                self.log.warning('could not read result file', exc=1)
             value = 0
-        self.curvalue = value
+        self.curvalue = value * self.intensityfactor
         return self.curvalue
 
     def doFinish(self):

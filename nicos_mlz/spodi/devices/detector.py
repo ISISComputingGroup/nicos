@@ -249,7 +249,7 @@ class Detector(MeasureSequencer):
     def _set_resosteps(self, value):
         # TODO: shape should be (y, x) not (x, y)
         image = self._attached_detector._attached_images[0]
-        if hasattr(image, 'size'):
+        if hasattr(image, 'size') and len(image.size) > 1:
             height = image.size[1]
         else:
             height = 256
@@ -257,7 +257,7 @@ class Detector(MeasureSequencer):
 
         self._step_size = self.range / value
         if not self._arraydesc:
-            self._arraydesc = ArrayDesc('data', shape=shape, dtype='<u4')
+            self._arraydesc = ArrayDesc(self.name, shape=shape, dtype='<u4')
             self._array_data = np.zeros(shape, dtype='<u4', order='F')
         else:
             self._arraydesc.shape = shape

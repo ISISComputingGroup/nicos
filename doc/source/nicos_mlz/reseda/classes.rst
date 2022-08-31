@@ -14,9 +14,6 @@
 .. module:: nicos_mlz.reseda.devices.regulator
 .. autoclass:: Regulator()
 
-.. module:: nicos_mlz.reseda.devices.cascade
-.. autoclass:: CascadeDetector()
-
 .. module:: nicos_mlz.reseda.devices.scandet
 .. autoclass:: ScanningDetector()
 
@@ -30,6 +27,6 @@
 Data file formats
 -----------------
 
-.. module:: nicos_mlz.reseda.devices.hdf5
+.. module:: nicos_mlz.reseda.devices.datasinks
 .. autoclass:: ResedaHDF5DataFile()
 .. autoclass:: ResedaHDF5Sink()

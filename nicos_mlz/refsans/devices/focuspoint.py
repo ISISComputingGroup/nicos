@@ -18,16 +18,16 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Matthias Pomm <matthias.pomm@hzg.de> 2018-08-08 08:33:38
+#   Matthias Pomm <matthias.pomm@hereon.de>
 #
 # *****************************************************************************
 
-from nicos.core import Moveable, Readable, status
+from nicos.core import HasPrecision, Moveable, Readable, status
 from nicos.core.mixins import HasLimits
 from nicos.core.params import Attach, Override, Param, floatrange
 
 
-class FocusPoint(HasLimits, Moveable):
+class FocusPoint(HasLimits, HasPrecision, Moveable):
     attached_devices = {
         'table': Attach('table', Moveable),
         'pivot': Attach('pivot', Readable),
@@ -64,14 +64,15 @@ class FocusPoint(HasLimits, Moveable):
         state = self._attached_table.status(maxage)
         if state[0] != status.OK:
             return state
-        table = self._attached_table.read()
+        table = self._attached_table.read(maxage)
         focus = self._calculation()
         precision = 0
-        if hasattr(self._attached_table, '_attached_device'):
+        if hasattr(self._attached_table, '_attached_motor'):
+            precision = self._attached_table._attached_motor.precision
+        elif hasattr(self._attached_table, '_attached_device'):
             precision = self._attached_table._attached_device.precision
         elif hasattr(self._attached_table, 'precision'):
             precision = self._attached_table.precision
-        else:
-            precision = 0
         text = 'focus' if abs(table - focus) <= precision else state[1]
+        # text = 'focus' if abs(table - focus) <= self.precision else state[1]
         return status.OK, text

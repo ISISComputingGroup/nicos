@@ -122,8 +122,9 @@ def main(argv):
             if opts.configfile is None:
                 return
         else:
-            opts.configfile = path.join(config.setup_package_path,
-                                        config.instrument, 'guiconfig.py')
+            opts.configfile = path.join(
+                config.setup_package_path, *config.instrument.split('.'),
+                'guiconfig.py')
 
     with open(opts.configfile, 'rb') as fp:
         configcode = fp.read()
@@ -171,4 +172,4 @@ def main(argv):
                 mainwindow.autoconnect = True
     mainwindow.startup()
 
-    return app.exec_()
+    return app.exec()

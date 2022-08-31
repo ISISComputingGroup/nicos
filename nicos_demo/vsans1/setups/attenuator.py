@@ -17,6 +17,7 @@ devices = dict(
         description = 'Attenuator motor',
         unit = 'mm',
         abslimits = (-400, 600),
-        lowlevel = True,
+        visibility = (),
+        curvalue = -2,
     ),
 )

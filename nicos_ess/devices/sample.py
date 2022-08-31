@@ -22,6 +22,7 @@
 #
 # *****************************************************************************
 from nicos.core import Param
+from nicos.core.params import Override
 from nicos.devices.sample import Sample
 
 
@@ -39,3 +40,10 @@ class EssSample(Sample):
                              category='sample'),
         'density': Param('density', type=str, settable=True, category='sample'),
     }
+
+    parameter_overrides = {
+        'samples': Override(category='sample'),
+    }
+
+    def set_samples(self, samples):
+        self.samples = samples

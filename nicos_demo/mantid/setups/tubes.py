@@ -16,7 +16,7 @@ devices = dict(
         facility = 'ISIS demo instruments',
         idf = 'SANS2D_Definition_Tubes.xml'
     ),
-    sample = device('nicos_mlz.sans1.devices.sans1_sample.Sans1Sample',
+    sample = device('nicos_mlz.sans1.devices.sample.Sans1Sample',
         description = 'sample object',
     ),
     det_z = device('nicos.devices.generic.VirtualMotor',
@@ -48,14 +48,14 @@ devices = dict(
                 'ComponentName': 'front-detector'},
         x = 'det_x',
         z = 'det_z',
-        lowlevel = True,
+        visibility = (),
     ),
     mantid_rot_det = device('nicos_demo.mantid.devices.devices.MantidRotationDevice',
         args = {'RelativeRotation': False,
                 'ComponentName': 'front-detector'},
         y = 1,
         angle = 'det_omega',
-        lowlevel = True,
+        visibility = (),
     ),
 )
 

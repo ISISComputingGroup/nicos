@@ -23,6 +23,8 @@
 # *****************************************************************************
 
 """NICOS GUI experiment setup window."""
+from os import path
+
 from nicos.clients.flowui import uipath
 from nicos.clients.gui.panels import Panel, PanelDialog
 from nicos.clients.gui.panels.setup_panel import ExpPanel as DefaultExpPanel, \
@@ -42,7 +44,7 @@ class ExpPanel(DefaultExpPanel):
     """
 
     panelName = 'Experiment setup'
-    ui = '%s/panels/ui_files/setup_exp.ui' % uipath
+    ui = path.join(uipath, 'panels', 'ui_files', 'setup_exp.ui')
 
     def __init__(self, parent, client, options):
         self._old_settings = {}
@@ -300,7 +302,7 @@ class FinishPanel(Panel):
         if self._finish_exp_panel:
             dlg = PanelDialog(self, self.client, self._finish_exp_panel,
                               'Finish experiment')
-            dlg.exec_()
+            dlg.exec()
         if self.client.run('FinishExperiment()', noqueue=True) is None:
             self.showError('Could not finish experiment, a script '
                            'is still running.')
@@ -310,4 +312,4 @@ class FinishPanel(Panel):
     def show_finish_message(self):
         msg_box = QMessageBox()
         msg_box.setText('Experiment successfully finished.')
-        return msg_box.exec_()
+        return msg_box.exec()

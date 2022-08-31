@@ -206,7 +206,7 @@ class SampleDialog(DlgUtils, QDialog):
 
     @pyqtSlot()
     def on_upBtn_clicked(self):
-        ix = map(self.selList.row, self.selList.selectedItems())
+        ix = [self.selList.row(i) for i in self.selList.selectedItems()]
         if not ix or ix[0] == 0:
             return
         self.selList.insertItem(ix[0] - 1, self.selList.takeItem(ix[0]))
@@ -214,7 +214,7 @@ class SampleDialog(DlgUtils, QDialog):
 
     @pyqtSlot()
     def on_downBtn_clicked(self):
-        ix = map(self.selList.row, self.selList.selectedItems())
+        ix = [self.selList.row(i) for i in self.selList.selectedItems()]
         if not ix or ix[0] == self.selList.count() - 1:
             return
         self.selList.insertItem(ix[0] + 1, self.selList.takeItem(ix[0]))
@@ -261,7 +261,8 @@ class DetsetDialog(QDialog):
         self.table.setHorizontalHeaderLabels(headers)
         self.table.resizeColumnsToContents()
         for i in range(len(measdef.getElements())):
-            self.table.setColumnWidth(i, max(50, 1.5 * self.table.columnWidth(i)))
+            self.table.setColumnWidth(
+                i, round(max(50, 1.5 * self.table.columnWidth(i))))
         self.table.resizeRowsToContents()
 
     def keyPressEvent(self, event):

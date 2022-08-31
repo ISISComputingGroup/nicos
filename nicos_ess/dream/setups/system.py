@@ -19,38 +19,26 @@ devices = dict(
         responsible='Ebad Kamil <ebad.kamil@ess.eu>',
         website='https://europeanspallationsource.se/instruments/dream'
     ),
-
     Sample=device(
-        'nicos.devices.sample.Sample',
+        'nicos_ess.devices.sample.EssSample',
         description='The currently used sample',
     ),
-
     Exp=device(
         'nicos_ess.devices.experiment.EssExperiment',
         description='experiment object',
         dataroot='/opt/nicos-data/dream',
-        sendmail=False,
-        serviceexp='p0',
         sample='Sample',
-        server_url='https://useroffice-test.esss.lu.se/graphql',
-        instrument='DREAM',
         cache_filepath='/opt/nicos-data/dream/cached_proposals.json'
     ),
-
-    filesink=device('nicos.devices.datasinks.AsciiScanfileSink',),
-
     conssink=device('nicos.devices.datasinks.ConsoleScanSink',),
-
     daemonsink=device('nicos.devices.datasinks.DaemonSink',),
-    liveview=device('nicos.devices.datasinks.LiveViewSink', ),
-
+    liveview=device('nicos.devices.datasinks.LiveViewSink',),
     Space=device(
         'nicos.devices.generic.FreeSpace',
         description='The amount of free space for storing data',
         path=None,
         minfree=5,
     ),
-
     KafkaForwarderStatus=device(
         'nicos_ess.devices.forwarder.EpicsKafkaForwarder',
         description='Monitors the status of the Forwarder',
@@ -61,7 +49,7 @@ devices = dict(
         'nicos_ess.devices.datasinks.nexus_structure.NexusStructureJsonFile',
         description='Provides the NeXus structure',
         nexus_config_path="nicos_ess/dream/nexus/nexus_config.json",
-        lowlevel=True,
+        visibility=(),
     ),
     FileWriterStatus=device(
         'nicos_ess.devices.datasinks.file_writer.FileWriterStatus',

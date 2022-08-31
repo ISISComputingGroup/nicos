@@ -58,8 +58,9 @@ class ConnectionData:
         self.expertmode = expertmode
 
     def copy(self):
-        return ConnectionData(self.host, self.port, self.user,
-                              self.password, self.viewonly, self.expertmode)
+        # the copy shouldn't get the password to enforce a retyping of it
+        return ConnectionData(self.host, self.port, self.user, None,
+                              self.viewonly, self.expertmode)
 
     def serialize(self):
         return vars(self)
@@ -341,7 +342,8 @@ class NicosClient:
         ``'nicos.core.device.Moveable'``.
 
         If *only_explicit* is true, only devices that are in the NICOS
-        namespace will be returned (i.e. no lowlevel devices).
+        namespace will be returned (i.e. those with namespace visibility and
+        that have been explicitly created afterwards).
         """
         query = 'list(dn for (dn, d) in session.devices.items() ' \
                 'if %r in d.classes' % needs_class

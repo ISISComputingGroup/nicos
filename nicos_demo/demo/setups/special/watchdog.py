@@ -23,7 +23,7 @@ group = 'special'
 #   (default '')
 # 'action' -- code to execute if condition is true (default no code is executed)
 
-watchlist = [
+watch_conditions = [
     dict(condition = 'LogSpace_status[0] == WARN',
          message = 'Disk space for the log files becomes too low.',
          type = 'critical',
@@ -34,8 +34,8 @@ watchlist = [
          type = 'critical',
          gracetime = 10,
     ),
-    dict(condition = 'phi_value > 100 and mono_value > 2.5',
-         message = 'phi angle too high for current mono setting',
+    dict(condition = 'stt_value > 100 and mono_value > 2.5',
+         message = 'stt angle too high for current mono setting',
          gracetime = 5,
          setup = 'tas'),
     dict(condition = 'tbefilter_value > 75',
@@ -61,7 +61,8 @@ watchlist = [
          message = 'Reactor power too low',
          type = 'critical',
          action = 'stop()',
-         gracetime = 30),
+         gracetime = 30,
+         precondcooldown = 30),
 ]
 
 # The Watchdog device has two lists of notifiers, one for priority 1 ('default')
@@ -72,7 +73,7 @@ devices = dict(
         cache = 'localhost:14869',
         notifiers = {'default': [],
                      'critical': []},
-        watch = watchlist,
+        watch = watch_conditions,
         loglevel = 'info',
     ),
 )

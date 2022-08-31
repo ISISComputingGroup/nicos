@@ -73,7 +73,7 @@ class TOFTOFChannel(ImageChannel, TOFChannel):
         #       (in this case: returned < set) so, increase the wanted value
         #       until the used one is big enough
         actual_timeinterval = self.doReadTimeinterval()
-        while (actual_timeinterval * self.timechannels < value):
+        while actual_timeinterval * self.timechannels < value:
             wanted_timeinterval += calc.ttr
             self.doWriteTimeinterval(wanted_timeinterval)
             actual_timeinterval = self.doReadTimeinterval()
@@ -236,7 +236,7 @@ class Detector(GenericDetector):
         self._starttime = currenttime()
         self._setROParam('rates', [[0., 0.], [0., 0.]])
 
-        session.action('run# %06d' % session.experiment.lastpoint)
+        session.action('Run# %06d' % session.experiment.lastpoint)
 
         GenericDetector.doStart(self)
 

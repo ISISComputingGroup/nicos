@@ -198,9 +198,9 @@ def fixup_stacked_devices(logger, devdict):
                          'subdevice of %r which should be renamed',
                          newname, devname)
             newname = '_' + newname
-        # set subDevice lowlevel if not specified otherwise
-        if 'lowlevel' not in devconfig[1]:
-            devconfig[1]['lowlevel'] = True
+        # set subDevice visibility if not specified otherwise
+        if 'visibility' not in devconfig[1]:
+            devconfig[1]['visibility'] = ()
         # 'rename' device, keeping logical connection
         devdict[newname] = devconfig
         return newname
@@ -265,6 +265,7 @@ def readSetup(infodict, modname, filepath, all_setups, logger):
         'filenames': [filepath] + list(ns.get('_dep_files', ())),
         'monitor_blocks': ns.get('monitor_blocks', {}),
         'watch_conditions': ns.get('watch_conditions', []),
+        'help_topics': ns.get('help_topics', {}),
     }
     if info['group'] not in SETUP_GROUPS:
         logger.warning('Setup %s has an invalid group (valid groups '
@@ -293,6 +294,7 @@ def readSetup(infodict, modname, filepath, all_setups, logger):
         oldinfo['filenames'].extend(info['filenames'])
         oldinfo['monitor_blocks'].update(info['monitor_blocks'])
         oldinfo['watch_conditions'].extend(info['watch_conditions'])
+        oldinfo['help_topics'].update(info['help_topics'])
         logger.debug('%r setup partially merged with version '
                      'from parent directory', modname)
     else:

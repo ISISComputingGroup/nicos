@@ -8,7 +8,7 @@ excludes = ['detector']
 
 modules = ['nicos_mlz.puma.commands']
 
-level = False
+vis = ('devlist', 'namespace', 'metadata')
 
 devices = dict(
     med = device('nicos_mlz.puma.devices.PumaMultiDetectorLayout',
@@ -18,7 +18,7 @@ devices = dict(
         rotguide = ['rg1', 'rg2', 'rg3', 'rg4', 'rg5', 'rg6', 'rg7', 'rg8',
                     'rg9', 'rg10', 'rg11'],
         att = device('nicos.devices.generic.Axis',
-            motor = device('nicos_mlz.puma.devices.virtual.VirtualReferenceMotor',
+            motor = device('nicos_mlz.puma.devices.VirtualReferenceMotor',
                 abslimits = (-90, 15),
                 unit = 'deg',
                 refpos = -1,
@@ -34,20 +34,20 @@ devices = dict(
         description = 'Monitor',
         fmtstr = '%d',
         type = 'monitor',
-        lowlevel = True,
+        visibility = (),
     ),
     timer = device('nicos.devices.generic.VirtualTimer',
         description = 'timer',
         fmtstr = '%.2f',
         unit = 's',
-        lowlevel = True,
+        visibility = (),
     ),
     image = device('nicos.devices.generic.VirtualImage',
         description = 'Image data device',
         fmtstr = '%d',
         pollinterval = 86400,
-        lowlevel = True,
         size = (1, 11),
+        visibility = (),
     ),
     det = device('nicos.devices.generic.Detector',
         description = 'Multidetector with single channels',
@@ -66,7 +66,7 @@ devices = dict(
 for i in range(11):
     devices['rd%d' % (i + 1)] = device('nicos.devices.generic.Axis',
         description = 'Rotation detector %d multidetector' % (i + 1),
-        motor = device('nicos_mlz.puma.devices.virtual.VirtualReferenceMotor',
+        motor = device('nicos_mlz.puma.devices.VirtualReferenceMotor',
             abslimits = (-42 + (11 - (i + 1)) * 2.5, 13 - i * 2.4),
             unit = 'deg',
             refpos = -13.5 - i * 2.5,
@@ -74,11 +74,11 @@ for i in range(11):
             speed = 3,
         ),
         precision = 0.01,
-        lowlevel = level,
+        visibility = vis,
     )
     devices['rg%d' % (i + 1)] = device('nicos.devices.generic.Axis',
         description = 'Rotation guide %d multidetector' % (i + 1),
-        motor = device('nicos_mlz.puma.devices.virtual.VirtualReferenceMotor',
+        motor = device('nicos_mlz.puma.devices.VirtualReferenceMotor',
             abslimits = (-8, 25),
             unit = 'deg',
             refpos = -7.7,
@@ -86,10 +86,10 @@ for i in range(11):
             speed = 1,
         ),
         precision = 0.01,
-        lowlevel = level,
+        visibility = vis,
     )
     devices['ctr%d' % (i + 1)] = device('nicos.devices.generic.VirtualCounter',
-        lowlevel = True,
+        visibility = (),
         type = 'counter',
         countrate = 1 + int(2000 * math.exp(-((i + 1) - 6) ** 2 / 2.)),
         fmtstr = '%d',

@@ -5,8 +5,6 @@ modules = ['nicos.commands.sxtal']
 
 excludes = ['sans', 'tas', 'table']
 
-includes = ['cryo']
-
 sysconfig = dict(
     instrument = 'sxtal',
     datasinks = ['scanfilesink', 'hklfilesink'],
@@ -89,22 +87,22 @@ devices = dict(
     ),
     ssl = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-20, 40),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
     ),
     ssr = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-40, 20),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
     ),
     ssb = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-50, 30),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
     ),
     sst = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-30, 50),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
     ),
     ss = device('nicos.devices.generic.Slit',
@@ -132,7 +130,6 @@ if mth() == 0:
     mth.speed = mtt.speed = ath.speed = att.speed = psi.speed = phi.speed = 0
     mono(0.7)
 SetDetectors(vdetsxtal)
-AddEnvironment(T)
 printinfo("===============================================================")
 printinfo("Welcome to the NICOS singe xtal demo setup.")
 printinfo("This demo is configured as a virtual single crystal instrument.")

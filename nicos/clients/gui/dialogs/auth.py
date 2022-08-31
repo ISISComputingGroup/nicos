@@ -24,22 +24,25 @@
 # *****************************************************************************
 
 """Dialog for entering authentication data."""
+from os import path
 
 from nicos.clients.base import ConnectionData
 from nicos.clients.gui.utils import loadUi, splitTunnelString
 from nicos.guisupport.qt import QDialog, QFontMetrics, QIcon, \
-    QListWidgetItem, QPalette, QPixmap, QPyNullVariant, QSize
+    QListWidgetItem, QPalette, QPixmap, QSize, pyqtSlot
 from nicos.protocols.daemon.classic import DEFAULT_PORT
 
 
 class ConnectionDialog(QDialog):
     """A dialog to request connection parameters."""
 
+    ui = path.join('dialogs', 'auth.ui')
+
     @classmethod
     def getConnectionData(cls, parent, connpresets, lastpreset, lastdata,
                           tunnel=''):
         self = cls(parent, connpresets, lastpreset, lastdata, tunnel)
-        ret = self.exec_()
+        ret = self.exec()
         if ret != QDialog.Accepted:
             return None, None, None, tunnel
         new_addr = self.presetOrAddr.currentText()
@@ -73,12 +76,10 @@ class ConnectionDialog(QDialog):
 
     def __init__(self, parent, connpresets, lastpreset, lastdata, tunnel=''):
         QDialog.__init__(self, parent)
-        loadUi(self, 'dialogs/auth.ui')
+        loadUi(self, self.ui)
         if hasattr(parent, 'facility_logo'):
             self.logoLabel.setPixmap(QPixmap(parent.facility_logo))
         self.connpresets = connpresets
-        if isinstance(lastpreset, QPyNullVariant):
-            lastpreset = None
 
         pal = self.quickList.palette()
         pal.setColor(QPalette.Window, pal.color(QPalette.Base))
@@ -100,19 +101,19 @@ class ConnectionDialog(QDialog):
             # the automatic sizing still leads to a vertical scrollbar
             hint = self.quickList.sizeHint()
             hint.setHeight(hint.height() + 50)
-            hint.setWidth(max(4.7 * maxw, 330))
+            hint.setWidth(round(max(4.7 * maxw, 330)))
             self.quickList.setMinimumSize(hint)
             self.resize(self.sizeHint())
 
         self.presetOrAddr.addItems(sorted(connpresets))
-        self.presetOrAddr.setEditText(lastpreset)
-        if not lastpreset and lastdata:
-            # if we have no stored last preset connection, put in the raw data
+        if lastdata:
             self.presetOrAddr.setEditText(
                 '%s:%s' % (lastdata.host, lastdata.port))
             self.viewonly.setChecked(lastdata.viewonly)
             self.expertmode.setChecked(lastdata.expertmode)
-        self.userName.setText(lastdata.user)
+            self.userName.setText(lastdata.user)
+        if lastpreset:  # prefer preset name
+            self.presetOrAddr.setEditText(lastpreset)
         self.password.setFocus()
 
         self.viaFrame.setHidden(not tunnel)
@@ -131,7 +132,9 @@ class ConnectionDialog(QDialog):
         self.presetFrame.hide()
         self.resize(QSize(self.width(), self.minimumSize().height()))
 
-    def on_presetOrAddr_editTextChanged(self, text):
+    @pyqtSlot(int)
+    def on_presetOrAddr_currentIndexChanged(self, _idx):
+        text = self.presetOrAddr.currentText()
         if text in self.connpresets:
             conn = self.connpresets[text]
             self.userName.setText(conn.user)
@@ -141,12 +144,17 @@ class ConnectionDialog(QDialog):
         else:
             self.presetFrame.show()
 
+    def on_presetOrAddr_editTextChanged(self, text):
+        # If the text is not the currently selected preset,
+        # we are typing a host name and should have the possibility
+        # to save as a preset.
+        index = self.presetOrAddr.currentIndex()
+        if text != self.presetOrAddr.itemText(index):
+            self.presetFrame.show()
+
     def on_quickList_itemClicked(self, item):
-        conn = self.connpresets[item.text()]
-        self.presetOrAddr.setEditText(item.text())
-        self.userName.setText(conn.user)
-        self.viewonly.setChecked(conn.viewonly)
-        self.expertmode.setChecked(conn.expertmode)
+        self.presetOrAddr.setCurrentIndex(
+            self.presetOrAddr.findText(item.text()))
         self.password.setFocus()
 
     def on_quickList_itemDoubleClicked(self, item):

@@ -10,12 +10,13 @@ include the management of
 * setups: loading and unloading setups
 * devices: creating and shutting down devices
 * special devices: providing access to special device instances
-* namespace:
+* the NICOS namespace: wherein user code is executed
 * the execution mode: switching modes
 * logging: handling the various NICOS loggers
 * notifications: sending notifications from devices or user code
 
 .. autoclass:: Session
+   :no-members:
 
    **Global configuration**
 
@@ -25,9 +26,9 @@ include the management of
 
    .. attribute:: autocreate_devices
 
-      A boolean that determines if the session automatically creates all
-      non-`.lowlevel` devices in a setup (if true), or if devices are created
-      on-demand by calls to `getDevice` (if false).
+      A boolean that determines if the session automatically creates all devices
+      with "namespace" `.visibility` in a setup (if true), or if devices are
+      created on-demand by calls to `getDevice` (if false).
 
    .. attribute:: cache
 

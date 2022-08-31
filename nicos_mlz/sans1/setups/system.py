@@ -16,7 +16,7 @@ modules = ['nicos.commands.standard']
 includes = ['notifiers']
 
 devices = dict(
-    Sample = device('nicos_mlz.sans1.devices.sans1_sample.Sans1Sample',
+    Sample = device('nicos_mlz.sans1.devices.sample.Sans1Sample',
         description = 'sample',
     ),
     Instrument = device('nicos.devices.instrument.Instrument',
@@ -62,7 +62,7 @@ devices = dict(
     LogSpace = device('nicos.devices.generic.FreeSpace',
         description = 'Free space on the log drive',
         path = '/control/log',
-        lowlevel = True,
+        visibility = (),
         warnlimits = (0.5, None),
     ),
 )

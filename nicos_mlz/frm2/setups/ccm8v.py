@@ -125,7 +125,16 @@ devices = {
         fmtstr = '%.3g',
         unit = 'mbar',
     ),
-
+    '%s_piso' % setupname : device('nicos.devices.entangle.AnalogInput',
+        description = 'Pressure in isolation vacuum',
+        tangodevice = tango_base + 'leybold/sensor_iso',
+        fmtstr = '%.3g',
+        unit = 'mbar',
+    ),
+    '%s_shutdown' % setupname : device('nicos.devices.entangle.DigitalInput',
+        description = 'Heater shutdown due to overheat',
+        tangodevice = tango_base + 'heater/monitor',
+    ),
 }
 
 alias_config = {
@@ -139,3 +148,44 @@ alias_config = {
 extended = dict(
     representative = 'B_%s' % setupname,
 )
+
+watch_conditions = [
+    dict(condition = 'ccm8v_lhe_value < 30',
+         type = 'se',
+         setup = 'ccm8v',
+         message = '8T Magnet: He level below 30%',
+        ),
+    dict(condition = 'ccm8v_shutdown_value > 0',
+         type = 'se',
+         setup = 'ccm8v',
+         message = '8T Magnet: Heaters shut down due to overheat',
+        ),
+]
+
+monitor_blocks = {
+    'short': Block('8T Magnet', [
+        BlockRow(
+            Field(dev='B'),
+            Field(dev='T'),
+            Field(dev='Ts'),
+        ),
+    ], setups='ccm8v'),
+    'se': Block('ccm8v - 8T magnet', [
+        BlockRow(Field(name='Field', dev='se/B_ccm8v'),
+                 Field(name='Hall', dev='se/ccm8v_Bhall')),
+        '---',
+        BlockRow(Field(name='VTI', dev='se/T_ccm8v_vti'),
+                 Field(name='VTI heat', dev='se/ccm8v_vti_heater'),
+                 Field(name='VTI NV', dev='se/ccm8v_vti_nv')),
+        BlockRow(Field(name='LT-Stick', dev='se/T_ccm8v_stick'),
+                 Field(name='LT-Stick heat', dev='se/ccm8v_stick_heater')),
+        BlockRow(Field(name='HT-Stick', dev='se/T_ccm8v_htstick'),
+                 Field(name='HT-Stick heat', dev='se/ccm8v_htstick_heater')),
+        '---',
+        BlockRow(Field(name='Coils', dev='se/ccm8v_Tmag'),
+                 Field(name='Dewar', dev='se/ccm8v_pdewar', unit=' '),
+                 Field(name='Coldhead', dev='se/ccm8v_Tcoldhead')),
+        BlockRow(Field(name='LHe', dev='se/ccm8v_LHe'),
+                 Field(name='LN2', dev='se/ccm8v_LN2')),
+    ]),
+}

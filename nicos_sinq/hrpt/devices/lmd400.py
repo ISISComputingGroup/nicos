@@ -24,8 +24,7 @@
 
 from nicos.core import Device, Param, listof, pvname
 from nicos.core.errors import ConfigurationError
-
-from nicos_ess.devices.epics.base import EpicsDevice
+from nicos.devices.epics import EpicsDevice
 
 
 class LMD400(EpicsDevice, Device):
@@ -59,6 +58,9 @@ class LMD400(EpicsDevice, Device):
         else:
             raise ConfigurationError(
                 'requested invalid pv %s for LMD400' % (pvparam))
+
+    def _get_pv_parameters(self):
+        return self.pv_parameters
 
     def doReadAlarm(self):
         return self._get_pv('alarm', as_string=True)

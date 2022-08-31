@@ -43,8 +43,8 @@ from nicos.core.errors import NicosError
 from nicos.guisupport.livewidget import AXES, DATATYPES, IntegralLiveWidget, \
     LiveWidget, LiveWidget1D
 from nicos.guisupport.qt import QActionGroup, QByteArray, QDialog, \
-    QListWidgetItem, QMenu, QPoint, QSizePolicy, QStatusBar, Qt, QToolBar, \
-    QWidget, pyqtSignal, pyqtSlot
+    QFileDialog, QListWidgetItem, QMenu, QPoint, QSizePolicy, QStatusBar, Qt, \
+    QToolBar, QWidget, pyqtSignal, pyqtSlot
 from nicos.guisupport.qtgr import MouseEvent
 from nicos.protocols.cache import cache_load
 from nicos.utils import BoundedOrderedDict, ReaderRegistry, safeName
@@ -53,6 +53,11 @@ try:
     from nicos.utils.gammafilter import gam_rem_adp_log
 except ImportError:
     gam_rem_adp_log = None
+
+try:
+    from colorcet import mapping_flipped as cet_mapping_flipped
+except ImportError:
+    cet_mapping_flipped = None
 
 COLORMAPS = OrderedDict(GR_COLORMAPS)
 
@@ -140,11 +145,42 @@ class LiveDataPanel(Panel):
         the others will be blue (default).
 
         'red': all plots will be red.
+
+      * ``use_cet`` (default False) - If True and the colorcet library is
+        installed extend the available colormaps with the colorcet maps.
+
+    A user-defined colormap file must be composed of three columns (R,G,B)
+    normalised to 1 or in the range 0-255, e.g.:
+
+    6.50e-01 8.07e-01 8.90e-01
+    1.21e-01 4.70e-01 7.05e-01
+    2.00e-01 6.27e-01 1.72e-01
+    9.84e-01 6.03e-01 5.99e-01
+    9.92e-01 7.49e-01 4.35e-01
+    1.00e+00 4.98e-01 0.00e+00
+    4.15e-01 2.39e-01 6.03e-01
+    1.00e+00 1.00e+00 5.99e-01
+    6.94e-01 3.49e-01 1.56e-01
+
+    or
+
+    255 255 255
+    251 255 255
+    86 215 255
+    84 213 255
+    80 209 255
+    77 205 255
+    0 0 8
+    0 0 6
+    0 0 0
+
+    If less than 256 colors are provided the colors intensities are linear
+    interpolated.
     """
 
     panelName = 'Live data view'
 
-    ui = f'{uipath}/panels/live.ui'
+    ui = path.join(uipath, 'panels', 'live.ui')
 
     def __init__(self, parent, client, options):
         Panel.__init__(self, parent, client, options)
@@ -152,7 +188,6 @@ class LiveDataPanel(Panel):
 
         self._allowed_filetypes = set()
         self._allowed_detectors = set()
-        self._runtime = 0
         self._range_active = False
         self._cachesize = 20
         self._livewidgets = {}  # livewidgets for rois: roi_key -> widget
@@ -162,7 +197,6 @@ class LiveDataPanel(Panel):
         self.unzoom = False
         self.lastSettingsIndex = None
         self._axis_labels = {}
-        self.params = {}
         self._offset = 0
         self.xscale = options.get('xscale', 'binary')
         self.yscale = options.get('yscale', 'binary')
@@ -173,6 +207,18 @@ class LiveDataPanel(Panel):
         self.statusBar.setSizePolicy(policy)
         self.statusBar.setSizeGripEnabled(False)
         self.layout().addWidget(self.statusBar)
+
+        self.menuROI = QMenu(self)
+        self.actionROI = self.menuROI.menuAction()
+        self.actionROI.setText('&Region Of Interest')
+        self.actionROI.setToolTip('Open region of interest in seperate window')
+        self.actionROI.triggered.connect(self.on_actionROI_triggered)
+
+        self.menuColormap = QMenu(self)
+        self.actionColormap = self.menuColormap.menuAction()
+        self.actionColormap.setText('&Colormap')
+        self.actionColormap.setToolTip('Select colormap')
+        self.actionColormap.triggered.connect(self.on_actionColormap_triggered)
 
         self.toolbar = QToolBar('Live data')
         self.toolbar.addAction(self.actionOpen)
@@ -248,6 +294,10 @@ class LiveDataPanel(Panel):
 
         self._initControlsGUI()
 
+        if options.get('use_cet', False) and cet_mapping_flipped:
+            COLORMAPS.update(OrderedDict(
+                {v: k for k, v in cet_mapping_flipped.items()}))
+
     def _initControlsGUI(self):
         pass
 
@@ -286,6 +336,35 @@ class LiveDataPanel(Panel):
             action.setEnabled(flag)
         self.actionOpen.setEnabled(True)  # File Open action always available
 
+    def _initColormapMenu(self):
+        self.actionsColormap = QActionGroup(self)
+        activeMap = self.widget.getColormap()
+        activeCaption = None
+        for name, value in COLORMAPS.items():
+            caption = name.title()
+            action = self.menuColormap.addAction(caption)
+            action.setData(caption)
+            action.setCheckable(True)
+            if activeMap == value:
+                action.setChecked(True)
+                # update toolButton text later otherwise this may fail
+                # depending on the setup and qt versions in use
+                activeCaption = caption
+            self.actionsColormap.addAction(action)
+            action.triggered.connect(self.on_colormap_triggered)
+
+        def from_file():
+            fname = QFileDialog.getOpenFileName(self, 'Open file')
+            self.widget.surf.colormap = fname[0]
+            self.toolbar.widgetForAction(self.actionColormap).setText(
+                'Custom')
+
+        action = self.menuColormap.addAction('From file')
+        action.setStatusTip('Open new colormap')
+        action.triggered.connect(from_file)
+        self.actionsColormap.addAction(action)
+        return activeCaption
+
     def initLiveWidget(self, widgetcls):
         if isinstance(self.widget, widgetcls):
             return
@@ -317,23 +396,7 @@ class LiveDataPanel(Panel):
                                           self.on_mousemove_gr)
 
         # handle menus
-        self.menuColormap = QMenu(self)
-        self.actionsColormap = QActionGroup(self)
-        activeMap = self.widget.getColormap()
-        activeCaption = None
-        for name, value in COLORMAPS.items():
-            caption = name.title()
-            action = self.menuColormap.addAction(caption)
-            action.setData(caption)
-            action.setCheckable(True)
-            if activeMap == value:
-                action.setChecked(True)
-                # update toolButton text later otherwise this may fail
-                # depending on the setup and qt versions in use
-                activeCaption = caption
-            self.actionsColormap.addAction(action)
-            action.triggered.connect(self.on_colormap_triggered)
-        self.actionColormap.setMenu(self.menuColormap)
+        activeCaption = self._initColormapMenu()
 
         # finish initiation
         self.widgetLayout.addWidget(self.widget)
@@ -423,8 +486,9 @@ class LiveDataPanel(Panel):
         newdlg = dialogFromUi(self, 'panels/plot_attach.ui')
         suffix = '.svg'  # self.widget.SAVE_EXT
         newdlg.filename.setText(
-            safeName('data_%s' % self.params['uid'] + suffix))
-        ret = newdlg.exec_()
+            safeName('data_' + self.fileList.currentItem().data(FILEUID)
+                     + suffix))
+        ret = newdlg.exec()
         if ret != QDialog.Accepted:
             return
         descr = newdlg.description.text()
@@ -451,6 +515,12 @@ class LiveDataPanel(Panel):
             widget.setCenterMark(self.actionMarkCenter.isChecked())
             widget.logscale(self.actionLogScale.isChecked())
             widget.gr.setAdjustSelection(False)  # don't use adjust on ROIs
+
+            # update with current data
+            data = self.getDataFromItem(self.fileList.currentItem())
+            if data is not None:
+                widget.setData(data['dataarrays'], data['labels'])
+
             for name, roi in self.rois.items():
                 widget.setROI(name, roi)
             width = max(region.x) - min(region.x)
@@ -475,13 +545,12 @@ class LiveDataPanel(Panel):
             widget.close()
 
     def on_closed(self):
-        for w in self._livewidgets.values():
+        for w in list(self._livewidgets.values()):
             w.close()
 
     def _register_rois(self, detectors):
         self.rois.clear()
         self.actionROI.setVisible(False)
-        self.menuROI = QMenu(self)
         self.actionsROI = QActionGroup(self)
         self.actionsROI.setExclusive(False)
         for detname in detectors:
@@ -500,7 +569,6 @@ class LiveDataPanel(Panel):
                     action.setCheckable(True)
                     self.actionsROI.addAction(action)
                     action.triggered.connect(self.on_roi_triggered)
-                    self.actionROI.setMenu(self.menuROI)
                     self.actionROI.setVisible(True)
 
     def on_actionROI_triggered(self):
@@ -575,10 +643,10 @@ class LiveDataPanel(Panel):
             return
         return normalized_type
 
-    def getIndexedUID(self, idx):
-        return str(self.params['uid']) + '-' + str(idx)
+    def getIndexedUID(self, params, idx):
+        return str(params['uid']) + '-' + str(idx)
 
-    def _process_axis_labels(self, blobs):
+    def _process_axis_labels(self, params, blobs):
         """Convert the raw axis label descriptions.
         tuple: `from, to`: Distribute labels equidistantly between the two
                            values.
@@ -593,7 +661,7 @@ class LiveDataPanel(Panel):
 
         CLASSIC = {'define': 'classic'}
 
-        for i, datadesc in enumerate(self.params['datadescs']):
+        for i, datadesc in enumerate(params['datadescs']):
             labels = {}
             titles = {}
             for size, axis in zip(reversed(datadesc['shape']), AXES):
@@ -614,24 +682,25 @@ class LiveDataPanel(Panel):
                                                     label.get('dtype', '<i4'))
                 else:
                     labels[axis] = self.getDefaultLabels(size)
+                # TODO: xoffset and yoffset ?
                 labels[axis] += self._offset if axis == 'x' else 0
                 titles[axis] = label.get('title')
 
             # save the labels in the datacache with uid as key
-            uid = self.getIndexedUID(i)
+            uid = self.getIndexedUID(params, i)
             if uid not in self._datacache:
                 self._datacache[uid] = {}
 
             self._datacache[uid]['labels'] = labels
             self._datacache[uid]['titles'] = titles
 
-    def _process_livedata(self, data, idx):
+    def _process_livedata(self, params, data, idx):
         # ignore irrelevant data in liveOnly mode
         if self._liveOnlyIndex is not None and idx != self._liveOnlyIndex:
             return
 
         try:
-            descriptions = self.params['datadescs']
+            descriptions = params['datadescs']
         except KeyError:
             self.log.warning('Livedata with tag "Live" without '
                              '"datadescs" provided.')
@@ -641,28 +710,25 @@ class LiveDataPanel(Panel):
         if len(data):
             # we got live data with specified formats
             arrays = self.processDataArrays(
-                idx, numpy.frombuffer(data, descriptions[idx]['dtype']))
+                params, idx, numpy.frombuffer(data, descriptions[idx]['dtype']))
 
             if arrays is None:
                 return
 
-            # put everything into the cache
-            uid = self.getIndexedUID(idx)
-            self._datacache[uid]['dataarrays'] = arrays
-
+            # cache and update displays
+            uid = self.getIndexedUID(params, idx)
+            self.setData(arrays, uid=uid, display=(idx == self._livechannel))
             self.liveitems[idx].setData(FILEUID, uid)
 
-    def _process_filenames(self):
+    def _process_filenames(self, params):
         # TODO: allow multiple fileformats?
         #       would need to modify input from DemonSession.notifyDataFile
 
-        number_of_items = self.fileList.count()
-        for i, filedesc in enumerate(self.params['filedescs']):
-            uid = self.getIndexedUID(number_of_items + i)
+        for i, filedesc in enumerate(params['filedescs']):
+            # uids must match with uids in live events (_process_livedata)
+            uid = self.getIndexedUID(params, i)
             name = filedesc['filename']
             filetype = filedesc.get('fileformat')
-            if filetype is None or filetype not in ReaderRegistry.filetypes():
-                continue  # Ignore unregistered file types
             self.add_to_flist(name, filetype, FILE, uid)
             try:
                 # update display for selected live channel,
@@ -679,30 +745,29 @@ class LiveDataPanel(Panel):
                     self.log.exception(e)
 
     def on_client_livedata(self, params, blobs):
+        self.log.debug("on_client_livedata: %r", params)
         # blobs is a list of data blobs and labels blobs
         if self._allowed_detectors \
                 and params['det'] not in self._allowed_detectors:
             return
 
-        self.params = params
-        self._runtime = params['time']
         if params['tag'] == LIVE:
             datacount = len(params['datadescs'])
             self.setLiveItems(datacount)
 
-            self._process_axis_labels(blobs[datacount:])
+            self._process_axis_labels(params, blobs[datacount:])
 
             for i, blob in enumerate(blobs[:datacount]):
-                self._process_livedata(blob, i)
+                # update cache and display if selected channel is a live channel
+                self._process_livedata(params, blob, i)
             if not datacount:
-                self._process_livedata([], 0)
+                self._process_livedata(params, [], 0)
         elif params['tag'] == FILE:
-            self._process_filenames()
-
-        self._show()
+            self._process_filenames(params)
+        self._applyPlotSettings(params)
 
     def getDefaultLabels(self, size):
-        return numpy.array(range(size))
+        return numpy.arange(size)
 
     def convertLabels(self, labelinput):
         """Convert the input into a processable format"""
@@ -721,27 +786,33 @@ class LiveDataPanel(Panel):
             widgetcls = IntegralLiveWidget
         self.initLiveWidget(widgetcls)
 
+    def setData(self, arrays, labels=None, titles=None, uid=None, display=True):
+        """Dispatch data array to corresponding live widgets.
+        Cache array based on uid parameter. No caching if uid is ``None``.
+        """
+        if uid:
+            if uid not in self._datacache:
+                self.log.debug('add to cache: %s', uid)
+                self._datacache[uid] = {}
+            self._datacache[uid]['dataarrays'] = arrays
+        if display:
+            self._initLiveWidget(arrays[0])
+            for widget in self._get_all_widgets():
+                widget.setData(arrays, labels)
+                widget.setTitles(titles)
+
     def setDataFromFile(self, filename, filetype, uid=None, display=True):
         """Load data array from file and dispatch to live widgets using
         ``setData``. Do not use caching if uid is ``None``.
         """
         array = readDataFromFile(filename, filetype)
         if array is not None:
-            if uid:
-                if uid not in self._datacache:
-                    self.log.debug('add to cache: %s', uid)
-                self._datacache[uid] = {}
-                self._datacache[uid]['dataarrays'] = [array]
-            if display:
-                self._initLiveWidget(array)
-                for widget in self._get_all_widgets():
-                    widget.setData(array)
-#           self.setData([array], uid, display=display)
+            self.setData([array], uid=uid, display=display)
             return array.shape
         else:
             raise NicosError('Cannot read file %r' % filename)
 
-    def processDataArrays(self, index, entry):
+    def processDataArrays(self, params, index, entry):
         """Check if the input 1D array has the expected amount of values.
         If the array is too small an Error is raised.
         If the size exceeds the expected amount it is truncated.
@@ -749,7 +820,10 @@ class LiveDataPanel(Panel):
         Returns a list of arrays corresponding to the ``plotcount`` of
         ``index`` into ``datadescs`` of the current params"""
 
-        datadesc = self.params['datadescs'][index]
+        datadesc = params['datadescs'][index]
+
+        # representing the number of arrays with 'shape', in particular size
+        # || shape ||
         count = datadesc.get('plotcount', DEFAULTS['plotcount'])
         shape = datadesc['shape']
 
@@ -760,19 +834,20 @@ class LiveDataPanel(Panel):
         # determine 1D array size
         arraysize = numpy.product(shape)
 
-        # check and split the input array
-        if len(entry) < count * arraysize:
-            self.log.warning('Expected dataarray with %d entries, got %d',
+        # check and split the input array `entry` into `count` arrays of size
+        # `arraysize`
+        if len(entry) != count * arraysize:
+            self.log.warning('Expected data array with %d entries, got %d',
                              count * arraysize, len(entry))
             return
-        arrays = numpy.split(entry[:count * arraysize], count)
+        arrays = numpy.split(entry, count)
 
         # reshape every array in the list
         for i, array in enumerate(arrays):
             arrays[i] = array.reshape(shape)
         return arrays
 
-    def applyPlotSettings(self):
+    def applyPlotSettings(self, params=None):
         if not self.widget or not isinstance(self.widget, LiveWidget1D):
             return
 
@@ -792,8 +867,8 @@ class LiveDataPanel(Panel):
 
             settings = getElement(self.plotsettings, index, DEFAULTS)
 
-            if self.params['tag'] == LIVE:
-                plotcount = self.params['datadescs'][index].get(
+            if params and params['tag'] == LIVE:
+                plotcount = params['datadescs'][index].get(
                     'plotcount', DEFAULTS['plotcount'])
             else:
                 plotcount = DEFAULTS['plotcount']
@@ -852,15 +927,20 @@ class LiveDataPanel(Panel):
             # else:
             # TODO: mark for deletion on item changed?
 
-    def _show(self, data=None):
+    def _applyPlotSettings(self, params):
+        self.applyPlotSettings(params)
+
+        if self.unzoom and self.widget:
+            self.on_actionUnzoom_triggered()
+
+    def _show(self, params=None, data=None):
         """Show the provided data. If no data has been provided extract it
         from the datacache via the current item's uid.
 
         :param data: dictionary containing 'dataarrays' and 'labels'
         """
 
-        idx = self.fileList.currentRow()
-        if idx == -1:
+        if self.fileList.currentRow() == -1:
             self.fileList.setCurrentRow(0)
             return
 
@@ -877,14 +957,8 @@ class LiveDataPanel(Panel):
 
         # if multiple datasets have to be displayed in one widget, they have
         # the same dimensions, so we only need the dimensions of one set
-        self._initLiveWidget(arrays[0])
-        self.applyPlotSettings()
-        for widget in self._get_all_widgets():
-            widget.setData(arrays, labels)
-            widget.setTitles(titles)
-
-        if self.unzoom and self.widget:
-            self.on_actionUnzoom_triggered()
+        self.setData(arrays, labels, titles)
+        self._applyPlotSettings(params)
 
     def remove_obsolete_cached_files(self):
         """Remove or flag items which are no longer cached.
@@ -924,6 +998,19 @@ class LiveDataPanel(Panel):
         return item
 
     def on_fileList_currentItemChanged(self):
+        item = self.fileList.currentItem()
+        if item is None:
+            return
+
+        if item in self.liveitems and item.data(FILETAG) == 'live':
+            # set _livechannel to show live image
+            self._livechannel = int(item.data(FILENAME))
+            self.log.debug("set livechannel: %d", self._livechannel)
+        else:
+            # no live channel selected
+            self._livechannel = None
+            self.log.debug("no direct display")
+
         self._show()
 
     @pyqtSlot()
@@ -937,7 +1024,7 @@ class LiveDataPanel(Panel):
                                    ";;".join(ftypes.keys()))
         if self._fileopen_filter:
             fdialog.selectNameFilter(self._fileopen_filter)
-        if fdialog.exec_() != fdialog.Accepted:
+        if fdialog.exec() != QDialog.Accepted:
             return
         files = fdialog.selectedFiles()
         if not files:
@@ -1058,7 +1145,7 @@ class ImagingLiveWidget(LiveWidget):
 class ImagingControls(QWidget):
     """Controls the filtering for the imaging instruments."""
 
-    controlsui = f'{uipath}/panels/imagecontrols.ui'
+    controlsui = path.join(uipath, 'panels', 'imagecontrols.ui')
 
     changed = pyqtSignal()
 
@@ -1257,9 +1344,9 @@ class ImagingLiveDataPanel(LiveDataPanel):
         with waitCursor():
             data = self.getDataFromItem(self.fileList.item(idx))
             data = self._showHistogram(data)
-        LiveDataPanel._show(self, data)
+        LiveDataPanel._show(self, None, data)
 
-    def _show(self, data=None):
+    def _show(self, params=None, data=None):
         self.showData()
 
     def _initLiveWidget(self, array):

@@ -49,14 +49,14 @@ class Spacer(QWidget):
 
 
 class MainWindow(DefaultMainWindow):
-    ui = '%s/main.ui' % uipath
+    ui = path.join(uipath, 'main.ui')
 
     def __init__(self, log, gui_conf, viewonly=False, tunnel=''):
         DefaultMainWindow.__init__(self, log, gui_conf, viewonly, tunnel)
         self.add_logo()
         self.set_icons()
         self.style_file = gui_conf.stylefile
-        self.facility_logo = 'resources/ess-logo-auth.png'
+        self.facility_logo = ':/ess-logo-auth'
 
         self.editor_wintype = self.gui_conf.find_panel(
             ('editor.EditorPanel',
@@ -73,7 +73,6 @@ class MainWindow(DefaultMainWindow):
         dropdown.addAction(self.actionExpert)
         dropdown.addSeparator()
         dropdown.addAction(self.actionExit)
-        self.actionUser.setMenu(dropdown)
         self.actionUser.setIconVisibleInMenu(True)
         self.dropdown = dropdown
         self.actionExpert.setEnabled(self.client.isconnected)
@@ -121,7 +120,9 @@ class MainWindow(DefaultMainWindow):
 
     def set_icons(self):
         self.actionUser.setIcon(get_icon('settings_applications-24px.svg'))
-        self.actionEmergencyStop.setIcon(get_icon('emergency_stop_cross-24px.svg'))
+        self.actionEmergencyStop.setIcon(
+            get_icon('emergency_stop_cross_red-24px.svg')
+        )
         self.actionConnect.setIcon(get_icon('power-24px.svg'))
         self.actionExit.setIcon(get_icon('exit_to_app-24px.svg'))
         self.actionViewOnly.setIcon(get_icon('lock-24px.svg'))
@@ -129,13 +130,10 @@ class MainWindow(DefaultMainWindow):
         self.actionExpert.setIcon(get_icon('fingerprint-24px.svg'))
 
     def add_logo(self):
-        logo_label = QLabel()
-        pxr = decolor_logo(QPixmap(path.join(root_path, 'resources',
-                                             'logo-icon.png')), Qt.white)
-        logo_label.setPixmap(pxr.scaledToHeight(self.toolBarMain.height(),
-                                                Qt.SmoothTransformation))
-        logo_label.setMargin(5)
-        self.toolBarMain.insertWidget(self.toolBarMain.actions()[0], logo_label)
+        spacer = QWidget()
+        spacer.setMinimumWidth(20)
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.toolBarMain.insertWidget(self.toolBarMain.actions()[0], spacer)
 
         nicos_label = QLabel()
         pxr = decolor_logo(QPixmap(path.join(root_path, 'resources',
@@ -249,6 +247,7 @@ class MainWindow(DefaultMainWindow):
         DefaultMainWindow.on_client_connected(self)
         self.actionConnect.setIcon(get_icon('power_off-24px.svg'))
         self.actionExpert.setEnabled(True)
+        self.actionViewOnly.setEnabled(True)
         self.actionEmergencyStop.setEnabled(not self.client.viewonly)
         self.actionConnect.setText('Disconnect')
 
@@ -257,7 +256,7 @@ class MainWindow(DefaultMainWindow):
         self.actionConnect.setIcon(get_icon('power-24px.svg'))
         self.actionConnect.setText('Connect to server...')
         self.actionExpert.setEnabled(False)
-        self.actionExpert.setChecked(False)
+        self.actionViewOnly.setEnabled(False)
         self.actionEmergencyStop.setEnabled(False)
         self.setTitlebar(False)
 

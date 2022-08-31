@@ -33,18 +33,18 @@ from datetime import datetime, timedelta
 from enum import Enum
 from time import time as currenttime
 
-from kafka import KafkaProducer, KafkaConsumer, TopicPartition
+from kafka import KafkaConsumer, KafkaProducer, TopicPartition
 from kafka.errors import KafkaError
-from streaming_data_types import deserialise_answ, deserialise_wrdn, \
-    deserialise_x5f2, serialise_6s4t, serialise_pl72, deserialise_pl72
+from streaming_data_types import deserialise_answ, deserialise_pl72, \
+    deserialise_wrdn, deserialise_x5f2, serialise_6s4t, serialise_pl72
 from streaming_data_types.fbschemas.action_response_answ.ActionOutcome import \
     ActionOutcome
 from streaming_data_types.fbschemas.action_response_answ.ActionType import \
     ActionType
 
 from nicos import session
-from nicos.core import MASTER, Attach, Param, ScanDataset, host, listof, \
-    status
+from nicos.core import ADMIN, MASTER, Attach, Param, ScanDataset, host, \
+    listof, status
 from nicos.core.constants import INTERRUPTED, POINT
 from nicos.core.data.sink import DataSinkHandler
 from nicos.core.params import Override, anytype
@@ -320,6 +320,7 @@ class FileWriterStatus(KafkaStatusHandler):
 class FileWriterSinkHandler(DataSinkHandler):
     """Sink handler for the NeXus file-writer"""
     _scan_set = None
+    _current_file = None
 
     def prepare(self):
         if self.sink._manual_start or self._scan_set:
@@ -346,6 +347,7 @@ class FileWriterSinkHandler(DataSinkHandler):
             return
 
         if self._scan_set and self.dataset.number > 1:
+            self.dataset.filenames = [self._current_file]
             return
 
         if hasattr(self.dataset, 'replay_info'):
@@ -363,6 +365,7 @@ class FileWriterSinkHandler(DataSinkHandler):
                                                             datetime_now)
         self.sink._start_job(self.dataset.filenames[0], self.dataset.counter,
                              structure, datetime_now)
+        self._current_file = self.dataset.filenames[0]
 
     def end(self):
         if self.sink._manual_start:
@@ -373,6 +376,7 @@ class FileWriterSinkHandler(DataSinkHandler):
 
         self.sink._stop_job()
         self.sink.end()
+        self._current_file = None
 
     def _get_scan_set(self):
         if not self.sink.one_file_per_scan:
@@ -581,17 +585,21 @@ class FileWriterControlSink(FileSink):
 
     def list_jobs(self):
         dt_format = '%Y-%m-%d %H:%M:%S'
-        headers = ('job', 'job ID', 'status', 'start time', 'stop time',
-                   'replay of', 'error')
+        headers = ['job', 'status', 'start time', 'stop time', 'replay of',
+                   'error']
+        funcs = [lambda job: str(job.job_number),
+                 lambda job: job.get_state_string(),
+                 lambda job: job.start_time.strftime(dt_format),
+                 lambda job: job.stop_time.strftime(dt_format)
+                 if job.stop_time else '',
+                 lambda job: str(job.replay_of) if job.replay_of else '',
+                 lambda job: job.error_msg if job.error_msg else '']
+        if session.daemon_device.current_script().user.level == ADMIN:
+            headers.insert(1, 'job  GUID')
+            funcs.insert(1, lambda job: job.job_id)
         items = []
         for job in self._attached_status._jobs_in_order.values():
-            items.append([str(job.job_number), job.job_id,
-                          job.get_state_string(),
-                          job.start_time.strftime(dt_format),
-                          job.stop_time.strftime(
-                              dt_format) if job.stop_requested else '',
-                          str(job.replay_of) if job.replay_of else '',
-                          job.error_msg if job.error_msg else ''])
+            items.append([func(job) for func in funcs])
         printTable(headers, items, session.log.info)
 
     def replay_job(self, job_number):

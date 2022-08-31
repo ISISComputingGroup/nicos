@@ -19,17 +19,24 @@
 #
 # Module authors:
 #   Mark Koennecke <mark.koennecke@psi.ch>
+#   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
 
 import time
+from datetime import datetime
+from os import path
+
+import numpy as np
 
 from nicos import session
-from nicos.core import Override, Param, listof, nicosdev
+from nicos.core import Override, Param, PointDataset, ScanDataset, Value, \
+    listof, nicosdev
 from nicos.core.constants import POINT, SCAN
-from nicos.core.data import DataSinkHandler
+from nicos.core.data import DataSinkHandler, ScanData
 from nicos.core.errors import InvalidValueError
 from nicos.devices.datasinks import FileSink
+from nicos.devices.datasinks.image import ReaderMeta
 from nicos.devices.tas import TASSample
 
 
@@ -44,8 +51,7 @@ class ILLAsciiHandler(DataSinkHandler):
 
     def _getMLZCryst(self):
         result = {}
-        scat = eval(self._findValue(session.instrument.name,
-                                    'scattering_sense'))
+        scat = self._findValue(session.instrument.name, 'scatteringsense')
         result['ss'] = scat[1]
         mode = self._findValue(session.instrument.name, 'scanmode')
         if mode == 'CKI':
@@ -175,7 +181,16 @@ class ILLAsciiHandler(DataSinkHandler):
         positions = self.dataset.startpositions
         for dev in self.dataset.devices:
             if len(positions) > 1:
-                step = positions[1][devidx] - positions[0][devidx]
+                pnext = positions[1][devidx]
+                start = positions[0][devidx]
+                if isinstance(start, tuple):
+                    # This happens in qscans
+                    names = ['QH', 'QK', 'QL', 'EN']
+                    for name, s, n in zip(names, start, pnext):
+                        self._header += 'D%s= %8.4f ' % (name, n - s)
+                    devidx += 1
+                    continue
+                step = pnext - pnext
             else:
                 step = .0
             self._header += 'D%s= %8.4f ' % (dev.name.upper(), step)
@@ -228,7 +243,7 @@ class ILLAsciiHandler(DataSinkHandler):
                                   self.sink.subdir)
 
     def _findValue(self, dev, par):
-        return self.dataset.metainfo.get((dev, par), ['', 'UNKNOWN'])[1]
+        return self.dataset.metainfo.get((dev, par), ['UNKNOWN', 'UNKNOWN'])[0]
 
     def addSubset(self, subset):
         if subset.settype != POINT:
@@ -238,9 +253,11 @@ class ILLAsciiHandler(DataSinkHandler):
             self._initHeader()
 
         for i in range(len(self.dataset.devices)):
-            self.scanvalues[self.dataset.devices[i].name].append(
-                subset.devvaluelist[i])
-
+            dev = self.dataset.devices[i]
+            if dev == session.instrument:
+                self.scanvalues[dev.name].append(tuple(subset.devvaluelist))
+            else:
+                self.scanvalues[dev.name].append(subset.devvaluelist[i])
         for dev in self.dataset.environment:
             self.scanvalues[dev.name].append(dev.read())
 
@@ -259,8 +276,12 @@ class ILLAsciiHandler(DataSinkHandler):
             fmt = '(I4,1X,'
             header = ' PNT'
             for dev in self.dataset.devices:
-                fmt += 'F9.4,1X'
-                header += ' %9s' % dev.name.upper()
+                if dev == session.instrument:
+                    fmt += 'F9.41X,F9.41X,F9.41X,F9.4IX'
+                    header += '         H         K         L        EN'
+                else:
+                    fmt += 'F9.4,1X'
+                    header += ' %9s' % dev.name.upper()
             fmt += 'F8.0,1X,F8.0,1X,F9.2,1X,F8.0,1X,F8.0,1X,'
             header += '      M1       M2       TIME     CNTS       M3'
             for dev in self.dataset.environment:
@@ -269,10 +290,24 @@ class ILLAsciiHandler(DataSinkHandler):
             fmt += ')'
             out.write('FORMT: %s\nDATA_:\n%s\n' % (fmt, header))
 
-            for i in range(self.dataset.npoints):
+            # Fix for cases where dataset.npoints is wrong: either
+            # points were skipped or it is manualscan
+            name = self.sink.scaninfo[0]
+            np = len(self.scanvalues[name])
+            for i in range(np):
                 line = '%4d ' % (i + 1)
                 for dev in self.dataset.devices:
-                    line += '%9.4f ' % self.scanvalues[dev.name][i]
+                    # For compatibility with old files we want the
+                    # %9.4f format wherever possible. The dev.format()
+                    # is a fallback
+                    if dev == session.instrument:
+                        line += '%9.4f %9.4f %9.4f %9.4f ' % self.scanvalues[
+                            dev.name][i]
+                    else:
+                        try:
+                            line += '%9.4f ' % self.scanvalues[dev.name][i]
+                        except TypeError:
+                            line += dev.format(self.scanvalues[dev.name][i])
 
                 # There is a tight correlation between this and sink.scaninfo!
                 name = self.sink.scaninfo[0]
@@ -288,8 +323,11 @@ class ILLAsciiHandler(DataSinkHandler):
                 line += '%8ld %8ld %9.2f %8ld %8ld ' % (m1, m2, time, cts, m3)
 
                 for dev in self.dataset.environment:
-                    line += '%9.4f ' % self.scanvalues[dev.name]
-
+                    # See above regarding formatting
+                    try:
+                        line += '%9.4f ' % self.scanvalues[dev.name][i]
+                    except TypeError:
+                        line += dev.format(self.scanvalues[dev.name][i])
                 out.write(line + '\n')
 
 
@@ -312,3 +350,106 @@ class ILLAsciiSink(FileSink):
     }
 
     handlerclass = ILLAsciiHandler
+
+
+def _drop_pre_header(f):
+    while True:
+        line = f.readline()
+        if not line.strip() or line.startswith('VVV'):
+            return
+
+
+def _parse_header(f, dataset):
+
+    def _make_time(created, ds):
+        TIMEFMT = '%Y-%m-%d %H:%M:%S'
+        TIMEFMT_OLD = '%d-%b-%Y %H:%M:%S'
+        try:
+            started = datetime.strptime(created, TIMEFMT)
+        except ValueError:
+            started = datetime.strptime(created, TIMEFMT_OLD)
+
+        ds.started = time.mktime(started.timetuple())
+
+    def _make_info(text, ds):
+        ds.info = text.strip().rstrip()
+
+    def _make_number(number, ds):
+        ds.counter = int(number.strip().rstrip())
+
+    def _make_devices(text, _):
+        lines = text.replace('=', ',')
+        return set([l.strip().rstrip() for l in lines.split(',') if l][0:-1:2])
+
+    header_processors = {
+        'DATE_': _make_time,
+        'FILE_': _make_number,
+        'VARIA': _make_devices,
+        'COMND': _make_info,
+    }
+
+    devices = set()
+    while True:
+        line = f.readline()
+        if not line.strip() or line.startswith('DATA_'):
+            return devices
+        splitline = [l.rstrip().lstrip() for l in line.split(':')]
+
+        key, text = splitline[0], ':'.join(splitline[1:])
+        if key in header_processors:
+            header_processors[key](text, dataset)
+
+
+def _parse_data(f, dataset):
+
+    detectors = ['M1', 'M2', 'TIME', 'CNTS', 'M3', 'M4']
+
+    class DevFake:
+        def __init__(self, name):
+            self.name = name
+
+    def get_dets_devs(names):
+        devs = [DevFake(name) for name in names if name not in detectors]
+        dets = [DevFake(name) for name in names if name in detectors]
+        return devs, dets
+
+    header = [h.strip().rstrip() for h in f.readline().split()]
+    _raw = np.loadtxt(f)
+
+    devs, dets = get_dets_devs(header)
+    dataset.devvalueinfo = [Value(d.name, unit='') for d in devs]
+    dataset.detvalueinfo = [Value(d.name, unit='') for d in dets]
+    dataset.envvalueinfo = []
+
+    def make_datapoint(row):
+        pds = PointDataset(devices=devs, detectors=dets)
+        for name, value in zip(header, row):
+            pds._addvalues({name: (None, value)})
+            pds.results.update({name: [value]})
+            pds.finished = True
+        return pds
+
+    for row in _raw:
+        dataset.subsets.append(make_datapoint(row))
+
+
+def readFile(filename, dataset):
+    with open(filename, 'r', encoding="utf8") as f:
+        _drop_pre_header(f)
+        _parse_header(f, dataset)
+        _parse_data(f, dataset)
+
+
+class ILLAsciiScanfileReader(metaclass=ReaderMeta):
+    filetypes = [('illscan', 'SINQ TAS files (*.dat *.scn)')]
+
+    def __init__(self, filename):
+        self.scandataset = ScanDataset()
+        self.metainfo = {}
+        self.scandataset.filenames = [filename.split('/')[:-1]]
+        self.scandataset.filepaths = [path.basename(filename)]
+        readFile(filename, self.scandataset)
+
+    @property
+    def scandata(self):
+        return ScanData(self.scandataset)

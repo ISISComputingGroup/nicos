@@ -27,8 +27,8 @@ from logging import WARNING
 from nicos.clients.gui.dialogs.error import ErrorDialog
 from nicos.clients.gui.panels.generic import GenericPanel
 from nicos.clients.gui.utils import ScriptExecQuestion
-from nicos.guisupport.qt import QMessageBox, QRegExp, QRegExpValidator, \
-    pyqtSlot
+from nicos.guisupport.qt import QMessageBox, QRegularExpression, \
+    QRegularExpressionValidator, pyqtSlot
 from nicos.guisupport.typedvalue import MissingWidget
 from nicos.guisupport.widget import NicosWidget
 
@@ -71,7 +71,8 @@ class AmorControlPanel(GenericPanel):
         # Set the validator for monitor preset edit
         # Regular expression for scientific notation: [\d.]+(?:e\d+)?
         self.monitorPresetBox.setValidator(
-            QRegExpValidator(QRegExp(r"[\d.]+(?:e\d+)?"), self))
+            QRegularExpressionValidator(QRegularExpression(r"[\d.]+(?:e\d+)?"),
+                                        self))
 
         self.setMonitorPreset(True)
         self.setSampleMove(True)
@@ -139,7 +140,7 @@ class AmorControlPanel(GenericPanel):
     def exec_command(self, command, ask_queue=True, immediate=False):
         if ask_queue and not immediate and self._current_status != 'idle':
             qwindow = ScriptExecQuestion()
-            result = qwindow.exec_()
+            result = qwindow.exec()
             if result == QMessageBox.Cancel:
                 return
             elif result == QMessageBox.Apply:

@@ -29,113 +29,25 @@
 """NICOS GUI experiment setup window."""
 from copy import deepcopy
 
-from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.panels.setup_panel import ProposalDelegate, \
-    combineUsers, splitUsers
+    combineUsers
 from nicos.clients.gui.utils import dialogFromUi, loadUi
-from nicos.core import ConfigurationError
-from nicos.guisupport.qt import QAbstractTableModel, QDialogButtonBox, \
-    QHeaderView, QListWidgetItem, QMessageBox, Qt, pyqtSignal, pyqtSlot
+from nicos.guisupport.qt import QDialogButtonBox, QHeaderView, QIntValidator, \
+    QListWidgetItem, Qt, pyqtSlot
+from nicos.guisupport.tablemodel import TableModel
 from nicos.utils import decodeAny, findResource
 
-
-class TableModel(QAbstractTableModel):
-    data_updated = pyqtSignal()
-
-    def __init__(self, headings, mappings=None, transposed=False):
-        """ Constructor.
-
-        :param headings: the column headings.
-        :param mappings: maps the keys in the underlying data to the headings.
-        :param transposed: whether to display the data rotated (headings on the
-                           left side).
-        """
-        super().__init__()
-        self._transposed = transposed
-        self._headings = headings
-        self._mappings = mappings if mappings else {}
-        # raw_data is the underlying NICOS data
-        self._raw_data = []
-        self._table_data = []
-
-    @property
-    def raw_data(self):
-        """
-        :return: list of dictionaries containing the underlying data.
-        """
-        return self._raw_data
-
-    @raw_data.setter
-    def raw_data(self, data):
-        """
-        Sets the underlying data for the table.
-
-        If the keys in the data don't match the fields then they are ignored.
-
-        :param data: list of dictionaries containing the data.
-        """
-        self._raw_data = data
-
-        new_table = self._empty_table(len(self._headings),
-                                      len(self._raw_data))
-
-        for i, item in enumerate(self._raw_data):
-            for j, heading in enumerate(self._headings):
-                key = self._mappings.get(heading, heading)
-                new_table[i][j] = item.get(key, '')
-
-        self._table_data = new_table
-        self.layoutChanged.emit()
-        self.data_updated.emit()
-
-    def data(self, index, role):
-        if role == Qt.DisplayRole or role == Qt.EditRole:
-            row, column = self._get_row_and_column(index)
-            return self._table_data[row][column]
-
-    def setData(self, index, value, role):
-        if role != Qt.EditRole:
-            return False
-
-        row, column = self._get_row_and_column(index)
-
-        self._table_data[row][column] = value
-        col_name = self._headings[column]
-        self._raw_data[row][self._mappings.get(col_name, col_name)] = value
-        self.data_updated.emit()
-        return True
-
-    def _get_row_and_column(self, index):
-        if self._transposed:
-            return index.column(), index.row()
-        return index.row(), index.column()
-
-    def columnCount(self, index):
-        return len(self._raw_data) if self._transposed else len(self._headings)
-
-    def rowCount(self, index):
-        return len(self._headings) if self._transposed else len(self._raw_data)
-
-    def flags(self, index):
-        return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
-
-    def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return section + 1 if self._transposed else self._headings[section]
-        if role == Qt.DisplayRole and orientation == Qt.Vertical:
-            return self._headings[section] if self._transposed else section + 1
-
-    def _empty_table(self, columns, rows):
-        return [[''] * columns for _ in range(rows)]
+from nicos_ess.gui.panels.panel import PanelBase
 
 
 class ProposalSettings:
-    def __init__(self, proposal_id='', title='', users=None, local_contacts='',
-                 abort_on_error='', notifications=None, samples=None):
+    def __init__(self, proposal_id='', title='', users=None,
+                 local_contacts=None, abort_on_error='', notifications=None,
+                 samples=None):
         self.proposal_id = proposal_id
         self.title = title
         self.users = users if users else []
-        self.local_contacts = local_contacts
+        self.local_contacts = local_contacts if local_contacts else [{}]
         self.samples = samples if samples else []
         self.notifications = notifications if notifications else []
         self.abort_on_error = abort_on_error
@@ -152,37 +64,49 @@ class ProposalSettings:
         return True
 
 
-class ExpPanel(Panel):
+class ExpPanel(PanelBase):
     """Provides a panel with several input fields for the experiment settings.
     """
 
     panelName = 'Experiment setup'
 
     def __init__(self, parent, client, options):
-        Panel.__init__(self, parent, client, options)
+        PanelBase.__init__(self, parent, client, options)
         loadUi(self, findResource('nicos_ess/gui/panels/ui_files/exp_panel.ui'))
 
-        self.old_proposal_settings = ProposalSettings()
-        self.new_proposal_settings = ProposalSettings()
+        self.old_settings = ProposalSettings()
+        self.new_settings = ProposalSettings()
 
-        self.users_model = TableModel(['name', 'email', 'affiliation'])
-        self.users_model.data_updated.connect(self.on_users_changed)
+        self._user_fields = ['name', 'email', 'affiliation']
+        self.to_monitor = ['sample/samples', 'exp/propinfo']
+        self.users_model = TableModel(self._user_fields)
+        self.users_model.data_updated.connect(self._check_for_changes)
         self.userTable.setModel(self.users_model)
         self.userTable.horizontalHeader().setSectionResizeMode(
             QHeaderView.Interactive)
+
+        self.contacts_model = TableModel(['name', 'email', 'affiliation'])
+        self.contacts_model.insert_row(0)
+        self.contacts_model.data_updated.connect(self._check_for_changes)
+        self.contactsTable.setModel(self.contacts_model)
+        self.contactsTable.horizontalHeader().setSectionResizeMode(
+            QHeaderView.Stretch)
 
         self.samples_model = TableModel(['name', 'formula', 'number of',
                                          'mass/volume', 'density'],
                                         mappings={'number of': 'number_of',
                                                   'mass/volume': 'mass_volume'},
                                         transposed=True)
-        self.samples_model.data_updated.connect(self.on_samples_changed)
+        self.samples_model.data_updated.connect(self._check_for_changes)
         self.sampleTable.setModel(self.samples_model)
         self.sampleTable.horizontalHeader().setSectionResizeMode(
             QHeaderView.Interactive)
 
-        self._text_controls = (self.expTitle, self.localContacts,
-                               self.proposalNum, self.proposalQuery)
+        self.proposalNum.setValidator(QIntValidator(0, 999999999))
+
+        self._text_controls = (self.propTitle, self.proposalNum,
+                               self.proposalQuery)
+        self._tables = (self.sampleTable, self.contactsTable, self.userTable)
 
         self.hide_samples = options.get('hide_sample', False)
         if self.hide_samples:
@@ -216,26 +140,19 @@ class ExpPanel(Panel):
         self.sampleTable.hide()
         self.sampleLabel.hide()
         self.sampleLine.hide()
+        self.addSampleButton.hide()
+        self.deleteSampleButton.hide()
 
     def initialise_connection_status_listeners(self):
-        if self.client.isconnected:
-            self.on_client_connected()
-        else:
-            self.on_client_disconnected()
-        self.client.connected.connect(self.on_client_connected)
-        self.client.disconnected.connect(self.on_client_disconnected)
+        PanelBase.initialise_connection_status_listeners(self)
         self.client.experiment.connect(self.on_experiment_finished)
         self.client.setup.connect(self.on_client_setup)
-        self.client.register(self, 'Exp/title')
-        self.client.register(self, 'Exp/users')
-        self.client.register(self, 'Exp/localcontact')
-        self.client.register(self, 'Exp/propinfo')
-        self.client.register(self, 'Sample/samples')
+        for monitor in self.to_monitor:
+            self.client.register(self, monitor)
 
     def on_keyChange(self, key, value, time, expired):
-        # Value of any registered key changes,
-        # update the proposal panel of all clients.
-        self._update_proposal_info()
+        if key in self.to_monitor:
+            self._update_proposal_info()
 
     def _update_proposal_info(self):
         values = self.client.eval('session.experiment.proposal, '
@@ -250,24 +167,23 @@ class ExpPanel(Panel):
 
         if values:
             users = [dict(user) for user in values[2]]
-            self.old_proposal_settings = \
+            contacts = [dict(contact) for contact in values[3]]
+            self.old_settings = \
                 ProposalSettings(decodeAny(values[0]), decodeAny(values[1]),
-                                 users, decodeAny(values[3]),
-                                 values[4] == 'abort', notif_emails, samples)
-            self.new_proposal_settings = deepcopy(self.old_proposal_settings)
+                                 users, contacts, values[4] == 'abort',
+                                 notif_emails, samples)
+            self.new_settings = deepcopy(self.old_settings)
             self._update_panel()
 
     def _update_panel(self):
-        self.proposalNum.setText(self.old_proposal_settings.proposal_id)
-        self.expTitle.setText(self.old_proposal_settings.title)
-        self.localContacts.setText(
-            self.old_proposal_settings.local_contacts)
-        self.errorAbortBox.setChecked(
-            self.old_proposal_settings.abort_on_error)
+        self.proposalNum.setText(self.old_settings.proposal_id)
+        self.propTitle.setText(self.old_settings.title)
+        self.errorAbortBox.setChecked(self.old_settings.abort_on_error)
         self.notifEmails.setPlainText(
-            '\n'.join(self.old_proposal_settings.notifications))
-        self._update_samples_model(self.old_proposal_settings.samples)
-        self._update_users_model(self.old_proposal_settings.users)
+            '\n'.join(self.old_settings.notifications))
+        self._update_samples_model(self.old_settings.samples)
+        self._update_users_model(self.old_settings.users)
+        self._update_contacts_model(self.old_settings.local_contacts)
         self._format_sample_table()
         self._format_user_table()
 
@@ -281,30 +197,33 @@ class ExpPanel(Panel):
         width = table.width() - table.verticalHeader().width()
         num_cols = model.columnCount(0)
         for i in range(num_cols):
-            table.setColumnWidth(i, width / num_cols)
+            table.setColumnWidth(i, width // num_cols)
 
     def on_client_connected(self):
+        PanelBase.on_client_connected(self)
         self._update_proposal_info()
         self._is_proposal_system_available()
-        self.setViewOnly(self.client.viewonly)
 
     def _is_proposal_system_available(self):
-        if self.client.eval('session.experiment._canQueryProposals()', None):
-            self.findProposalBox.setVisible(True)
-            self.proposalNum.setReadOnly(True)
-        else:
-            self.findProposalBox.setVisible(False)
-            self.proposalNum.setReadOnly(False)
+        available = self.client.eval('session.experiment._canQueryProposals()',
+                                     False)
+        self.findProposalBox.setVisible(available)
+        self.proposalNum.setReadOnly(available)
+        self.propTitle.setReadOnly(available)
+        self.userTable.setEnabled(not available)
+        self.addUserButton.setVisible(not available)
+        self.deleteUserButton.setVisible(not available)
 
     def on_client_disconnected(self):
         for control in self._text_controls:
             control.setText('')
         self._update_samples_model([])
         self._update_users_model([])
+        self._update_contacts_model([])
         self.notifEmails.setPlainText('')
-        self.setViewOnly(True)
-        self.old_proposal_settings = ProposalSettings()
-        self.new_proposal_settings = ProposalSettings()
+        self.old_settings = ProposalSettings()
+        self.new_settings = ProposalSettings()
+        PanelBase.on_client_disconnected(self)
 
     def on_client_setup(self, data):
         if 'system' in data[0]:
@@ -314,129 +233,88 @@ class ExpPanel(Panel):
     def setViewOnly(self, viewonly):
         for control in self._text_controls:
             control.setEnabled(not viewonly)
+        for table in self._tables:
+            table.setEnabled(not viewonly)
         self.notifEmails.setEnabled(not viewonly)
         self.errorAbortBox.setEnabled(not viewonly)
         self.queryDBButton.setEnabled(not viewonly)
-        self.sampleTable.setEnabled(not viewonly)
-        self.userTable.setEnabled(not viewonly)
         self.addUserButton.setEnabled(not viewonly)
         self.deleteUserButton.setEnabled(not viewonly)
+        self.addSampleButton.setEnabled(not viewonly)
+        self.deleteSampleButton.setEnabled(not viewonly)
         if viewonly:
             self._set_buttons_and_warning_behaviour(False)
         else:
             self._check_for_changes()
-
-    def _format_local_contacts(self, local_contacts):
-        if local_contacts:
-            try:
-                return splitUsers(local_contacts)
-            except ValueError:
-                QMessageBox.warning(self, 'Error', 'Invalid email address in '
-                                    'local contacts list')
-                raise ConfigurationError from None
-        return []
+            self._is_proposal_system_available()
 
     def applyChanges(self):
+        self.queryDBButton.setFocus(True)
         if self.mainwindow.current_status != 'idle':
             self.showInfo('Cannot change settings while a script is running!')
             return
+        try:
+            self._set_experiment()
+            self._set_samples()
+            self._set_notification_receivers()
+            self._set_abort_on_error()
+            self._update_proposal_info()
+        except Exception as error:
+            self.showError(str(error))
 
-        changes = []
+    def _set_experiment(self):
+        local_contacts = [contact for contact in self.contacts_model.raw_data
+                          if contact.get('name', None)]
 
-        proposal_id = self.new_proposal_settings.proposal_id
-        local_contacts = self._format_local_contacts(
-            self.new_proposal_settings.local_contacts)
+        users = [user for user in self.users_model.raw_data
+                 if any((user.get(field) for field in self._user_fields))]
 
-        # do some work
-        if proposal_id != self.old_proposal_settings.proposal_id:
-            self.client.run('FinishExperiment()', noqueue=True)
-            args = {'proposal': proposal_id,
-                    'title': self.new_proposal_settings.title,
-                    'localcontact': local_contacts}
-            code = 'NewExperiment(%s)' % ', '.join('%s=%r' % i
-                                                   for i in args.items())
-            if self.client.run(code, noqueue=False) is None:
-                self.showError('Could not start new experiment, a script is '
-                               'still running.')
-                return
-            changes.append('New experiment started.')
+        exp_args = {'title': self.new_settings.title,
+                    'localcontacts': local_contacts,
+                    'users': users}
+
+        if self.new_settings.proposal_id != self.old_settings.proposal_id:
+            exp_args['proposal'] = self.new_settings.proposal_id
+            command = 'Exp.new(%s)'
         else:
-            self._set_title(changes)
-            self._set_local_contacts(local_contacts, changes)
-        self._set_users(changes)
-        self._set_samples(changes)
-        self._set_notification_receivers(changes)
-        self._set_abort_on_error(changes)
+            command = 'Exp.update(%s)'
+        code = command % ', '.join('%s=%r' % i for i in exp_args.items())
+        self.client.eval(code)
 
-        # tell user about everything we did
-        if changes:
-            self.showInfo('\n'.join(changes))
-        self._update_proposal_info()
-
-    def _set_samples(self, changes):
-        if self.hide_samples:
+    def _set_samples(self):
+        if self.hide_samples or \
+                self.samples_model.raw_data == self.old_settings.samples:
             return
 
-        if self.samples_model.raw_data != self.old_proposal_settings.samples:
-            for index, sample in enumerate(self.samples_model.raw_data):
-                set_sample_cmd = self._create_set_sample_command(index, sample)
-                self.client.run(set_sample_cmd)
-            changes.append('Samples updated.')
+        samples = {}
+        for index, sample in enumerate(self.samples_model.raw_data):
+            if not sample.get('name', ''):
+                sample['name'] = f'sample {index + 1}'
+            samples[index] = sample
+        self.client.run(f'Exp.sample.set_samples({dict(samples)})')
 
-    def _create_set_sample_command(self, index, sample):
-        name = sample.get('name', '')
-        name = name if name else f'sample {index + 1}'
-        return f'SetSample({index}, \'{name}\', ' \
-               f'formula=\'{sample["formula"]}\', ' \
-               f'number_of={sample["number_of"]}, ' \
-               f'mass_volume=\'{sample["mass_volume"]}\', ' \
-               f'density=\'{sample["density"]}\')'
-
-    def _set_title(self, changes):
-        if self.new_proposal_settings.title != self.old_proposal_settings.title:
-            self.client.run('Exp.update(title=%r)' %
-                            self.new_proposal_settings.title)
-            changes.append('New experiment title set.')
-
-    def _set_users(self, changes):
-        if self.users_model.raw_data != self.old_proposal_settings.users:
-            users = [user for user in self.users_model.raw_data
-                     if any(user.values())]
-            self.client.run('Exp.update(users=%r)' % users)
-            changes.append('New users set.')
-
-    def _set_local_contacts(self, local_contacts, changes):
-        if self.new_proposal_settings.local_contacts != \
-                    self.old_proposal_settings.local_contacts:
-            self.client.run('Exp.update(localcontacts=%r)' % local_contacts)
-            changes.append('New local contact(s) set.')
-
-    def _set_abort_on_error(self, changes):
-        abort_on_error = self.new_proposal_settings.abort_on_error
-        if abort_on_error != self.old_proposal_settings.abort_on_error:
+    def _set_abort_on_error(self):
+        abort_on_error = self.new_settings.abort_on_error
+        if abort_on_error != self.old_settings.abort_on_error:
             self.client.run('SetErrorAbort(%s)' % abort_on_error)
-            changes.append('New error behavior set.')
 
-    def _set_notification_receivers(self, changes):
-        notifications = self.new_proposal_settings.notifications
-        if notifications != self.old_proposal_settings.notifications:
+    def _set_notification_receivers(self):
+        notifications = self.new_settings.notifications
+        if notifications != self.old_settings.notifications:
             self.client.run('SetMailReceivers(%s)' %
                             ', '.join(map(repr, notifications)))
-            changes.append('New mail receivers set.')
 
     @pyqtSlot()
     def on_addUserButton_clicked(self):
-        users = self.users_model.raw_data
-        users.append({})
-        self.users_model.raw_data = users
+        self.users_model.insert_row(self.users_model.num_entries)
 
     @pyqtSlot()
     def on_deleteUserButton_clicked(self):
-        users = self.users_model.raw_data
-        rows = set(index.row() for index in self.userTable.selectedIndexes())
-        for row in sorted(rows, reverse=True):
-            users.pop(row)
-        self.users_model.raw_data = users
+        to_remove = {index.row()
+                     for index in self.userTable.selectedIndexes()
+                     if index.isValid() and
+                     index.row() < self.users_model.num_entries}
+        self.users_model.remove_rows(to_remove)
 
     @pyqtSlot()
     def on_queryDBButton_clicked(self):
@@ -462,22 +340,23 @@ class ExpPanel(Panel):
                                    '\n'.join(result['warnings']))
                 # now transfer it into gui
                 self.proposalNum.setText(result.get('proposal', proposal))
-                self.expTitle.setText(result.get('title', ''))
+                self.propTitle.setText(result.get('title', ''))
                 self._update_users_model(result.get('users', []))
-                self._format_user_table()
-                self.localContacts.setText(
-                    combineUsers(result.get('localcontacts', [])))
+                self._update_contacts_model(result.get('localcontacts', []))
                 self._update_samples_model(result['samples'])
+                self._format_user_table()
                 self._format_sample_table()
             else:
                 self.showError('Querying proposal management system failed')
         except Exception as e:
             self.log.warning('error in proposal query', exc=1)
-            self.showError('Querying proposal management system failed: '
-                           + str(e))
+            self.showError(f'Querying proposal management system failed: {e}')
 
     def _update_users_model(self, users):
         self.users_model.raw_data = deepcopy(users)
+
+    def _update_contacts_model(self, contacts):
+        self.contacts_model.raw_data = deepcopy(contacts or [{}])
 
     def choose_proposal(self, proposals):
         dlg = dialogFromUi(self, 'panels/setup_exp_proposal.ui')
@@ -487,7 +366,7 @@ class ExpPanel(Panel):
             prop_copy['users'] = [{'name': combineUsers(prop['users'])}]
             item = QListWidgetItem('', dlg.list)
             item.setData(Qt.UserRole, prop_copy)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         sel = dlg.list.currentRow()
         return proposals[sel]
@@ -498,43 +377,33 @@ class ExpPanel(Panel):
 
     @pyqtSlot(str)
     def on_proposalNum_textChanged(self, value):
-        self.new_proposal_settings.proposal_id = value.strip()
+        self.new_settings.proposal_id = value.strip()
         self._check_for_changes()
 
     @pyqtSlot(str)
-    def on_expTitle_textChanged(self, value):
-        self.new_proposal_settings.title = value.strip()
-        self._check_for_changes()
-
-    def on_samples_changed(self):
-        self._check_for_changes()
-
-    def on_users_changed(self):
-        self._check_for_changes()
-
-    @pyqtSlot(str)
-    def on_localContacts_textChanged(self, value):
-        self.new_proposal_settings.local_contacts = value.strip()
+    def on_propTitle_textChanged(self, value):
+        self.new_settings.title = value.strip()
         self._check_for_changes()
 
     @pyqtSlot()
     def on_errorAbortBox_clicked(self):
-        self.new_proposal_settings.abort_on_error = \
-            self.errorAbortBox.isChecked()
+        self.new_settings.abort_on_error = self.errorAbortBox.isChecked()
         self._check_for_changes()
 
     @pyqtSlot()
     def on_notifEmails_textChanged(self):
-        self.new_proposal_settings.notifications = \
+        self.new_settings.notifications = \
             self.notifEmails.toPlainText().strip().splitlines()
         self._check_for_changes()
 
     def _check_for_changes(self):
-        has_changed = self.new_proposal_settings != self.old_proposal_settings
-        has_changed |= \
-            self.samples_model.raw_data != self.old_proposal_settings.samples
-        has_changed |= \
-            self.users_model.raw_data != self.old_proposal_settings.users
+        has_changed = self.new_settings != self.old_settings
+        has_changed |= self.users_model.raw_data != self.old_settings.users
+        has_changed |= self.contacts_model.raw_data != \
+                       self.old_settings.local_contacts
+        if not self.hide_samples:
+            has_changed |= \
+                self.samples_model.raw_data != self.old_settings.samples
         self._set_buttons_and_warning_behaviour(has_changed)
 
     def discardChanges(self):
@@ -549,3 +418,17 @@ class ExpPanel(Panel):
     @pyqtSlot()
     def on_proposalQuery_returnPressed(self):
         self.on_queryDBButton_clicked()
+
+    @pyqtSlot()
+    def on_addSampleButton_clicked(self):
+        self.samples_model.insert_row(self.samples_model.num_entries)
+        self._format_sample_table()
+
+    @pyqtSlot()
+    def on_deleteSampleButton_clicked(self):
+        to_remove = {index.column()
+                     for index in self.sampleTable.selectedIndexes()
+                     if index.isValid() and
+                     index.column() < self.samples_model.num_entries}
+        self.samples_model.remove_rows(to_remove)
+        self._format_sample_table()

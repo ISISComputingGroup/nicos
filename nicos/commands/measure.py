@@ -27,7 +27,7 @@
 
 from nicos import session
 from nicos.commands import helparglist, parallel_safe, usercommand
-from nicos.core.acquire import Average, CountResult, MinMax, acquire, \
+from nicos.core.acquire import Average, CountResult, MinMax, StdDev, acquire, \
     read_environment, stop_acquire_thread
 from nicos.core.device import Measurable, SubscanMeasurable
 from nicos.core.errors import NicosError, UsageError
@@ -38,7 +38,7 @@ __all__ = [
     'SetDetectors', 'AddDetector', 'ListDetectors',
     'SetEnvironment', 'AddEnvironment', 'ListEnvironment',
     'ListDatasinks',
-    'avg', 'minmax',
+    'avg', 'minmax', 'stddev',
 ]
 
 
@@ -91,7 +91,8 @@ def inner_count(detectors, preset, temporary=False, threaded=False):
     if not session.experiment.forcescandata:
         for filename in point.filenames:
             msg.append('file = %s' % filename)
-        session.log.info('count: %s', ', '.join(msg))
+        if msg:
+            session.log.info('count: %s', ', '.join(msg))
 
     return result
 
@@ -128,7 +129,7 @@ def _count(*detlist, **preset):
     names = set(preset)
     for det in detectors:
         names.difference_update(det.presetInfo())
-    if names:
+    if names and detectors:
         session.log.warning('these preset keys were not recognized by any of '
                             'the detectors: %s -- detectors are %s',
                             ', '.join(names), ', '.join(map(str, detectors)))
@@ -335,3 +336,22 @@ def minmax(dev):
     maximum of the device "T" over the counting period.
     """
     return MinMax(dev)
+
+
+@usercommand
+def stddev(dev):
+    """Create a "statistics device" that calculates the scan-point standard
+    deviation.
+
+    This pseudo-device can be used in the sample environment in order to
+    calculate the standard deviation of a device over the whole scan point,
+    as opposed to the value at the end of the scan point.
+
+    For example:
+
+    >>> SetEnvironment(stddev(T), minmax(T))
+
+    would record for every point in a scan the standard deviation and the
+    minimum and maximum of the device "T" over the counting period.
+    """
+    return StdDev(dev)

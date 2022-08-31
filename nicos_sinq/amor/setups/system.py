@@ -10,8 +10,8 @@ sysconfig = dict(
 )
 
 modules = [
-    'nicos.commands.standard', 'nicos_ess.commands.file_writing',
-    'nicos_sinq.amor.commands', 'nicos_sinq.commands.sics'
+    'nicos.commands.standard', 'nicos_sinq.amor.commands',
+    'nicos_sinq.commands.sics'
 ]
 
 includes = ['sample', 'placeholders']
@@ -39,7 +39,7 @@ devices = dict(
         description = 'The amount of free space for storing data',
         path = None,
         minfree = 5,
-        lowlevel = True,
+        visibility = (),
     ),
     conssink = device('nicos.devices.datasinks.ConsoleScanSink'),
     dmnsink = device('nicos.devices.datasinks.DaemonSink'),
@@ -55,7 +55,7 @@ devices = dict(
         filenametemplate = ['amor%(year)sn%(pointcounter)06d.hdf'],
         status_provider = 'NexusFileWriter',
         templatesmodule = 'nicos_sinq.amor.nexus.nexus_templates',
-        templatename = 'amor_default'
+        templatename = 'amor_commissioning'
     ),
     NexusFileWriter = device(
         'nicos_ess.devices.datasinks.nexussink.NexusFileWriterStatus',

@@ -24,14 +24,30 @@
 #
 # *****************************************************************************
 
+import re
+
 import ldap3  # pylint: disable=import-error
 
-from nicos.core import ACCESS_LEVELS, Param, User, dictof, oneof
+from nicos.core import ACCESS_LEVELS, Param, User, dictof, listof, oneof
+from nicos.core.params import string
 from nicos.services.daemon.auth import AuthenticationError, \
     Authenticator as BaseAuthenticator
 
 # do not use default repr, which might leak passwords
 ldap3.Connection.__repr__ = object.__repr__
+
+ldapuri_re = re.compile(
+    r'^((ldaps|ldap)://)?[a-z0-9-]+(\.[a-z0-9-]+)*(:[1-9][0-9]*)?(/)?$', re.I)
+
+
+def ldapuri(val=None):
+    """a valid LDAP URI with just the host part like [ldap[s]://]host[:port]"""
+    if val in ('', None):
+        return ''
+    val = string(val)
+    if not ldapuri_re.match(val):
+        raise ValueError('%r is not a valid LDAP URI' % val)
+    return val
 
 
 class Authenticator(BaseAuthenticator):
@@ -47,11 +63,11 @@ class Authenticator(BaseAuthenticator):
         'no_tls': ldap3.AUTO_BIND_NO_TLS,
         'tls_before_bind': ldap3.AUTO_BIND_TLS_BEFORE_BIND,
         'tls_after_bind': ldap3.AUTO_BIND_TLS_AFTER_BIND,
-
     }
 
     parameters = {
-        'uri':         Param('LDAP connection URI', type=str, mandatory=True),
+        'uri':         Param('LDAP connection URIs',
+                             type=listof(ldapuri), mandatory=True),
         'bindmethod':  Param('LDAP port', type=oneof(*BIND_METHODS),
                              default='no_tls'),
         'userbasedn':  Param('Base dn to query users.',

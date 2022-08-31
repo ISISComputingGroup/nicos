@@ -19,12 +19,14 @@
 #
 # Module authors:
 #   Matt Clarke <matt.clarke@ess.eu>
+#   Kenan Muric <kenan.muric@ess.eu>
 #
 # *****************************************************************************
 import copy
 import json
 import time
 
+from nicos import session
 from nicos.core import Device, NicosError, Override, Param, relative_path
 
 from nicos_ess.nexus.converter import NexusTemplateConverter
@@ -33,7 +35,7 @@ from nicos_ess.nexus.converter import NexusTemplateConverter
 class NexusStructureProvider(Device):
 
     parameter_overrides = {
-        'lowlevel': Override(default=True),
+        'visibility': Override(default=()),
     }
 
     def get_structure(self, dataset, start_time):
@@ -56,22 +58,25 @@ class NexusStructureJsonFile(NexusStructureProvider):
         structure = structure.replace('$EXP_ID$',
                                       metainfo[('Exp', 'proposal')][0])
         structure = self._insert_users(structure, metainfo)
+        structure = self._insert_samples(structure, metainfo)
         return structure
 
-    def _insert_users(self, structure, metainfo):
-        users = []
-        for user in metainfo[('Exp', 'users')][0]:
-            username = user.get('name', '').replace(" ", "")
-            if not username:
+    def _generate_nxclass_template(self, nx_class, prefix, entities, skip_keys=None):
+        temp = []
+        for entity in entities:
+            entity_name = entity.get('name', '').replace(' ', '')
+            if not entity_name:
                 continue
 
             result = {
                 'type': 'group',
-                'name': f'user_{username}',
-                'attributes': {'NX_class': 'NXuser'},
+                'name': f'{prefix}_{entity_name}',
+                'attributes': {'NX_class': nx_class},
                 'children': [],
             }
-            for n, v in user.items():
+            for n, v in entity.items():
+                if skip_keys and n in skip_keys:
+                    continue
                 result['children'].append(
                     {
                         'module': 'dataset',
@@ -82,11 +87,64 @@ class NexusStructureJsonFile(NexusStructureProvider):
                         }
                     }
                 )
+            temp.append(json.dumps(result))
+        return ','.join(temp) if temp else ''
 
-            users.append(json.dumps(result))
-        if users:
-            structure = structure.replace('"$USERS$"', ','.join(users))
+    def _insert_samples(self, structure, metainfo):
+        samples_str = self._generate_nxclass_template(
+            'NXsample',
+            'sample',
+            metainfo[('Sample', 'samples')][0].values(),
+            skip_keys=['number_of']
+        )
+        if samples_str:
+            structure = structure.replace('"$SAMPLES$"', samples_str)
         return structure
+
+    def _insert_users(self, structure, metainfo):
+        users_str = self._generate_nxclass_template(
+            'NXuser', 'user', metainfo[('Exp', 'users')][0],
+        )
+        if users_str:
+            structure = structure.replace('"$USERS$"', users_str)
+        return structure
+
+
+class NexusStructureAreaDetector(NexusStructureJsonFile):
+    """
+    This class adds some extra consideration to instrument setups with
+    area detectors with changing image size (e.g. neutron or light tomography).
+    """
+    parameters = {
+        'area_det_collector_device': Param('Area collector device name',
+            type=str, mandatory=True, userparam=True, settable=True),
+    }
+
+    def get_structure(self, dataset, start_time):
+        structure = NexusStructureJsonFile.get_structure(self, dataset,
+                                                         start_time)
+        return self._add_area_detector_array_size(structure)
+
+    def _add_area_detector_array_size(self, structure):
+        json_dict = json.loads(structure)
+        self._replace_area_detector_placeholder(json_dict)
+        return json.dumps(json_dict)
+
+    def _replace_area_detector_placeholder(self, data):
+        for item in data['children']:
+            if 'config' in item and 'array_size' in item['config']:
+                if item['config']['array_size'] == '$AREADET$':
+                    item['config']['array_size'] = []
+                    for val in self._get_detector_device_array_size(item['config']):
+                        item['config']['array_size'].append(val)
+            if 'children' in item:
+                self._replace_area_detector_placeholder(item)
+
+    def _get_detector_device_array_size(self, json_config):
+        area_detector_collector = session.getDevice(
+            self.area_det_collector_device)
+        return area_detector_collector.get_array_size(json_config['topic'],
+                                                      json_config['source'])
 
 
 class NexusStructureTemplate(NexusStructureProvider):

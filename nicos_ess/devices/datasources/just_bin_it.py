@@ -26,7 +26,7 @@ import time
 
 import kafka
 import numpy as np
-from streaming_data_types.histogram_hs00 import deserialise_hs00
+from streaming_data_types import deserialise_hs00, deserialise_hs01
 from streaming_data_types.utils import get_schema
 
 from nicos.core import ArrayDesc, InvalidValueError, Override, Param, Value, \
@@ -44,15 +44,15 @@ class Hist1dTof:
     name = 'hist1d'
 
     @classmethod
-    def get_array_description(cls, num_bins, **ignored):
-        return ArrayDesc('data', shape=(num_bins,), dtype=np.float64)
+    def get_array_description(cls, name, num_bins, **ignored):
+        return ArrayDesc(name, shape=(num_bins,), dtype=np.float64)
 
     @classmethod
     def get_zeroes(cls, num_bins, **ignored):
         return cls.transform_data(np.zeros(shape=(num_bins,), dtype=np.float64))
 
     @classmethod
-    def transform_data(cls, data):
+    def transform_data(cls, data, rotation=None):
         return data
 
     @classmethod
@@ -64,8 +64,8 @@ class Hist2dTof:
     name = 'hist2d'
 
     @classmethod
-    def get_array_description(cls, num_bins, **ignored):
-        return ArrayDesc('data', shape=(num_bins, num_bins), dtype=np.float64)
+    def get_array_description(cls, name, num_bins, **ignored):
+        return ArrayDesc(name, shape=(num_bins, num_bins), dtype=np.float64)
 
     @classmethod
     def get_zeroes(cls, num_bins, **ignored):
@@ -73,9 +73,11 @@ class Hist2dTof:
                                            dtype=np.float64))
 
     @classmethod
-    def transform_data(cls, data):
+    def transform_data(cls, data, rotation=None):
         # For the ESS detector orientation, pixel 0 is at top-left
-        return np.rot90(data)
+        if rotation:
+            return np.rot90(data, k=rotation//90)
+        return data
 
     @classmethod
     def get_info(cls, name, num_bins, **ignored):
@@ -87,8 +89,8 @@ class Hist2dDet:
     name = 'dethist'
 
     @classmethod
-    def get_array_description(cls, det_width, det_height, **ignored):
-        return ArrayDesc('data', shape=(det_width, det_height),
+    def get_array_description(cls, name, det_width, det_height, **ignored):
+        return ArrayDesc(name, shape=(det_width, det_height),
                          dtype=np.float64)
 
     @classmethod
@@ -97,9 +99,11 @@ class Hist2dDet:
                                            dtype=np.float64))
 
     @classmethod
-    def transform_data(cls, data):
+    def transform_data(cls, data, rotation=None):
         # For the ESS detector orientation, pixel 0 is at top-left
-        return np.rot90(data)
+        if rotation:
+            return np.rot90(data, k=rotation//90)
+        return data
 
     @classmethod
     def get_info(cls, name, det_width, det_height, **ignored):
@@ -111,8 +115,8 @@ class Hist2dRoi:
     name = 'roihist'
 
     @classmethod
-    def get_array_description(cls, det_width, left_edges, **ignored):
-        return ArrayDesc('data', shape=(det_width, left_edges),
+    def get_array_description(cls, name, det_width, left_edges, **ignored):
+        return ArrayDesc(name, shape=(det_width, left_edges),
                          dtype=np.float64)
 
     @classmethod
@@ -121,9 +125,11 @@ class Hist2dRoi:
                                            dtype=np.float64))
 
     @classmethod
-    def transform_data(cls, data):
+    def transform_data(cls, data, rotation=None):
         # For the ESS detector orientation, pixel 0 is at top-left
-        return np.rot90(data)
+        if rotation:
+            return np.rot90(data, k=rotation//90)
+        return data
 
     @classmethod
     def get_info(cls, name, det_width, left_edges, **ignored):
@@ -137,6 +143,12 @@ hist_type_by_name = {
     '2-D TOF': Hist2dTof,
     '2-D DET': Hist2dDet,
     '2-D ROI': Hist2dRoi,
+}
+
+
+deserialiser_by_schema = {
+    'hs00': deserialise_hs00,
+    'hs01': deserialise_hs01,
 }
 
 
@@ -174,10 +186,14 @@ class JustBinItImage(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
         'left_edges': Param('The left edges for a ROI histogram',
                             type=listof(int), default=[],
                             userparam=True, settable=True,
-                           ),
-        'source': Param('The number of bins to histogram into', type=str,
+                            ),
+        'source': Param('Identifier source on multiplexed topics', type=str,
                         default='', userparam=True, settable=True,
                         ),
+        'rotation': Param('Rotation angle to apply to the image',
+                          type=oneof(0, 90, 180, 270),
+                          default=90, userparam=True, settable=True,
+                          ),
     }
 
     parameter_overrides = {
@@ -187,8 +203,6 @@ class JustBinItImage(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
     }
 
     def doPreinit(self, mode):
-        self._zero_data()
-        self._hist_sum = 0
         _unique_id = None
         _current_status = (status.OK, '')
         if mode == SIMULATION:
@@ -197,13 +211,17 @@ class JustBinItImage(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
         # Set up the data consumer
         KafkaSubscriber.doPreinit(self, None)
 
+    def doInit(self, mode):
+        self._hist_sum = 0
+        self._zero_data()
+
     def _zero_data(self):
         self._hist_data = hist_type_by_name[self.hist_type].get_zeroes(
-            **self._get_all_parameters())
+            **self._params)
 
     def arrayInfo(self):
         return hist_type_by_name[self.hist_type].get_array_description(
-            **self._get_all_parameters())
+            **self._params)
 
     def doPrepare(self):
         self._update_status(status.BUSY, 'Preparing')
@@ -219,9 +237,10 @@ class JustBinItImage(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
 
     def new_messages_callback(self, messages):
         for _, message in messages:
-            if get_schema(message) != 'hs00':
+            deserialiser = deserialiser_by_schema.get(get_schema(message))
+            if not deserialiser:
                 continue
-            hist = deserialise_hs00(message)
+            hist = deserialiser(message)
             info = json.loads(hist['info'])
             self.log.debug('received unique id = {}'.format(info['id']))
             if info['id'] != self._unique_id:
@@ -238,8 +257,9 @@ class JustBinItImage(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
                 self._update_status(status.OK, '')
                 break
 
-            self._hist_data = \
-                hist_type_by_name[self.hist_type].transform_data(hist['data'])
+            self._hist_data = hist_type_by_name[self.hist_type].transform_data(
+                    hist['data'], rotation=self.rotation
+            )
             self._hist_sum = self._hist_data.sum()
             self._hist_edges = hist['dim_metadata'][0]['bin_boundaries']
 
@@ -294,11 +314,8 @@ class JustBinItImage(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
         result = [(f'{self.name} histogram type', self.hist_type,
                    self.hist_type, '', 'general')]
         result.extend(hist_type_by_name[self.hist_type].get_info(
-            **self._get_all_parameters()))
+            **self._params))
         return result
-
-    def _get_all_parameters(self):
-        return {k: getattr(self, k) for k in self.parameters}
 
 
 class JustBinItDetector(Detector, KafkaStatusHandler):
@@ -319,6 +336,9 @@ class JustBinItDetector(Detector, KafkaStatusHandler):
                              type=int, default=5, unit='s',
                              userparam=False, settable=False,
                              ),
+        'hist_schema': Param('Which schema to use for histograms',
+                             type=oneof(*deserialiser_by_schema.keys()),
+                             default='hs00', userparam=False, settable=True,),
     }
 
     parameter_overrides = {
@@ -386,11 +406,11 @@ class JustBinItDetector(Detector, KafkaStatusHandler):
         config = self._create_config(count_interval, unique_id)
 
         if count_interval:
-            self.log.info(
+            self.log.debug(
                 'Requesting just-bin-it to start counting for %s seconds',
                 count_interval)
         else:
-            self.log.info('Requesting just-bin-it to start counting')
+            self.log.debug('Requesting just-bin-it to start counting')
 
         self._send_command(self.command_topic, json.dumps(config).encode())
 
@@ -442,7 +462,7 @@ class JustBinItDetector(Detector, KafkaStatusHandler):
 
     def _handle_message(self, msg):
         if 'response' in msg and msg['response'] == 'ACK':
-            self.log.info(
+            self.log.debug(
                 'Counting request acknowledged by just-bin-it')
             return True
         elif 'response' in msg and msg['response'] == 'ERR':
@@ -465,6 +485,7 @@ class JustBinItDetector(Detector, KafkaStatusHandler):
         config_base = {
             'cmd': 'config',
             'msg_id': identifier,
+            'output_schema': self.hist_schema,
             'histograms': histograms
         }
 

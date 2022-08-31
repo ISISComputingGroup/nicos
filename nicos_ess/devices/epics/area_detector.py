@@ -18,303 +18,214 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Michele Brambilla <michele.brambilla@psi.ch>
+#   Kenan Muric <kenan.muric@ess.eu>
 #
 # *****************************************************************************
-
-"""
-This module implements the EPICS area detector integration.
-"""
-
-import numpy as np
-
-from nicos.core import LIVE, ArrayDesc, Param, Value, multiStatus, pvname, \
-    status
-from nicos.core.device import Device
-from nicos.devices.generic import ImageChannelMixin
-
-from nicos_ess.devices.epics.base import EpicsDeviceEss
-from nicos_ess.devices.epics.detector import EpicsDetector, \
-    EpicsPassiveChannel, EpicsTimerPassiveChannel
-from nicos_ess.devices.epics.status import ADKafkaStatus
-
-data_type_t = {
-    'Int8': np.int8,
-    'UInt8': np.uint8,
-    'Int16': np.int16,
-    'UInt16': np.uint16,
-    'Int32': np.int32,
-    'UInt32': np.uint32,
-    'Int64': np.int64,
-    'UInt64': np.uint64,
-    'Float32': np.float32,
-    'Float64': np.float64
-}
+from nicos.core import status, Param, pvname, Attach, Measurable
+from nicos.devices.epics import STAT_TO_STATUS, SEVERITY_TO_STATUS, EpicsDevice
+from nicos.devices.generic import Detector, ImageChannelMixin
+from nicos_sinq.devices.epics.area_detector import ADKafkaPlugin \
+    as ADKafkaPluginBase
 
 
-class EpicsAreaDetectorTimerPassiveChannel(EpicsTimerPassiveChannel):
+class ADKafkaPlugin(ADKafkaPluginBase):
     """
-    Mixin that determine the remaining acquisition time based on the EPICS
-    'TimeRemaining_RBV' PV.
-    """
-
-    def doTime(self, preset):
-        return self._get_pv('readpv')
-
-
-class EpicsAreaDetector(EpicsDetector):
-    """
-    Class that implements the basics elements of the EPICS areaDetector.
-
-    Extends the EpicsDetector adding the acquisition_time preset and the
-    acquisition state.
-    """
-
-    parameters = {
-        'statepv': Param('PV to monitor the acquisition state', type=pvname,
-                         mandatory=True, userparam=False),
-        'errormsgpv': Param('Optional PV with error message.',
-                            type=pvname or None, mandatory=False,
-                            settable=False, userparam=False, default=None),
-    }
-
-    _mapped_state = {
-        'Acquire': status.BUSY,
-        'Idle': status.OK,
-        'Readout': status.BUSY,
-    }
-
-    def _get_pv_parameters(self):
-        """
-        Implementation of inherited method to automatically account for fields
-        present in area detector.
-
-        :return: List of PV aliases.
-        """
-        pvs = EpicsDetector._get_pv_parameters(self)
-        if self.statepv:
-            pvs.add('statepv')
-
-        if self.errormsgpv:
-            pvs.add('errormsgpv')
-        return pvs
-
-    def _get_status_message(self):
-        """
-        Get the status message from the detector if the PV exists.
-
-        :return: The status message if it exists, otherwise an empty string.
-        """
-        if not self.errormsgpv:
-            return ''
-
-        return self._get_pv('errormsgpv', as_string=True)
-
-    def doStatus(self, maxage=0):
-        general_epics_status, _ = self._get_mapped_epics_status()
-        message = self._get_status_message()
-
-        if general_epics_status == status.ERROR:
-            return status.ERROR, message or 'Unknown problem in record'
-
-        state = self._get_pv('statepv', as_string=True)
-        if state not in self._mapped_state:
-            return status.UNKNOWN, state or 'Unknown detector state'
-
-        st, text = multiStatus(self._getWaiters(), maxage)
-        if '=' in text:
-            _, text = text.split('=')
-        if st != status.OK:
-            return st, text
-
-        return self._mapped_state[state], state
-
-    def arrayInfo(self):
-        return [ch.arraydesc for ch in self._attached_images]
-
-    def duringMeasureHook(self, elapsed):
-        return LIVE
-
-
-class ADKafkaPlugin(EpicsDeviceEss, Device):
-    """
-    Device that allows to configure the EPICS ADPluginKafka
+    Class that contains the configuration of the area detector Kafka plugin.
     """
     parameters = {
-        'kafkapv': Param('EPICS prefix', type=pvname, mandatory=True),
-        'brokerpv': Param('PV with the Kafka broker address', type=pvname,
+        'sourcepv': Param('PV with the Kafka source', type=pvname,
                           mandatory=True),
-        'topicpv': Param('PV with the Kafka topic', type=pvname,
-                         mandatory=True),
-        'statuspv': Param('PV with the status of the Kafka connection',
-                          type=pvname or None, mandatory=False, default=None),
-        'msgpv': Param('PV with further message from Kafka',
-                       type=pvname or None, mandatory=False, default=None),
     }
 
     def _get_pv_parameters(self):
-        """
-        Implementation of inherited method to automatically account for fields
-        present in area detector record.
-
-        :return: List of PV aliases.
-        """
-        pvs = ['brokerpv', 'topicpv']
-        if self.statuspv:
-            pvs.append('statuspv')
-        if self.msgpv:
-            pvs.append('msgpv')
-        pvs += set(self._record_fields)
-
+        pvs = ADKafkaPluginBase._get_pv_parameters(self)
+        pvs.append('sourcepv')
         return pvs
 
     def _get_pv_name(self, pvparam):
-        """
-        Implementation of inherited method that translates between PV aliases
-        and actual PV names. Automatically adds a prefix to the PV name
-        according to the kafkapv parameter.
+        return self.kafkapv + (getattr(self, pvparam) or '')
 
-        :param pvparam: PV alias.
-        :return: Actual PV name.
-        """
-        prefix = getattr(self, 'kafkapv')
-        field = self._record_fields.get(pvparam)
-
-        if field is not None:
-            return ':'.join((prefix, field))
-
-        return getattr(self, pvparam)
-
-    @property
-    def broker(self):
+    def _get_source(self):
         try:
-            result = self._get_pv('brokerpv')
+            result = self._get_pv('sourcepv')
         except Exception as e:
             result = e
         return result
 
-    @property
-    def topic(self):
-        try:
-            result = self._get_pv('topicpv')
-        except Exception as e:
-            result = e
-        return result
-
-    def doStatus(self):
-        general_epics_status, _ = self._get_mapped_epics_status()
-        message = self._get_status_message()
-
-        if general_epics_status == status.ERROR:
-            return status.ERROR, message or 'Unknown problem in record'
-
-        if not self.broker:
-            return status.ERROR, 'Empty broker'
-        if not self.topic:
-            return status.ERROR, 'Empty topic'
-
-        if self.msgpv:
-            message = self._get_pv('msgpv') or message
-
-        if self.statuspv:
-            st = self._get_pv('statuspv')
-            if st == ADKafkaStatus.CONNECTING:
-                return status.WARN, 'Connecting'
-            if st != ADKafkaStatus.CONNECTED:
-                return status.ERROR, message
-
-        return status.OK, message
-
-    def _get_status_message(self):
-        """
-        Get the status message from the PluginKafka if the PV exists.
-
-        :return: The status message if it exists, otherwise an empty string.
-        """
-        if not self.msgpv:
-            return ''
-
-        return self._get_pv('msgpv', as_string=True)
+    def get_topic_and_source(self):
+        return self.topic, self._get_source()
 
 
-class ADImageChannel(ImageChannelMixin, EpicsPassiveChannel):
+class AreaDetector(EpicsDevice, ImageChannelMixin, Measurable):
     """
-    Detector channel for delivering images from Epics AreaDetector.
+    Device that controls and acquires data from an area detector that uses
+    the Kafka plugin for area detectors.
     """
     parameters = {
-        'pvprefix': Param('Prefix of the record PV.', type=pvname,
-                          mandatory=True, settable=False, userparam=False),
+        'pv_root': Param('Area detector EPICS prefix', type=pvname,
+                         mandatory=True),
+        'iscontroller': Param('If this channel is an active controller',
+                              type=bool, settable=True, default=True),
     }
 
-    def _get_record_fields(self):
-        camera_channel_fields = {
-            'size_x': 'SizeX_RBV',
-            'size_y': 'SizeY_RBV',
-            'bin_x': 'BinX_RBV',
-            'bin_y': 'BinY_RBV',
-            'min_x': 'MinX_RBV',
-            'min_y': 'MinY_RBV',
-            'data_type': 'DataType_RBV'
-        }
-        return camera_channel_fields
+    _control_pvs = {
+        'size_x': 'SizeX',
+        'size_y': 'SizeY',
+        'bin_x': 'BinX',
+        'bin_y': 'BinY',
+        'acquire_time': 'AcquireTime',
+        'acquire_period': 'AcquirePeriod',
+        'frame_rate':  'FrameRate',
+        'num_images': 'NumImages',
+        'num_exposures': 'NumExposures',
+        'pixel_format': 'PixelFormat',
+    }
 
-    def doInit(self, mode):
-        EpicsPassiveChannel.doInit(self, mode)
-        self.doPrepare()
+    _record_fields = {}
 
-    def doPrepare(self):
-        shape = self._get_pv('size_x'), self._get_pv('size_y')
-        data_type = data_type_t[self._get_pv('data_type', as_string=True)]
-        self.arraydesc = ArrayDesc('data', shape=shape, dtype=data_type)
+    attached_devices = {
+        'ad_kafka_plugin': Attach('Area detector Kafka plugin', ADKafkaPlugin,
+                                  optional=False),
+    }
+
+    def doPreinit(self, mode):
+        self._record_fields = {key + '_rbv': value + '_RBV'
+                               for key, value in
+                               self._control_pvs.items()}
+        self._record_fields.update(self._control_pvs)
+        self._set_custom_record_fields()
+        EpicsDevice.doPreinit(self, mode)
+
+    def _set_custom_record_fields(self):
+        self._record_fields['max_size_x'] = 'MaxSizeX_RBV'
+        self._record_fields['max_size_y'] = 'MaxSizeY_RBV'
+        self._record_fields['num_images_counter_rbv'] = 'NumImagesCounter_RBV'
+        self._record_fields['detector_state'] = 'DetectorState_RBV'
+        self._record_fields['detector_state.STAT'] = 'DetectorState_RBV.STAT'
+        self._record_fields['detector_state.SEVR'] = 'DetectorState_RBV.SEVR'
+        self._record_fields['array_rate_rbv'] = 'ArrayRate_RBV'
+        self._record_fields['acquire'] = 'Acquire'
 
     def _get_pv_parameters(self):
-        """
-        Implementation of inherited method to automatically account for fields
-        present in area detector image record.
-
-        :return: List of PV aliases.
-        """
-        pvs = set(self._record_fields.keys())
-        pvs.add('readpv')
-        return pvs
+        return set(self._record_fields)
 
     def _get_pv_name(self, pvparam):
-        """
-        Implementation of inherited method that translates between PV aliases
-        and actual PV names. Automatically adds a prefix to the PV name
-        according to the pvprefix parameter, if necessary.
-
-        :param pvparam: PV alias.
-        :return: Actual PV name.
-        """
-        prefix = getattr(self, 'pvprefix')
-        field = self._record_fields.get(pvparam)
-
-        if field is not None:
-            return ':'.join((prefix, field))
-
+        pv_name = self._record_fields.get(pvparam)
+        if pv_name:
+            return self.pv_root + pv_name
         return getattr(self, pvparam)
 
-    def doReadSize(self):
-        return list(self._shape)
-
-    def doReadBinning(self):
-        return [self._get_pv('bin_x'), self._get_pv('bin_y')]
-
-    def doReadZeropoint(self):
-        return [self._get_pv('min_x'), self._get_pv('min_y')]
+    def doRead(self, maxage=0):
+        return []
 
     def doReadArray(self, quality):
-        data = self._get_pv('readpv')
-        return np.rot90(data.reshape(self.arraydesc.shape))
+        return None
 
-    def valueInfo(self):
-        return (Value(self.name, unit=''), )
+    def doSetPreset(self, **preset):
+        pass
+
+    def doStart(self, target):
+        if target:
+            self._put_pv('acquire_period', target)
+        self._put_pv('acquire', 1)
+
+    def doFinish(self):
+        self.doStop()
+
+    def doStop(self):
+        self._put_pv('acquire', 0)
 
     def doStatus(self, maxage=0):
-        general_epics_status, _ = self._get_mapped_epics_status()
+        detector_state = self._get_pv('detector_state', True)
+        alarm_status = STAT_TO_STATUS.get(self._get_pv('detector_state.STAT'),
+                                          status.UNKNOWN)
+        alarm_severity = SEVERITY_TO_STATUS.get(self._get_pv('detector_state.SEVR'),
+                                                status.UNKNOWN)
+        self._write_alarm_to_log(detector_state, alarm_severity, alarm_status)
+        return alarm_severity, detector_state
 
-        if general_epics_status == status.ERROR:
-            return status.ERROR, 'Unknown problem in record'
+    def _write_alarm_to_log(self, pv_value, severity, stat):
+        msg_format = '%s (%s)'
+        if severity in [status.ERROR, status.UNKNOWN]:
+            self.log.error(msg_format, pv_value, stat)
+        elif severity == status.WARN:
+            self.log.warning(msg_format, pv_value, stat)
 
-        return status.OK, ''
+    def doReadSizeX(self):
+        return self._get_pv('max_size_x')
+
+    def doWriteSizeX(self, value):
+        self._put_pv('size_x', value)
+
+    def doReadSizeY(self):
+        return self._get_pv('max_size_y')
+
+    def doWriteSizeY(self, value):
+        self._put_pv('size_y', value)
+
+    def doReadExposureTime(self):
+        return self._get_pv('acquire_time_rbv')
+
+    def doWriteExposureTime(self, value):
+        self._put_pv('acquire_time', value)
+
+    def doReadAcquirePeriod(self):
+        return self._get_pv('acquire_period_rbv')
+
+    def doWriteAcquirePeriod(self, value):
+        self._put_pv('acquire_period', value)
+
+    def doReadBinX(self):
+        return self._get_pv('bin_x_rbv')
+
+    def doWriteBinX(self, value):
+        self._put_pv('bin_x', value)
+
+    def doReadBinY(self):
+        return self._get_pv('bin_y_rbv')
+
+    def doWriteBinY(self, value):
+        self._put_pv('bin_y', value)
+
+    def doReadFrameRate(self):
+        return self._get_pv('frame_rate_rbv')
+
+    def doWriteFrameRate(self, value):
+        self._put_pv('frame_rate', value)
+
+    def doReadNumImages(self):
+        return self._get_pv('num_images_rbv')
+
+    def doWriteNumImages(self, value):
+        self._put_pv('num_images', value)
+
+    def doReadNumExposures(self):
+        return self._get_pv('num_exposures_rbv')
+
+    def doWriteNumExposures(self, value):
+        self._put_pv('num_exposures', value)
+
+    def get_array_size(self):
+        array_size = [self._get_pv('size_x_rbv'),
+                      self._get_pv('size_y_rbv'), ]
+        if self._get_pv('pixel_format_rbv', True) in ['BayerRG8', 'BayerRG16']:
+            array_size.append(3)
+        return array_size
+
+    def get_topic_and_source(self):
+        return self._attached_ad_kafka_plugin.get_topic_and_source()
+
+
+class AreaDetectorCollector(Detector):
+    """
+    A device class that collects the area detectors present in the instrument
+    setup.
+    """
+
+    def get_array_size(self, topic, source):
+        for area_detector in self._attached_images:
+            if (topic, source) == area_detector.get_topic_and_source():
+                return area_detector.get_array_size()
+        self.log.error('No array size was found for area detector '
+                       'with topic %s and source %s.', topic, source)
+        return []

@@ -27,39 +27,39 @@ import time
 
 from nicos import session
 from nicos.core import DataSinkHandler, NicosError, Override, Param, listof
-from nicos.core.constants import POINT
+from nicos.core.constants import FINAL, POINT
 from nicos.devices.datasinks import FileSink
 from nicos.utils import AutoDefaultODict
 
 # if these labels apear as part of a key, they are "known"
 element_part = [
-    'cooling_memograph',
-    'FAK40_Cap',
-    'FAK40_Press',
-    'flow_memograph_in',
-    'flow_memograph_out',
-    'leak_memograph',
-    'NL2b', 'Space', 'timer', 'Sample', 'mon1', 'mon2',
-    # 'optic',
-    'p_memograph_in',
-    'p_memograph_out',
-    'REFSANS', 'Crane', 'det', 'Sixfold', 'ReactorPower', 'Exp', 'image',
-    # 'shutter',
-    # 'shutter_gamma',
-    't_memograph_in',
-    't_memograph_out',
-    'triangle',
-    'triangle_phi',
-    'triangle_theta',
-    'vacuum_CB',
-    'vacuum_SFK',
-    'vacuum_SR',
-    'wegbox_A_1ref',
-    'wegbox_A_2ref',
-    'wegbox_B_1ref',
-    'wegbox_B_2ref',
-    'wegbox_C_1ref',
-    'wegbox_C_2ref',
+#     'cooling_memograph',
+#     'FAK40_Cap',
+#     'FAK40_Press',
+#     'flow_memograph_in',
+#     'flow_memograph_out',
+#     'leak_memograph',
+#     'NL2b', 'Space', 'timer', 'Sample', 'mon1', 'mon2',
+#     # 'optic',
+#     'p_memograph_in',
+#     'p_memograph_out',
+#     'REFSANS', 'Crane', 'det', 'Sixfold', 'ReactorPower', 'Exp', 'image',
+#     # 'shutter',
+#     # 'shutter_gamma',
+#     't_memograph_in',
+#     't_memograph_out',
+#     'triangle',
+#     'triangle_phi',
+#     'triangle_theta',
+#     'vacuum_CB',
+#     'vacuum_SFK',
+#     'vacuum_SR',
+#     'wegbox_A_1ref',
+#     'wegbox_A_2ref',
+#     'wegbox_B_1ref',
+#     'wegbox_B_2ref',
+#     'wegbox_C_1ref',
+#     'wegbox_C_2ref',
 ]
 chopper = [
     'chopper2_pos',
@@ -78,6 +78,8 @@ Gonio = [
     'gonio_phi',
     'gonio_theta',
     'gonio_z',
+    'gonio_x',
+    'sample_x_manual',
     'gonio_y',
     'gonio_top_phi',
     'gonio_top_theta',
@@ -122,6 +124,11 @@ simple_lateral_label = ['', '_mode']
 det_pos = [
     'det_pivot',
     'det_table',
+    'det_table_cab_temp',
+    'det_table_ctrl',
+    'det_table_motor_temp',
+    'det_table_poti',
+    'det_table_raw',
     'det_yoke',
     'det_yoke_enc',
     'det_drift',
@@ -168,15 +175,21 @@ Miscellaneous = [
     'chamber_CB',
     'chamber_SFK',
     'chamber_SR',
+    'hv_anode',
+    'hv_drift1',
+    'hv_drift2',
+    'hv_mon',
 ]
 
 safetysystem = [
     'doors',
     'place',
     'PO_save',
+    'basis',
     'service',
     'SR_save',
     'supervisor',
+    'personalkey',
     'techOK',
     'user',
 ]
@@ -269,7 +282,7 @@ environment = [
     'active_regulator',
     'pump0_diameter', 'pump0_rate', 'pump0_run',
     'pump1_diameter', 'pump1_rate', 'pump1_run',
-    'nima_area', 'nima_pressure', 'nima_speed',
+    'nima_area', 'nima_pressure', 'nima_speed', 'nima_z',
 ]
 
 element_part += chopper
@@ -364,6 +377,7 @@ class ConfigObjDatafileSinkHandler(DataSinkHandler):
             # TODO: Check the need of dictionaries
             self._data['Detector Parameters'] = self._dict()
             self._data['Chopper'] = self._dict()
+            self._data['chopper_config'] = self._dict()
             self._data['NOKs'] = self._dict()
             self._data['NOKs_mode'] = self._dict()
             self._data['Absolute_Positions'] = self._dict()
@@ -539,13 +553,19 @@ class ConfigObjDatafileSinkHandler(DataSinkHandler):
                                                         'value'][0]
         for devname in chopper:
             if (devname, 'value') in metainfo:
-                # self.log.debug('1. %s %s', devname, metainfo[devname,
-                #                                              'value'][0])
-                self._data['Chopper'][devname] = metainfo[devname, 'value'][0]
+                self.log.debug('1. %s %s', devname, metainfo[devname,
+                                                             'value'][0])
+                if devname == 'chopper':
+                    self.log.debug('%s', type(metainfo[devname, 'value'][0]))
+                    for key in metainfo[devname, 'value'][0].keys():
+                        self._data['chopper_config'][key] = \
+                            metainfo[devname, 'value'][0][key]
+                else:
+                    self._data['Chopper'][devname] = metainfo[devname, 'value'][0]
             else:
                 key = tuple(devname.split('/'))
                 if key in metainfo:
-                    # self.log.debug('2. %s %s', key, metainfo[key][0])
+                    self.log.debug('2. %s %s', key, metainfo[key][0])
                     self._data['Chopper']['%s_%s' % key] = metainfo[key][0]
                 else:
                     self.log.warning('missing %s', devname)
@@ -573,10 +593,10 @@ class ConfigObjDatafileSinkHandler(DataSinkHandler):
             if (dev, 'value') in metainfo:
                 extra[dev] = metainfo[dev, 'value'][0]
         self._data['Extra'] = extra
-        mstr = str(metainfo)
-        for evel in ['\xb0']:  # 'degC'
-            mstr = mstr.replace(evel, '+')
-        self._data['metainfo'] = mstr
+        # mstr = str(metainfo)
+        # for evel in ['\xb0']:  # 'degC'
+        #     mstr = mstr.replace(evel, '+')
+        # self._data['metainfo'] = mstr
 
     def putMetainfo(self, metainfo):
         self.log.debug('metainfo: %s', str(metainfo).replace(
@@ -636,6 +656,29 @@ class ConfigObjDatafileSinkHandler(DataSinkHandler):
         contains all results so far.
         """
         self.log.debug('%s', quality)
+        if quality == FINAL:
+            dic = {}
+            self._final_dic(self.dataset.detectors[0]._attached_images,
+                            '.sum', dic)
+            self._final_dic(self.dataset.detectors[0]._attached_monitors,
+                            '', dic)
+            self._final_dic(self.dataset.detectors[0]._attached_timers,
+                            '', dic)
+            self._final_dic(self.dataset.detectors[0]._attached_counters,
+                            '', dic)
+            if self._data:
+                try:
+                    self._data['final'] = dic
+                    self._data.write()
+                except Exception:
+                    self.log.warning("'final' not written")
+
+    def _final_dic(self, att, tag, dic):
+        for data in att:
+            for info, val in zip(self.dataset.detvalueinfo,
+                                 self.dataset.detvaluelist):
+                if data.name + tag == info.name:
+                    dic[info.name] = val
 
     def _dump(self):
         if self._data:

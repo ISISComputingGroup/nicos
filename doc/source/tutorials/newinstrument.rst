@@ -48,8 +48,10 @@ at the facility is ``HYNES``::
 
 Then change to the newly created directory (``nicos_hynes/woni``) and edit the
 file ``nicos.conf``.  Please follow the instructions given in the file itself
-and select the right settings.  The file uses INI-style syntax, ``#`` starts a
+and select the right settings.  The file uses TOML_ syntax, ``#`` starts a
 comment.
+
+.. _TOML: https://toml.io
 
 First change the ``setup_subdirs`` entry.  It contains a list of the directories
 in the ``nicos_hynes`` directory which will be used to look for a setup name or
@@ -63,34 +65,34 @@ The ``nicos.conf`` should now look like::
 
    [nicos]
    # user: The system user which will own the nicos files.
-   #user = nicd
+   #user = "nicd"
 
    # group: The system group which will own the nicos files.
-   #group = nicd
+   #group = "nicd"
 
    # umask: The umask used upon creating files and directories.
-   #umask = 022
+   #umask = "022"
 
    # setup_package: The Python package where to look for instrument setups.
    # The default is nicos_demo.
-   setup_package = nicos_hynes
+   setup_package = "nicos_hynes"
 
-   # setup_subdirs: A list of subdir names to find setups under the custom path,
-   # separated by ",".
-   # Usually this is "instrumentname"
-   setup_subdirs = woni
+   # setup_subdirs: A list of subdir names to find setups under the custom path.
+   # Usually this is ["instrumentname"]
+   setup_subdirs = ["woni"]
 
    # services: Defines which nicos services will be started by the init.d
    # script 'nicos-system' on which host (identified by the short name
    # as output by `hostname -s`)
    # * You can specify "services" alone as a configuration for all hosts.
    # * Or "services_hostname" for a specific host.
-   services = cache,poller,daemon,elog,watchdog
-   # services_somehost = daemon
+   services = ["cache", "poller", "daemon", "elog", "watchdog"]
+   # services_somehost = ["daemon"]
 
    [environment]
 
    # More environment variables (including PYTHONPATH) can be defined here.
+   ENV_VAR = "blah"
 
 
 To test your configured instrument you can set the environment variable
@@ -251,15 +253,15 @@ And for the detector we put its configuration into
 
     devices = dict(
         timer = device('nicos.devices.generic.VirtualTimer',
-            lowlevel = True,
+            visibility = (),
         ),
         monitor = device('nicos.devices.generic.VirtualCounter',
-            lowlevel = True,
+            visibility = (),
             type = 'monitor',
             countrate = 100,
         ),
         image = device('nicos.devices.generic.VirtualImage',
-            lowlevel = True,
+            visibility = (),
             size = (80, 256),
         ),
         det = device('nicos.devices.generic.Detector',
@@ -271,8 +273,8 @@ And for the detector we put its configuration into
     )
 
 If you look into the configurations of the ``timer``, ``monitor``, and ``image``
-devices you'll see that the ``lowlevel`` configuration parameters are set to
-``True``.  This hides these devices from the user, because the user does not
+devices you'll see that the ``visibility`` configuration parameters are set to
+``()``.  This hides these devices from the user, because the user does not
 need to see all possible devices.  At the end the user would be confused due
 to the high number of devices.  You will see as well that all devices are
 attached to the ``det`` device which is the final detector device.

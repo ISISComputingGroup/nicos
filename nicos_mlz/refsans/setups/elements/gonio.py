@@ -2,13 +2,21 @@ description = 'Sample table devices'
 
 group = 'lowlevel'
 
+includes = ['ana4gpio01']
 
 instrument_values = configdata('instrument.values')
 
 tango_base1 = instrument_values['tango_base'] + 'sample/phy_mo1/'
 tango_base2 = instrument_values['tango_base'] + 'sample/phy_mo2/'
+code_base = instrument_values['code_base']
 
 devices = dict(
+    gonio_x = device(code_base + 'analogencoder.AnalogEncoder',
+        description = 'pos of goniometer in beamdirection, with respect to b3',
+        device = 'ana4gpio01_ch1',
+        poly = [-0.269211180059716, 381.122648733114],
+        unit = 'mm',
+    ),
     gonio_theta = device('nicos.devices.generic.Axis',
         description = 'Theta axis',
         motor = 'gonio_theta_motor',
@@ -18,12 +26,12 @@ devices = dict(
     gonio_theta_motor = device('nicos.devices.entangle.Motor',
         description = 'Theta axis motor',
         tangodevice = tango_base1 + 'theta_m',
-        lowlevel = True,
+        visibility = (),
     ),
     gonio_theta_enc = device('nicos.devices.entangle.Sensor',
         description = 'Theta axis coder',
         tangodevice = tango_base1 + 'theta_e',
-        lowlevel = True,
+        visibility = (),
     ),
     gonio_phi = device('nicos.devices.generic.Axis',
         description = 'Phi axis',
@@ -34,12 +42,12 @@ devices = dict(
     gonio_phi_motor = device('nicos.devices.entangle.Motor',
         description = 'Phi axis motor',
         tangodevice = tango_base1 + 'phi_m',
-        lowlevel = True,
+        visibility = (),
     ),
     gonio_phi_enc = device('nicos.devices.entangle.Sensor',
         description = 'Phi axis coder',
         tangodevice = tango_base1 + 'phi_e',
-        lowlevel = True,
+        visibility = (),
     ),
     gonio_omega = device('nicos.devices.generic.Axis',
         description = 'Omega axis',
@@ -52,12 +60,12 @@ devices = dict(
         description = 'Omega axis motor',
         tangodevice = tango_base1 + 'omega_m',
         abslimits = [-2.1, 2.1],
-        lowlevel = True,
+        visibility = (),
     ),
     gonio_omega_enc = device('nicos.devices.entangle.Sensor',
         description = 'Omega axis coder',
         tangodevice = tango_base1 + 'omega_e',
-        lowlevel = True,
+        visibility = (),
     ),
     gonio_y = device('nicos.devices.generic.Axis',
         description = 'Y axis. towards TOFTOF is plus',
@@ -66,14 +74,14 @@ devices = dict(
         precision = 0.01,
     ),
     gonio_y_motor = device('nicos.devices.entangle.Motor',
-        description = 'y axis motor',
+        description = 'y axis motor 0,19mm/sec',
         tangodevice = tango_base2 + 'y_m',
-        lowlevel = True,
+        visibility = (),
     ),
     gonio_y_enc = device('nicos.devices.entangle.Sensor',
         description = 'y axis coder',
         tangodevice = tango_base2 + 'y_e',
-        lowlevel = True,
+        visibility = (),
     ),
     gonio_z = device('nicos.devices.generic.Axis',
         description = 'Z axis',
@@ -84,11 +92,17 @@ devices = dict(
     gonio_z_motor = device('nicos.devices.entangle.Motor',
         description = 'Z axis motor',
         tangodevice = tango_base1 + 'z_m',
-        lowlevel = True,
+        visibility = (),
+        unit = 'mm',
     ),
     gonio_z_enc = device('nicos.devices.entangle.Sensor',
         description = 'Z axis coder',
         tangodevice = tango_base1 + 'z_e',
-        lowlevel = True,
+        visibility = (),
+        unit = 'mm',
     ),
 )
+
+alias_config = {
+    'd_last_slit_sample': {'gonio_x': 300},
+}

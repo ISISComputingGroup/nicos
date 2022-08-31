@@ -92,7 +92,7 @@ class SimClock:
         self.time = 0
 
     def wait(self, time):
-        self.time = min(self.time, time)
+        self.time = max(self.time, time)
 
     def tick(self, sec):
         self.time += sec
@@ -205,7 +205,7 @@ class NicosCompleter:
         if '(' in line:
             command = line[:line.index('(')].lstrip()
             if command in self.special_device:
-                from nicos.core import Readable, Moveable
+                from nicos.core import Moveable, Readable
                 if command in self.special_moveable:
                     cls = Moveable
                 elif command in self.special_readable:

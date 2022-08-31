@@ -6,16 +6,14 @@ devices = dict(
     dimetix=device('nicos_sinq.amor.devices.dimetix.EpicsDimetix',
                    description='Laser distance measurement device',
                    readpv='SQ:AMOR:DIMETIX:DIST',
-                   epicstimeout=3.0,
                    offset=-238,
-                   lowlevel=True),
+                   visibility=()),
 
     xlz=device('nicos_ess.devices.epics.motor.EpicsMotor',
-               epicstimeout=3.0,
                description='Counter z position distance laser motor',
                motorpv='SQ:AMOR:mota:xlz',
                errormsgpv='SQ:AMOR:mota:xlz-MsgTxt',
-               lowlevel=True
+               visibility=()
                ),
 
     laser_positioner=device(
@@ -34,6 +32,6 @@ devices = dict(
                  },
         fallback='<undefined>',
         precision=0,
-        lowlevel=True
+        visibility=()
     ),
 )

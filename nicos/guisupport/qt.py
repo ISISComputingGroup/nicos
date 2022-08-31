@@ -27,7 +27,6 @@
 
 # pylint: disable=wildcard-import, unused-import, unused-wildcard-import
 
-import os
 import sys
 
 from PyQt5 import uic
@@ -39,6 +38,11 @@ from PyQt5.QtPrintSupport import *
 from PyQt5.QtWidgets import *
 
 import nicos.guisupport.gui_rc_qt5
+
+# compat for Qt < 5.11
+if not hasattr(QFontMetrics, 'horizontalAdvance'):
+    QFontMetrics.horizontalAdvance = \
+        lambda self, *args, **kwargs: self.width(*args, **kwargs)
 
 try:
     from PyQt5 import sip
@@ -65,15 +69,9 @@ except (ImportError, RuntimeError):
     QtDBus = None
 
 try:
-    from PyQt5.Qsci import QsciScintilla, QsciLexerPython, QsciPrinter
+    from PyQt5.Qsci import QsciLexerPython, QsciPrinter, QsciScintilla
 except (ImportError, RuntimeError):
     QsciScintilla = QsciLexerPython = QsciPrinter = None
-
-
-class QPyNullVariant:
-    pass
-
-propertyMetaclass = type(QObject)
 
 
 QT_VER = int(QT_VERSION_STR.split('.', maxsplit=1)[0])
@@ -81,6 +79,7 @@ QT_VER = int(QT_VERSION_STR.split('.', maxsplit=1)[0])
 if 'linux' in sys.platform:
     import ctypes
     import ctypes.util
+
     # preload opengl library for usage e.g. in QtWebkit
     # otherwise on various linux systems the opengl shader program
     # cannot be created which results in black/white window content.

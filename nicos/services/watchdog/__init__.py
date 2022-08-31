@@ -38,7 +38,7 @@ from nicos.devices.notifiers import Mailer, Notifier
 from nicos.protocols.cache import OP_SUBSCRIBE, OP_TELL, OP_TELLOLD, \
     cache_dump, cache_load
 from nicos.services.watchdog.conditions import DelayedTrigger, Expression, \
-    Precondition
+    ConditionWithPrecondition
 from nicos.utils import LCDict, createSubprocess, createThread, \
     watchFileContent
 
@@ -60,6 +60,7 @@ class Entry:
     okmessage = ''
     okaction = ''
     actiontimeout = 60
+    precondcooldown = 0
 
     from_setup = None
     cond_obj = None
@@ -76,7 +77,8 @@ class Entry:
         res = {attr: getattr(self, attr) for attr in
                ('id', 'setup', 'condition', 'gracetime', 'message',
                 'scriptaction', 'action', 'type', 'precondition',
-                'precondtime', 'okmessage', 'okaction', 'actiontimeout')}
+                'precondtime', 'okmessage', 'okaction', 'actiontimeout',
+                'precondcooldown')}
         res['enabled'] = self.cond_obj.enabled
         return res
 
@@ -134,7 +136,7 @@ class Watchdog(BaseCacheClient):
                 notiflist.append(dev)
                 self._all_notifiers.append(dev)
 
-        # process entries in the default watchlist
+        # process entries in the default watch_conditions
         for entry_dict in self.watch:
             self._add_entry(entry_dict, 'watchdog')
 
@@ -195,7 +197,8 @@ class Watchdog(BaseCacheClient):
                 if entry.precondtime:
                     precond = DelayedTrigger(self.log, precond,
                                              entry.precondtime)
-                cond = Precondition(self.log, precond, cond)
+                cond = ConditionWithPrecondition(self.log, precond, cond,
+                                                 entry.precondcooldown)
             if not entry.enabled:
                 cond.enabled = False
             entry.cond_obj = cond

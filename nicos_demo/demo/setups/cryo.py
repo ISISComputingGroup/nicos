@@ -13,13 +13,13 @@ devices = dict(
         jitter = 0,
         precision = 0.1,
         window = 30.0,
-        lowlevel = True,
+        visibility = (),
     ),
     T_sample = device('nicos.devices.generic.ReadonlyParamDevice',
         parameter = 'sample',
         device = 'T_demo',
         description = 'Temperature of virtual sample',
-        lowlevel = True,
+        visibility = (),
     ),
 )
 
@@ -52,3 +52,27 @@ monitor_blocks = {
         #          Field(key='t/setpoint', name='SetP', plot='T', plotwindow=300))
     ], setups=setupname),
 }
+
+help_topics = dict(
+    nicos_demo_cryo = '''
+The demo cryostat simulation
+############################
+
+The cryo setup enables the access to devices of the (virtual) cryostat.
+
+Some of the devices are used to control the temperature of the cryostat,
+whereas others are used to monitor temperatures of the equipment.
+
+The 'T_demo' is a simulation of a cryostat complete with temperature dependent
+cooling power, heat-link resistance and specific heat of the simulated sample.
+
+You can play with the 'p', 'i' and 'd' parameters and watch the regulation
+behaviour at different temperatures to get a better understanding of how a real
+cryostat works.
+
+.. note:
+
+    regulation values are highly specific to the used cryostat, hence the
+    values in the simulation are not compatible with those of any real cryostat.
+''',
+)

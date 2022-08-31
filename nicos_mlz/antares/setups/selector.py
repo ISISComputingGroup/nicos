@@ -102,7 +102,7 @@ devices = dict(
         description = 'Selector translation',
         unit = 'mm',
         tangodevice = tango_base + 'fzjs7/Selektor_linear',
-        lowlevel = True,
+        visibility = (),
     ),
     selector_inout = device('nicos.devices.generic.Switcher',
         description = 'Moves Selector in and out of beam',
@@ -115,7 +115,7 @@ devices = dict(
         pollinterval = 3,
         precision = 0.5,
     ),
-    selector_tilt = device('nicos_mlz.antares.devices.selector.SelectorTilt',
+    selector_tilt = device('nicos_mlz.antares.devices.SelectorTilt',
         description = 'tilt of velocity selector',
         selector = 'selector',
         motor = 'selector_tilt_motor',
@@ -129,7 +129,31 @@ devices = dict(
         description = 'lowlevel motor for tilt of velocity selector',
         tangodevice = tango_base + 'fzjs7/selector_tilt',
         abslimits = (-5, 5),
-        lowlevel = True,
+        visibility = (),
         precision = 0.001,
+    ),
+)
+
+monitor_blocks = dict(
+    default = Block('Velocity Selector',
+        [
+            BlockRow(
+                Field(name='Speed', dev='selector'),
+                Field(name='Lambda', dev='selector_lambda'),
+                Field(name='Tilt', dev='selector_tilt'),
+                Field(name='Position', dev='selector_inout'),
+            ),
+            BlockRow(
+                Field(dev='selector_vacuum', name='Vacuum'),
+                Field(dev='selector_rtemp', name='Rotor Temp'),
+                Field(dev='selector_vibrt', name='Vibration'),
+            ),
+            BlockRow(
+                Field(dev='selector_winlt', name='Water Inlet'),
+                Field(dev='selector_woutt', name='Water Outlet'),
+                Field(name='Water Flow',dev='selector_wflow'),
+            ),
+        ],
+        setups=setupname,
     ),
 )

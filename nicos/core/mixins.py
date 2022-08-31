@@ -34,7 +34,7 @@ from nicos.core.constants import MAINTENANCE, MASTER, SLAVE
 from nicos.core.errors import AccessError, CommunicationError, \
     ConfigurationError, ModeError
 from nicos.core.params import Override, Param, anytype, dictof, floatrange, \
-    intrange, limits, none_or, nonemptylistof, string, tupleof
+    intrange, limits, none_or, nonemptylistof, setof, string, tupleof
 from nicos.core.utils import statusString, usermethod
 from nicos.utils import formatArgs, lazy_property
 
@@ -112,6 +112,51 @@ class AutoDevice(DeviceMixinBase):
     """Abstract mixin for devices that are created automatically as dependent
     devices of other devices.
     """
+
+
+class HasAutoDevices(DeviceMixinBase):
+    """
+    This mixin can be intherited from device classes creating ``AutoDevices``.
+    """
+
+    autodevices = None
+
+    parameters = {
+        'autodevice_visibility': Param('Selects in which context the auto '
+                                       'created devices should be '
+                                       'shown/included',
+                                       type=setof('metadata', 'namespace',
+                                                  'devlist'),
+                                       default=(),
+                                       ),
+    }
+
+    def add_autodevice(self, autodevname, cls, **devparams):
+        """
+        Create the ``AutoDevice`` with the class given by the cls parameter.
+
+        Fill the self.autodevices list with the names of the created devices.
+        It will be used in the device shutdown to remove all generated
+        devices if the device will be shutdown.
+
+        The `namespace` parameter in `devparams` controls the visibility in of
+        the auto device. If `namespace` is 'device' the device will be
+        accessible by the syntax 'device.autodevname', in case of 'global' by
+        'autodevname'.
+        """
+        if self.autodevices is None:
+            self.autodevices = []
+
+        fullname = autodevname
+        if devparams.pop('namespace', 'device') != 'global':
+            fullname = self.name + '.' + autodevname
+        self.__dict__[autodevname] = cls(fullname, **devparams)
+        self.autodevices.append(autodevname)
+
+    def doShutdown(self):
+        for name in self.autodevices or []:
+            if name in self.__dict__:
+                self.__dict__[name].shutdown()
 
 
 class HasLimits(DeviceMixinBase):

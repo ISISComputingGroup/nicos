@@ -29,19 +29,20 @@ import os
 import pickle
 import socket
 import sys
-import time
 from datetime import timedelta
+from time import mktime, monotonic, sleep
 
 import pytest
 
 from nicos.core.errors import NicosError
-from nicos.utils import TB_CAUSE_MSG, Repeater, allDays, bitDescription, \
-    checkSetupSpec, chunks, closeSocket, comparestrings, extractKeyAndIndex, \
-    formatDuration, formatExtendedFrame, formatExtendedStack, \
+from nicos.core.sessions.utils import SimClock
+from nicos.utils import KEYEXPR_NS, TB_CAUSE_MSG, Repeater, allDays, \
+    bitDescription, checkSetupSpec, chunks, closeSocket, comparestrings, \
+    expandTemplate, formatDuration, formatExtendedFrame, formatExtendedStack, \
     formatExtendedTraceback, lazy_property, moveOutOfWay, num_sort, \
-    parseConnectionString, parseDuration, readFileCounter, readonlydict, \
-    readonlylist, safeName, safeWriteFile, squeeze, tcpSocket, \
-    timedRetryOnExcept, tupelize, updateFileCounter
+    parseConnectionString, parseDuration, parseKeyExpression, \
+    readFileCounter, readonlydict, readonlylist, safeName, safeWriteFile, \
+    squeeze, tcpSocket, timedRetryOnExcept, tupelize, updateFileCounter
 from nicos.utils.timer import Timer
 
 from test.utils import raises
@@ -74,23 +75,23 @@ def test_readonly_objects():
     assert isinstance(unpickled, readonlydict)
     assert len(unpickled) == 2
 
-    l = readonlylist([1, 2, 3])
-    assert raises(TypeError, l.append, 4)
+    lst = readonlylist([1, 2, 3])
+    assert raises(TypeError, lst.append, 4)
 
     # pickle Protocoll 0
-    unpickled = pickle.loads(pickle.dumps(l))
+    unpickled = pickle.loads(pickle.dumps(lst))
     assert isinstance(unpickled, readonlylist)
     assert len(unpickled) == 3
     # pickle Protocoll 2
-    unpickled = pickle.loads(pickle.dumps(l, 2))
+    unpickled = pickle.loads(pickle.dumps(lst, 2))
     assert isinstance(unpickled, readonlylist)
     assert len(unpickled) == 3
 
 
 def test_readonlylist_hashable():
-    l = readonlylist([1, 2, 3])
-    assert l == [1, 2, 3]
-    dt = {l: 'testval'}
+    lst = readonlylist([1, 2, 3])
+    assert lst == [1, 2, 3]
+    dt = {lst: 'testval'}
     assert dt[readonlylist([1, 2, 3])] == 'testval'
 
 
@@ -215,17 +216,19 @@ def serversocket():
     yield serv
     closeSocket(serv)
 
+
 def test_tcpsocket(serversocket):
     sock = None
 
-    sockargs = [ ('localhost:65432', 1),
-                ('localhost', 65432),
-                (('localhost', 65432), 1, dict(timeout=5))
-        ]
+    sockargs = [
+        ('localhost:65432', 1),
+        ('localhost', 65432),
+        (('localhost', 65432), 1, dict(timeout=5))
+    ]
     for args in sockargs:
         try:
             if len(args) == 3:
-                kwds= args[2]
+                kwds = args[2]
                 args = args[:2]
                 sock = tcpSocket(*args, **kwds)
             else:
@@ -236,21 +239,24 @@ def test_tcpsocket(serversocket):
 
 
 def test_timer():
-    t = time.time()
+    t = monotonic()
 
     def cb(tmr, x, y=None):
         if x == 3 and y == 'ykwd':
             tmr.cb_called = True
+
     def nf(tmr, info):
-        if info == "notify":
+        if info == 'notify':
             tmr.notify_called = True
+
     def nf1(tmr):
-        tmr.notify_called = "yes"
+        tmr.notify_called = 'yes'
+
     # a) test a (short) timed timer
-    tmr = Timer(0.1, cb, cb_args=(3,),cb_kwds={'y':'ykwd'})
+    tmr = Timer(0.1, cb, cb_args=(3,), cb_kwds={'y': 'ykwd'})
     assert tmr.is_running()
-    while (time.time() - t < 1.5) and tmr.is_running():
-        time.sleep(0.05)
+    while (monotonic() - t < 1.5) and tmr.is_running():
+        sleep(0.05)
     assert not tmr.is_running()
     assert tmr.cb_called
     assert tmr.elapsed_time() == 0.1
@@ -261,11 +267,11 @@ def test_timer():
 
     # b) test an unlimited timer (for a short while)
     tmr.start()
-    time.sleep(0.02)  # due to windows time.time() resolution
+    sleep(0.02)  # due to windows time() resolution
     assert tmr.is_running()
     assert tmr.elapsed_time() > 0
     assert tmr.remaining_time() is None
-    time.sleep(0.1)
+    sleep(0.1)
     assert 0.1 < tmr.elapsed_time() < 0.2
     tmr.stop()
     # check elapsed time for stopped timer
@@ -278,14 +284,14 @@ def test_timer():
     tmr.restart()
 
     tmr.start(run_for=0.5)
-    time.sleep(0.1)
+    sleep(0.1)
     tmr.stop()
     tmr.restart()
     tmr.wait(interval=0.1, notify_func=nf, notify_args=('notify',))
     assert tmr.notify_called
     tmr.start(run_for=0.5)
     tmr.wait(0.1, nf1)
-    assert tmr.notify_called=="yes"
+    assert tmr.notify_called == 'yes'
 
 
 def test_num_sort():
@@ -354,29 +360,29 @@ def test_check_setup_spec():
         assert res == result
 
 
-def test_extract_key_and_index():
-    assert extractKeyAndIndex('dev') == ('dev/value', (), 1, 0)
-    assert extractKeyAndIndex('dev.key') == ('dev/key', (), 1, 0)
-    assert extractKeyAndIndex('dev.key[0]') == ('dev/key', (0,), 1, 0)
-    assert extractKeyAndIndex('dev.key[0][1]') == ('dev/key', (0, 1), 1, 0)
-    assert extractKeyAndIndex('dev[0][1]') == ('dev/value', (0, 1), 1, 0)
-    assert extractKeyAndIndex('dev[0,1]') == ('dev[0,1]', (), 1, 0)
-    assert extractKeyAndIndex('dev.key[0][ 1]') == ('dev/key', (0, 1), 1, 0)
-    assert extractKeyAndIndex('dev.key[ 0][ 1]') == ('dev/key', (0, 1), 1, 0)
-    assert extractKeyAndIndex('dev.key[ 0 ][ 1]') == ('dev/key', (0, 1), 1, 0)
-    assert extractKeyAndIndex('dev.key[ 0 ][ 1 ]') == ('dev/key', (0, 1), 1, 0)
-    assert extractKeyAndIndex('dev.key[10 ][ 1]') == ('dev/key', (10, 1), 1, 0)
-    assert extractKeyAndIndex('dev.key[0') == ('dev/key[0', (), 1, 0)
-    assert extractKeyAndIndex('dev.key0]') == ('dev/key0]', (), 1, 0)
-    assert extractKeyAndIndex('dev.key*10') == ('dev/key', (), 10, 0)
-    assert extractKeyAndIndex('dev.key*-10') == ('dev/key', (), -10, 0)
-    assert extractKeyAndIndex('dev.key * -1') == ('dev/key', (), -1, 0)
-    assert extractKeyAndIndex('dev.key +5') == ('dev/key', (), 1, 5)
-    assert extractKeyAndIndex('dev.key- 5') == ('dev/key', (), 1, -5)
-    assert extractKeyAndIndex('dev.key*10 -5') == ('dev/key', (), 10, -5)
-    assert extractKeyAndIndex('dev.key[0] * 10+5') == ('dev/key', (0,), 10, 5)
-    assert extractKeyAndIndex('dev*1.2e1 +5e-2') == ('dev/value', (), 12, 0.05)
-    assert extractKeyAndIndex('dev*1e+1+5e1') == ('dev/value', (), 10, 50)
+def test_parse_key_expression():
+    assert parseKeyExpression('dev.key')[0] == 'dev/key'
+    assert parseKeyExpression('dev.key', normalize=lambda s: s)[0] == \
+        'dev.key/value'
+    assert parseKeyExpression('dev.key', False, normalize=lambda s: s)[0] == \
+        'dev.key'
+
+    key, expr, _ = parseKeyExpression('dev + 1')
+    assert key == 'dev/value'
+    assert eval(expr, {}, {'x': 42}) == 43
+
+    _, expr, _ = parseKeyExpression('100/(dev/key)/10')
+    assert eval(expr, {}, {'x': 2}) == 5
+
+    _, expr, _ = parseKeyExpression('sqrt(key)')
+    assert eval(expr, KEYEXPR_NS, {'x': 25}) == 5
+
+    _, _, descs = parseKeyExpression('a/b, c.d*2, sqrt(e)', multiple=True)
+    assert descs == [
+        'a/b',
+        'c.d*2',
+        'sqrt(e)'
+    ]
 
 
 def test_squeeze():
@@ -455,7 +461,7 @@ def test_all_days():
     exp_list = [('2020', '10-24'), ('2020', '10-25'), ('2020', '10-26'),
                 ('2020', '10-27'), ('2020', '10-28')]
     # 28. Oct 2020, 08:00:00
-    tmto = time.mktime((2020, 10, 28, 8, 0, 0, 0, 0, -1))
+    tmto = mktime((2020, 10, 28, 8, 0, 0, 0, 0, -1))
     assert list(allDays(tmto - 86400, tmto)) == exp_list[3:]
     assert list(allDays(tmto - 2 * 86400, tmto)) == exp_list[2:]
     assert list(allDays(tmto - 3 * 86400, tmto)) == exp_list[1:]
@@ -465,14 +471,15 @@ def test_all_days():
     exp_list = [('2020', '03-27'), ('2020', '03-28'), ('2020', '03-29'),
                 ('2020', '03-30'), ('2020', '03-31')]
     # 31. Mar 2020, 08:00:00
-    tmto = time.mktime((2020, 3, 31, 8, 0, 0, 0, 0, 1))
+    tmto = mktime((2020, 3, 31, 8, 0, 0, 0, 0, 1))
     assert list(allDays(tmto - 86400, tmto)) == exp_list[3:]
     assert list(allDays(tmto - 2 * 86400, tmto)) == exp_list[2:]
     assert list(allDays(tmto - 3 * 86400, tmto)) == exp_list[1:]
     assert list(allDays(tmto - 4 * 86400, tmto)) == exp_list
 
-@pytest.mark.parametrize('name', [('COM1','_COM1_'),
-                                  ('xyz.txt','xyz.txt')])
+
+@pytest.mark.parametrize('name', [('COM1', '_COM1_'),
+                                  ('xyz.txt', 'xyz.txt')])
 def test_safeName(name):
     assert safeName(name[0]) == name[1]
 
@@ -516,29 +523,91 @@ def nonexistantfile(tmpdir):
     except FileNotFoundError:
         pass
 
+
 @pytest.fixture(scope='function')
 def filecounterfile(tmpdir):
     fc = str(tmpdir.join('testcounter2'))
-    with open(fc, "w", encoding="utf-8") as f:
+    with open(fc, 'w', encoding='utf-8') as f:
         f.write('key1 1234\n')
         f.write('key2 5678\n')
     yield fc
     os.unlink(fc)
 
+
 def test_readfilecounter_exist(filecounterfile):
     assert readFileCounter(filecounterfile, 'key1') == 1234
     assert readFileCounter(filecounterfile, 'key3') == 0
 
+
 def test_readfilecounter_nofile(nonexistantfile):
     assert readFileCounter(nonexistantfile, 'key') == 0
     assert os.path.exists(nonexistantfile)
+
 
 def test_updatefilecounter_exist(filecounterfile):
     updateFileCounter(filecounterfile, 'key1', 222)
     assert readFileCounter(filecounterfile, 'key1') == 222
     assert readFileCounter(filecounterfile, 'key2') == 5678
 
+
 def test_updatefilecounter_nofile(nonexistantfile):
     updateFileCounter(nonexistantfile, 'key', 9876)
     assert os.path.exists(nonexistantfile)
     assert readFileCounter(nonexistantfile, 'key') == 9876
+
+
+def test_simclock():
+    clock = SimClock()
+
+    # unconditional tick
+    clock.tick(2)
+    assert clock.time == 2
+
+    # conditional waits, the maximum wins
+    clock.wait(5)
+    clock.wait(7)
+    assert clock.time == 7
+
+    clock.reset()
+    assert clock.time == 0
+
+
+@pytest.mark.parametrize(
+    "expr, expected, defaulted_keys, missing_keys", [
+    ('literal', 'literal', [], []),
+    ('a{{b}}c', 'axc', [], []),
+    ('a{{key}}b', 'ab', [], ['key']),
+    ('a{{key!replace}}b', 'ab', [], ['key']),
+    ('a{{key:default}}b', 'adefaultb', ['key'], []),
+    ('a{{key!replace:default}}b', 'adefaultb', ['key'], []),
+    ('a{{quo}}b', 'aqb', [], []),
+    ('a{{quo!replace}}b', 'areplaceb', [], []),
+    ('a{{quo:default}}b', 'aqb', [], []),
+    ('a{{quo!replace:default}}b', 'areplaceb', [], []),
+    ('a{{c!r}}c', 'arc', [], []),
+    ('a{{{{c:b}}r}}c', 'arc', [], []),
+    ('{{a{{{{c:b}}r}}c}}', 'True', [], []),
+    ('{{q!}}', '', [], ['q']),
+    ('{{b!}}', '', [], []),
+    ],
+)
+def test_expandTemplate(expr, expected, defaulted_keys, missing_keys):
+    kwds = dict(b='x', c='c!', arc=True, quo='q')
+    res, defaulted, missing = expandTemplate(expr, kwds)
+    assert expected == res
+    assert [e['key'] for e in defaulted] == defaulted_keys
+    assert [e['key'] for e in missing] == missing_keys
+
+
+@pytest.mark.parametrize(
+    "expr, expected, defaulted_keys, missing_keys", [
+    ('{{key1}}', '{{key1}}', [], []),
+    ('{{{{key1!key1}}}}', '{{key1}}', [], []),
+    ],
+)
+def test_expandTemplateRecursion(expr, expected, defaulted_keys, missing_keys):
+    kwds = dict(key1='{{key1}}')
+    res, defaulted, missing = expandTemplate(expr, kwds)
+    assert expected == res
+    assert [e['key'] for e in defaulted] == defaulted_keys
+    assert [e['key'] for e in missing] == missing_keys
