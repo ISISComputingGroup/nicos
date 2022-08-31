@@ -29,3 +29,10 @@ group = 'lowlevel'
 # usually stay empty.  In particular, it should not include any other setups
 # without good reason, so that on startup the previous master setups are loaded
 # automatically.
+
+import sys
+import os
+
+sys.path.insert(0, os.path.join(os.getenv("EPICS_KIT_ROOT"), "ISIS", "inst_servers", "master"))
+from server_common.helpers import register_ioc_start
+register_ioc_start("NICOSDAEMON")
