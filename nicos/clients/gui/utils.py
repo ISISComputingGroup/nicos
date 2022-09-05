@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -70,12 +70,8 @@ def loadBasicWindowSettings(window, settings):
 
 
 def loadUserStyle(window, settings):
-    window.user_font = QFont(settings.value('font', QFont('Monospace')))
-    color = QColor(settings.value('color'))
-    if color.isValid():
-        window.user_color = color
-    else:
-        window.user_color = QColor(Qt.white)
+    window.user_font = settings.value('font', QFont('Monospace'), QFont)
+    window.user_color = settings.value('color', QColor(Qt.white), QColor)
 
 
 def enumerateWithProgress(seq, text, every=1, parent=None, total=None,
@@ -214,11 +210,11 @@ class ScriptExecQuestion(QMessageBox):
         self.b2 = self.addButton('Execute now!', QMessageBox.ApplyRole)
         self.b2.setIcon(self.style().standardIcon(QStyle.SP_MessageBoxWarning))
 
-    def exec_(self):
-        # According to the docs, exec_() returns an "opaque value" if using
+    def exec(self):
+        # According to the docs, exec() returns an "opaque value" if using
         # non-standard buttons, so we have to check clickedButton(). Do that
         # here and return a valid QMessageBox button constant.
-        QMessageBox.exec_(self)
+        QMessageBox.exec(self)
         btn = self.clickedButton()
         if btn == self.b2:
             return QMessageBox.Apply  # Execute now
@@ -344,3 +340,16 @@ def waitCursor():
         yield
     finally:
         QApplication.restoreOverrideCursor()
+
+
+def split_query(fromtime, totime, func):
+    # if requested period is longer than 1 day it will be sequenced
+    maxquery = 3600 * 24
+    history = []
+    if totime - fromtime > maxquery:
+        for sequence in range(int((totime - fromtime) // maxquery)):
+            if sequence:
+                fromtime += maxquery
+            history.extend(func(fromtime, fromtime+maxquery))
+    history.extend(func(fromtime, totime))
+    return history

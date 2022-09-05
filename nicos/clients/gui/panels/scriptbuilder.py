@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -40,8 +40,10 @@ class CommandsPanel(Panel):
 
     Options:
 
-    * ``modules`` (default [ ]) -- list of additional Python modules that
-      contain cmdlets and should be loaded.
+    * ``modules`` (default ``[]``) -- list of additional Python modules
+      that contain cmdlets and should be loaded.
+    * ``add_presets`` (default ``[]``) -- list of tuples consisting of
+      additional preset keys and names (e.g. ``[('m', 'monitor counts')]``).
     """
     panelName = 'Commands'
 
@@ -50,6 +52,7 @@ class CommandsPanel(Panel):
         loadUi(self, 'panels/scriptbuilder.ui')
 
         self.window = parent
+        self.options = options
         self.runBtn.setVisible(False)
         self.mapping = {}
         self.expertmode = self.mainwindow.expertmode
@@ -60,7 +63,7 @@ class CommandsPanel(Panel):
 
         for cmdlet in all_cmdlets:
             def callback(on, cmdlet=cmdlet):
-                inst = cmdlet(self, self.client)
+                inst = cmdlet(self, self.client, self.options)
                 inst.cmdletUp.connect(self.on_cmdletUp)
                 inst.cmdletDown.connect(self.on_cmdletDown)
                 inst.cmdletRemove.connect(self.on_cmdletRemove)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -32,8 +32,8 @@ from nicos import session
 from nicos.core import Attach, Moveable, NicosError, Override, Param, \
     intrange, listof, status
 from nicos.core.constants import INTERMEDIATE, SIMULATION
+from nicos.devices.entangle import ImageChannel, TOFChannel
 from nicos.devices.generic.detector import Detector as GenericDetector
-from nicos.devices.tango import ImageChannel, TOFChannel
 
 from nicos_mlz.toftof.devices import calculations as calc
 from nicos_mlz.toftof.devices.chopper import BaseChopperController
@@ -73,7 +73,7 @@ class TOFTOFChannel(ImageChannel, TOFChannel):
         #       (in this case: returned < set) so, increase the wanted value
         #       until the used one is big enough
         actual_timeinterval = self.doReadTimeinterval()
-        while (actual_timeinterval * self.timechannels < value):
+        while actual_timeinterval * self.timechannels < value:
             wanted_timeinterval += calc.ttr
             self.doWriteTimeinterval(wanted_timeinterval)
             actual_timeinterval = self.doReadTimeinterval()
@@ -236,7 +236,7 @@ class Detector(GenericDetector):
         self._starttime = currenttime()
         self._setROParam('rates', [[0., 0.], [0., 0.]])
 
-        session.action('run# %06d' % session.experiment.lastpoint)
+        session.action('Run# %06d' % session.experiment.lastpoint)
 
         GenericDetector.doStart(self)
 

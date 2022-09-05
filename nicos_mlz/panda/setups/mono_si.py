@@ -1,6 +1,7 @@
 description = 'PANDA Si-monochromator'
 
 group = 'lowlevel'
+display_order = 21
 
 includes = ['monofoci', 'monoturm', 'panda_mtt']
 
@@ -43,7 +44,7 @@ devices = dict(
         microstep = 8,
         speed = 5.0 / 54.0,
         accel = 5.0 / 54.0,
-        lowlevel = True,
+        visibility = (),
     ),
     mfh_si_enc = device('nicos_mlz.panda.devices.mcc2.MCC2Coder',
         description = 'horizontal focusing CODER of Si monochromator',
@@ -56,7 +57,7 @@ devices = dict(
         zerosteps = 0,
         codertype = 'incremental',
         coderbits = 25,
-        lowlevel = True,
+        visibility = (),
     ),
     # mfh_si = device('nicos.devices.generic.Axis',
     mfh_si = device('nicos_mlz.panda.devices.rot_axis.RefAxis',

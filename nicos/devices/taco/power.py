@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,15 +18,15 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
 """TACO power supply classes."""
 
-import DEVERRORS
-# pylint: disable=import-error
-from PowerSupply import CurrentControl, VoltageControl
+import DEVERRORS  # pylint: disable=import-error
+from PowerSupply import CurrentControl, VoltageControl \
+    # pylint: disable=import-error
 
 from nicos import session
 from nicos.core import HasLimits, HasOffset, Moveable, MoveError, NicosError, \
@@ -63,17 +63,17 @@ class Supply(HasOffset, HasLimits, TacoDevice, Moveable):
     def doRead(self, maxage=0):
         return self._taco_guard(self._dev.read) - self.offset
 
-    def doStart(self, value, fromvarcheck=False):
-        self._taco_guard(self._dev.write, value + self.offset)
+    def doStart(self, target, fromvarcheck=False):
+        self._taco_guard(self._dev.write, target + self.offset)
         session.delay(0.5)  # wait until server goes into "moving" status
         if self.variance > 0:
             newvalue = self.wait()
-            maxdelta = value * (self.variance/100.) + 0.1
-            if abs(newvalue - value) > maxdelta:
+            maxdelta = target * (self.variance/100.) + 0.1
+            if abs(newvalue - target) > maxdelta:
                 if not fromvarcheck:
                     self.log.warning('value %s instead of %s exceeds variance',
-                                     newvalue, value)
-                    self.doStart(value, fromvarcheck=True)
+                                     newvalue, target)
+                    self.doStart(target, fromvarcheck=True)
                 else:
                     raise MoveError(self,
                                     'power supply failed to set correct value')

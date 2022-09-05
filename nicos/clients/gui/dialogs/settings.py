@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -105,15 +105,16 @@ class SettingsDialog(DlgUtils, QDialog):
     @pyqtSlot()
     def on_settingAdd_clicked(self):
         dlg = dialogFromUi(self, 'dialogs/settings_conn.ui')
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         if not dlg.name.text():
             return
         name = dlg.name.text()
         while name in self.connpresets:
             name += '_'
-        cdata = ConnectionData(dlg.host.text(), dlg.port.value(),
-                               dlg.login.text(), None, dlg.viewonly.isChecked())
+        cdata = ConnectionData(
+            dlg.host.text(), dlg.port.value(), dlg.login.text(), None,
+            dlg.viewonly.isChecked(), dlg.expertmode.isChecked())
         self.connpresets[name] = cdata
         QListWidgetItem(name + ' (%s:%s)' % (cdata.host, cdata.port),
                         self.settinglist).setData(32, name)
@@ -139,12 +140,14 @@ class SettingsDialog(DlgUtils, QDialog):
         dlg.port.setValue(cdata.port)
         dlg.login.setText(cdata.user)
         dlg.viewonly.setChecked(cdata.viewonly)
-        if dlg.exec_() != QDialog.Accepted:
+        dlg.expertmode.setChecked(cdata.expertmode)
+        if dlg.exec() != QDialog.Accepted:
             return
         cdata.host = dlg.host.text()
         cdata.port = dlg.port.value()
         cdata.user = dlg.login.text()
         cdata.viewonly = dlg.viewonly.isChecked()
+        cdata.expertmode = dlg.expertmode.isChecked()
         item.setText('%s (%s:%s)' % (dlg.name.text(), cdata.host, cdata.port))
 
     def on_settingsTree_itemClicked(self, item, column):

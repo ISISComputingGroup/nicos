@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -48,8 +48,8 @@ class VirtualImage(BaseImage):
                               default=1024,
                               ),
         'frametime': Param('Time interval between pulses',
-                              type=float, settable=True, default=0.1,
-                              ),
+                           type=float, settable=True, default=0.1,
+                           ),
         'delay': Param('TOF frame delay',
                        type=int, settable=True,
                        ),
@@ -66,7 +66,7 @@ class VirtualImage(BaseImage):
     }
 
     parameter_overrides = {
-        'sizes': Override(default=(1024, 1024), prefercache=False),
+        'size': Override(default=(1024, 1024), prefercache=False),
     }
 
     _rawdata = None
@@ -75,7 +75,7 @@ class VirtualImage(BaseImage):
         BaseImage.doInit(self, mode)
         try:
             with open(self.datafile, 'rb') as fp:
-                self._rawdata = 0.01 * np.load(fp).reshape(self.sizes)
+                self._rawdata = 0.01 * np.load(fp).reshape(self.size)
             self.log.warning('%r', self._rawdata.shape)
             # eliminate monitor entries
             self._rawdata[self.monitorchannel] = np.zeros(
@@ -83,8 +83,7 @@ class VirtualImage(BaseImage):
         except OSError:
             self.log.warning('data file %s not present, returning empty array '
                              'from virtual TOF image', self.datafile)
-            self._rawdata = np.zeros(
-                self.sizes[0] * self.sizes[1]).reshape(self.sizes)
+            self._rawdata = np.zeros(self.size)
 
     def _generate(self, t):
         return np.random.poisson(t * self._rawdata)

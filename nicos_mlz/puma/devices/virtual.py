@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -80,7 +80,7 @@ class VirtualReferenceMotor(CanReference, VirtualMotor):
         return is_at_refpos
 
 
-class DigitalInput(Moveable):
+class VirtualDigitalInput(Moveable):
     """A test DigitalInput."""
 
     parameters = {
@@ -103,20 +103,34 @@ class DigitalInput(Moveable):
         return status.OK, 'idle'
 
 
-class LogoFeedBack(DigitalInput):
-    """Device to simulate the LOGO feed back."""
+class VirtualLogoFeedback(VirtualDigitalInput):
+    """Device to simulate the PUMA specific LOGO PLC feed back.
+
+    The PLC has for each of the switches 2 sensors to indicate the device
+    reached the target position. To simulate this the device has the possibility
+    to invert the bits of the input.
+    """
 
     attached_devices = {
-        'input': Attach('Digital input device', DigitalInput),
+        'input': Attach('Digital input device', VirtualDigitalInput),
+    }
+
+    parameters = {
+        'inverted': Param('Has the input to be inverted',
+                          type=bool, default=False, userparam=False,
+                          settable=False),
     }
 
     def doRead(self, maxage=0):
         v = self._attached_input.read(maxage)
-        return sum((0x2 | min(1, ((1 << i) & v))) << (2 * i)
+        if self.inverted:
+            return sum((0x2 if not ((1 << (i + 1)) & v) else 0x0) << (2 * i)
+                       for i in range(8))
+        return sum((0x2 if ((1 << (i + 1)) & v) else 0x0) << (2 * i)
                    for i in range(8))
 
 
-class DigitalOutput(DigitalInput):
+class VirtualDigitalOutput(VirtualDigitalInput):
     """A test DigitalOutput."""
 
     def doStart(self, target):

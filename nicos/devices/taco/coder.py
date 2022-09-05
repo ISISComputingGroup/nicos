@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,7 @@
 
 """Taco coder class for NICOS."""
 
-from Encoder import Encoder
+from Encoder import Encoder  # pylint: disable=import-error
 
 from nicos.devices.abstract import Coder as AbstractCoder
 from nicos.devices.taco.core import TacoDevice
@@ -35,5 +35,5 @@ class Coder(TacoDevice, AbstractCoder):
 
     taco_class = Encoder
 
-    def doSetPosition(self, target):
-        self._taco_guard(self._dev.setpos, target)
+    def doSetPosition(self, pos):
+        self._taco_guard(self._dev.setpos, pos)

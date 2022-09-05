@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,11 @@ This is for us, for debugging
 """
 import epics
 
-from nicos.commands import helparglist, hiddenusercommand
+from nicos import session
+from nicos.commands import helparglist, hiddenusercommand, usercommand
+from nicos.commands.device import disable, enable
+
+from nicos_sinq.devices.epics.motor import EpicsMotor as SinqEpicsMotor
 
 
 @hiddenusercommand
@@ -46,3 +50,39 @@ def caput(PV, value):
 @helparglist('PV-name')
 def cainfo(PV):
     return epics.cainfo(PV)
+
+
+def _enableSetupMotors(function, *setupnames):
+    for setupname in setupnames:
+        if setupname not in session.loaded_setups:
+            session.log.warning('%r is not a loaded setup, ignoring',
+                                setupname)
+            continue
+        for devname in session.getSetupInfo()[setupname]['devices']:
+            device = session.getDevice(devname)
+            if isinstance(device, SinqEpicsMotor):
+                function(device)
+
+
+@usercommand
+@helparglist('setup, ...')
+def DisableSetupMotors(*setupnames):
+    """Disable all the motors (that are capable of that) in the setups.
+
+    Example:
+
+    >>> DisableSetupMotors('epics_motors')
+    """
+    _enableSetupMotors(disable, *setupnames)
+
+
+@usercommand
+@helparglist('setup, ...')
+def EnableSetupMotors(*setupnames):
+    """Enable all the motors (that are capable of that) in the setups.
+
+    Example:
+
+    >>> EnableSetupMotors('epics_motors')
+    """
+    _enableSetupMotors(enable, *setupnames)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -53,6 +53,7 @@ class WatchdogPanel(Panel):
             tree.setHeaderLabels([
                 'Enabled', 'Message', 'Condition', 'Only for setup',
                 'Grace time', 'Precondition', 'Precondition time',
+                'Precondition cooldown',
                 'OK message', 'Script action', 'Warn action', 'OK action'
             ])
             tree.header().setSectionResizeMode(QHeaderView.Interactive)
@@ -104,8 +105,9 @@ class WatchdogPanel(Panel):
             item = QTreeWidgetItem(self.preconfTree, [
                 '', entry['message'], entry['condition'], entry['setup'],
                 str(entry['gracetime']), entry['precondition'],
-                str(entry['precondtime']), entry['okmessage'],
-                entry['scriptaction'], entry['action'], entry['okaction']
+                str(entry['precondtime']), str(entry['precondcooldown']),
+                entry['okmessage'], entry['scriptaction'], entry['action'],
+                entry['okaction']
             ])
             item.setCheckState(0, Qt.Checked if entry['enabled']
                                else Qt.Unchecked)

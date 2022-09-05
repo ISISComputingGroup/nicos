@@ -67,7 +67,7 @@
      </widget>
      <widget class="QFrame" name="plotFrame">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Maximum" vsizetype="Expanding">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -171,6 +171,9 @@
    </property>
    <property name="toolTip">
     <string>Delete view</string>
+   </property>
+   <property name="shortcut">
+    <string>Del</string>
    </property>
   </action>
   <action name="actionResetView">

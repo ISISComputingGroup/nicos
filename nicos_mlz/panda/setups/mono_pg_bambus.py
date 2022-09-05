@@ -1,6 +1,7 @@
 description = 'PANDA PG-monochromator'
 
 group = 'lowlevel'
+display_order = 21
 
 includes = ['monofoci', 'monoturm', 'panda_mtt']
 
@@ -50,7 +51,7 @@ devices = dict(
         # speed = 1.5,
         speed = 5,
         accel = 50,
-        lowlevel = True,
+        visibility = (),
     ),
     mfh_pg = device('nicos_mlz.panda.devices.rot_axis.RotAxis',
         description = 'horizontal focus of PG monochromator',
@@ -78,7 +79,7 @@ devices = dict(
         microstep = 16,
         speed = 5,
         accel = 50,
-        lowlevel = True,
+        visibility = (),
     ),
     mfv_pg = device('nicos_mlz.panda.devices.rot_axis.RotAxis',
         description = 'vertical focus of PG monochromator',

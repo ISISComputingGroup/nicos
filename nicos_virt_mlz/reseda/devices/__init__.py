@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,12 +29,14 @@ from nicos.core.params import ArrayDesc, Param, Value, intrange, listof, \
 from nicos.devices.generic import VirtualImage
 from nicos.protocols.cache import FLAG_NO_STORE
 
-from nicos_mlz.reseda.devices.cascade import fit_a_sin_fixed_freq
+from nicos_mlz.reseda.utils import MiezeFit
 
 
 class CascadeDetector(VirtualImage):
 
     _perfoil = 16
+
+    fitter = MiezeFit()
 
     parameters = {
         'mode': Param('Data acquisition mode (tof or image)',
@@ -60,8 +62,8 @@ class CascadeDetector(VirtualImage):
 
     def doUpdateMode(self, value):
         self._dataprefix = (value == 'image') and 'IMAG' or 'DATA'
-        self._datashape = (value == 'image') and self.sizes or \
-            (self._perfoil * len(self.foilsorder), ) + self.sizes
+        self._datashape = (value == 'image') and self.size or (
+            self.size + (self._perfoil * len(self.foilsorder), ))
         # (self.tofchannels,)
         self._tres = (value == 'image') and 1 or self.tofchannels
 
@@ -99,8 +101,8 @@ class CascadeDetector(VirtualImage):
     @property
     def arraydesc(self):
         if self.mode == 'image':
-            return ArrayDesc('data', self._datashape, '<u4', ['X', 'Y'])
-        return ArrayDesc('data', self._datashape, '<u4', ['T', 'X', 'Y'])
+            return ArrayDesc(self.name, self._datashape, '<u4', ['X', 'Y'])
+        return ArrayDesc(self.name, self._datashape, '<u4', ['X', 'Y', 'T'])
 
     def doReadArray(self, quality):
         # get current data array from detector, reshape properly
@@ -144,10 +146,10 @@ class CascadeDetector(VirtualImage):
         for foil in self.foilsorder:
             foil_tot = shaped[foil].sum((1, 2))
             foil_roi = shaped[foil, :, y1:y2, x1:x2].sum((1, 2))
-            tpopt, tperr, _ = fit_a_sin_fixed_freq(x, foil_tot)
-            rpopt, rperr, _ = fit_a_sin_fixed_freq(x, foil_roi)
-            payload.append([tpopt, tperr, foil_tot.tolist(),
-                            rpopt, rperr, foil_roi.tolist()])
+            tres = self.fitter.run(x, foil_tot, None)
+            rres = self.fitter.run(x, foil_roi, None)
+            payload.append([tres._pars[1], tres._pars[2], foil_tot.tolist(),
+                            rres._pars[1], rres._pars[2], foil_roi.tolist()])
 
         self._cache.put(self.name, '_foildata', payload, flag=FLAG_NO_STORE)
         return data

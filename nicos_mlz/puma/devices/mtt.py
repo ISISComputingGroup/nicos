@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -313,6 +313,8 @@ class MttAxis(Axis):
                     # self._stoprequest = 2
                     # self.log.debug('Error state = %s', self._errorstate)
                     self.log.warning(msg)
+                    session.notify('PUMA: %s' % self.name,
+                                   'mobil block probably got stuck')
                     break
             self.log.info('MB change took %1.f s', self.blocksleep - t)
             # restart motor to target

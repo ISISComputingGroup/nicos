@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -33,6 +33,7 @@ import pytest
 
 from nicos.commands.basic import run
 from nicos.commands.scan import scan
+from nicos.core.acquire import Average, DevStatistics
 from nicos.utils import enableDirectory, ensureDirectory, readFileCounter
 
 from test.utils import runtime_root
@@ -74,7 +75,8 @@ def test_experiment(session, cleanup):
 
     assert exp.scriptpath == spath
     ensureDirectory(spath)
-    with open(path.join(spath, 'servicestart.py'), 'w') as fp:
+    with open(path.join(spath, 'servicestart.py'), 'w',
+              encoding='utf-8') as fp:
         fp.write('Remark("service time")\n')
 
     # first, go in service mode
@@ -123,7 +125,7 @@ def test_experiment(session, cleanup):
     nr = readFileCounter(datapath('..', 'counters'), 'scan')
     fn = datapath('p999', 'data', 'p999_%08d.dat' % nr)
     assert path.isfile(fn)
-    with open(fn, 'r') as fp:
+    with open(fn, 'r', encoding='utf-8') as fp:
         assert 'Meßzeit' in fp.read()
 
     # now, finish the experiment
@@ -179,3 +181,20 @@ def test_expandenv_dataroot(session):
     exp.finish()
     exp.new('p888', 'etitle2', 'me2 <m.e2@me.net>', 'you2')
     assert os.access(datapath('p888', extra='xxx'), os.X_OK)
+
+
+def test_envlist(session):
+    exp = session.experiment
+    motor = session.getDevice('motor')
+    coder = session.getDevice('coder')
+
+    exp.setEnvironment([motor, 'coder', 'motor:avg', coder, Average(coder),
+                        'unknown'])
+    assert exp.envlist == ['motor', 'coder', 'motor:avg', 'coder:avg',
+                           'unknown']
+    assert len(exp.sampleenv) == 4
+    assert exp.sampleenv[:2] == [motor, coder]
+    assert isinstance(exp.sampleenv[2], DevStatistics)
+
+    exp._scrubDetEnvLists()
+    assert exp.envlist == ['motor', 'coder', 'motor:avg', 'coder:avg']

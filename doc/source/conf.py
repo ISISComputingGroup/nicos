@@ -72,7 +72,7 @@ master_doc = 'index'
 # General information about the project.
 project = 'NICOS'
 author = 'NICOS authors and contributors'
-copyright = '2009-2021, FRM II / ' + author  # pylint: disable=redefined-builtin
+copyright = '2009-2022, FRM II / ' + author  # pylint: disable=redefined-builtin
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -110,8 +110,10 @@ language = 'en'
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
 if not tags.has('customdoc'):
-    exclude_patterns = ['nicos_*/**.rst', 'customsetups.rst',
-                        'classes/custom.rst']
+    exclude_patterns = ['nicos_*/**/setups/**.rst',
+                        'nicos_*/**/setups.rst',
+                        'instrumentsetups/*.rst',
+                        'nicos_*/**/commands.rst']
 
 
 # The reST default role (used for this markup: `text`) to use for all

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -177,6 +177,10 @@ class DataManager:
                 if sink.isActive(dataset):
                     handlers = sink.createHandlers(dataset)
                     dataset.handlers.extend(handlers)
+            # Sorting handlers for right execution order
+            dataset.handlers = sorted(
+                dataset.handlers,
+                key=lambda _handler: _handler.ordering)
         if self._current:
             self._current.subsets.append(dataset)
             dataset.number = len(self._current.subsets)
@@ -255,14 +259,15 @@ class DataManager:
         """Utility function to gather metainfo from all relevant devices and
         write it to the current dataset with `putMetainfo`.
 
-        Relevant devices are (currently) those that are not lowlevel.
+        Relevant devices are selected by the "metadata" entry in the
+        visibility parameter.
         """
         devices = [dev for (_, dev) in
                    sorted(session.devices.items(),
                           key=lambda name_dev: name_dev[0].lower())]
         newinfo = {}
         for device in devices:
-            if device.lowlevel:
+            if 'metadata' not in device.visibility:
                 continue
             for key, value, strvalue, unit, category in device.info():
                 newinfo[device.name, key] = (value, strvalue, unit, category)
@@ -372,7 +377,7 @@ class DataManager:
         # translate entries
         filenames = []
         for nametmpl in nametemplates:
-            kwds = dict(additionalinfo) if additionalinfo else dict()
+            kwds = dict(additionalinfo) if additionalinfo else {}
             kwds.update(session.experiment.propinfo)
             kwds.update(self.getCounters())
             try:

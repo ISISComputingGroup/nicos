@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
@@ -79,10 +79,10 @@ class VirtualMotor(HasOffset, CanDisable, Motor):
             else:
                 self._setROParam('target', self.curvalue - self.offset)
 
-    def doStart(self, pos):
+    def doStart(self, target):
         if self.curstatus[0] == status.DISABLED:
             raise MoveError(self, 'cannot move, motor is disabled')
-        pos = float(pos) + self.offset
+        pos = float(target) + self.offset
         if self._thread:
             self._setROParam('curstatus', (status.BUSY, 'waiting for stop'))
             self._stop = True
@@ -216,7 +216,7 @@ class VirtualCoder(HasOffset, Coder):
     def doStatus(self, maxage=0):
         return status.OK, ''
 
-    def doSetPosition(self, _pos):
+    def doSetPosition(self, pos):
         pass
 
     def doReadUnit(self):
@@ -295,7 +295,7 @@ class VirtualTimer(VirtualChannel):
         finish_at = time.time() + self.preselection - self.curvalue
         try:
             while not self._stopflag:
-                if self.ismaster and time.time() >= finish_at:
+                if self.iscontroller and time.time() >= finish_at:
                     self.curvalue = self.preselection
                     break
                 time.sleep(self._base_loop_delay)
@@ -304,7 +304,7 @@ class VirtualTimer(VirtualChannel):
             self.curstatus = (status.OK, 'idle')
 
     def doSimulate(self, preset):
-        if self.ismaster:
+        if self.iscontroller:
             return [self.preselection]
         return [random.randint(0, 1000)]
 
@@ -312,7 +312,7 @@ class VirtualTimer(VirtualChannel):
         return Value(self.name, unit='s', type='time', fmtstr='%.3f'),
 
     def doTime(self, preset):
-        return self.preselection if self.ismaster else 0
+        return self.preselection if self.iscontroller else 0
 
 
 class VirtualCounter(VirtualChannel):
@@ -353,7 +353,7 @@ class VirtualCounter(VirtualChannel):
                        self.preselection, self.countrate)
         try:
             while not self._stopflag:
-                if self.ismaster and self.curvalue >= self.preselection:
+                if self.iscontroller and self.curvalue >= self.preselection:
                     self.curvalue = self.preselection
                     break
                 time.sleep(self._base_loop_delay)
@@ -364,7 +364,7 @@ class VirtualCounter(VirtualChannel):
             self.curstatus = (status.OK, 'idle')
 
     def doSimulate(self, preset):
-        if self.ismaster:
+        if self.iscontroller:
             return [self.preselection]
         return [random.randint(0, self.countrate)]
 
@@ -460,9 +460,9 @@ class VirtualTemperature(VirtualMotor):
         'precision': Override(default=1),
     }
 
-    def doStart(self, pos):
-        self.setpoint = pos
-        VirtualMotor.doStart(self, pos)
+    def doStart(self, target):
+        self.setpoint = target
+        VirtualMotor.doStart(self, target)
 
     def _step(self, start, end, elapsed, speed):
         # calculate an exponential approximation to the setpoint with a time
@@ -537,14 +537,14 @@ class VirtualRealTemperature(HasWindowTimeout, HasLimits, Moveable):
     def doShutdown(self):
         self._stopflag = True
 
-    def doStart(self, pos):
+    def doStart(self, target):
         # do nothing more, its handled in the thread...
         with self._statusLock:
             # insert target position into history
             # if target is far away -> loop goes busy
             # else loop sets to stable again....
             currtime = time.time()
-            self._window.append((currtime, pos))
+            self._window.append((currtime, target))
             self._starttime = currtime
             self.curstatus = status.BUSY, 'ramping setpoint'
 
@@ -556,11 +556,6 @@ class VirtualRealTemperature(HasWindowTimeout, HasLimits, Moveable):
 
     def doStop(self):
         self.start(self.setpoint)
-
-    def doPoll(self, nr, maxage):
-        self._pollParam('setpoint', 1)
-        self._pollParam('curvalue', 1)
-        self._pollParam('curstatus', 1)
 
     #
     # Parameters
@@ -770,10 +765,10 @@ class VirtualImage(ImageChannelMixin, PassiveChannel):
     """
 
     parameters = {
-        'sizes': Param('Detector size in pixels (x, y)',
-                       settable=False,
-                       type=tupleof(intrange(1, 1024), intrange(1, 1024)),
-                       default=(128, 128)),
+        'size': Param('Detector size in pixels (x, y)',
+                      settable=False,
+                      type=tupleof(intrange(1, 1024), intrange(1, 1024)),
+                      default=(128, 128)),
         'background': Param('Background level, use 0 to switch off',
                             settable=True, type=int, default=10),
     }
@@ -791,7 +786,7 @@ class VirtualImage(ImageChannelMixin, PassiveChannel):
     _timer = None
 
     def doInit(self, mode):
-        self.arraydesc = ArrayDesc(self.name, self.sizes[::-1], '<u4')
+        self.arraydesc = ArrayDesc(self.name, self.size[::-1], '<u4')
 
     def doPrepare(self):
         self.readresult = [0]
@@ -847,7 +842,7 @@ class VirtualImage(ImageChannelMixin, PassiveChannel):
                else 5)
         coll = (self._attached_collimation.read() if self._attached_collimation
                 else '15m')
-        xl, yl = self.sizes
+        xl, yl = self.size
         xx, yy = np.meshgrid(np.linspace(-(xl // 2), (xl // 2) - 1, xl),
                              np.linspace(-(yl // 2), (yl // 2) - 1, yl))
         beam = (t * 100 * np.exp(-xx**2/50) * np.exp(-yy**2/50)).astype(int)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -46,9 +46,9 @@ devices = dict(
     tim1 = device('nicos.devices.generic.VirtualTimer',
         unit = 's',
     ),
-    spodi_image = device('nicos_mlz.spodi.devices.virtual.VirtualImage',
+    spodi_image = device('nicos_mlz.spodi.devices.VirtualImage',
         pollinterval = None,
-        sizes = (80, 256),
+        size = (80, 256),
         background = 0,
     ),
     basedet = device('nicos.devices.generic.Detector',
@@ -59,16 +59,16 @@ devices = dict(
         maxage = 86400,
         pollinterval = None,
     ),
-    adet = device('nicos_mlz.spodi.devices.detector.Detector',
+    adet = device('nicos_mlz.spodi.devices.Detector',
         motor = 'tths',
         detector = 'basedet',
         pollinterval = None,
         maxage = 86400,
         liveinterval = 5,
     ),
-    spodisink = device('nicos_mlz.spodi.devices.datasinks.CaressHistogram',
+    spodisink = device('nicos_mlz.spodi.devices.CaressHistogram',
         filenametemplate = ['m1%(pointcounter)08d.ctxt'],
         detectors = ['adet'],
     ),
-    spodilivesink = device('nicos_mlz.spodi.devices.datasinks.LiveViewSink'),
+    spodilivesink = device('nicos_mlz.spodi.devices.LiveViewSink'),
 )

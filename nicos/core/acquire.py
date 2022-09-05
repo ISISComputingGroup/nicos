@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -42,7 +42,8 @@ def _wait_for_continuation(delay, only_pause=False):
     stopped.
     """
     while session.countloop_request:
-        req, current_msg = session.countloop_request  # pylint: disable=unpacking-non-sequence
+        # pylint: disable=unpacking-non-sequence
+        req, current_msg = session.countloop_request
         session.countloop_request = None
         if only_pause and req != 'pause':
             # for 'finish' requests, we don't want to finish *before* starting
@@ -90,7 +91,8 @@ def acquire(point, preset, iscompletefunc=None):
     been fulfilled.
     """
     if iscompletefunc is None:  # do not influence count loop using callback
-        iscompletefunc = lambda: False
+        def iscompletefunc():
+            return False
     # put detectors in a set and discard them when completed
     detset = set(point.detectors)
     delay = (session.instrument and session.instrument.countloopdelay or 0.025
@@ -259,6 +261,21 @@ class Average(DevStatistics):
                      fmtstr=self.dev.fmtstr),
 
 
+class StdDev(DevStatistics):
+    """Collects the standard deviation of the device value."""
+
+    statname = 'stddev'
+
+    def retrieve(self, valuestats):
+        if self.dev.name in valuestats:
+            return [valuestats[self.dev.name][1]]
+        return [None]
+
+    def valueInfo(self):
+        return Value('%s:stddev' % self.dev, unit=self.dev.unit,
+                     fmtstr=self.dev.fmtstr),
+
+
 class MinMax(DevStatistics):
     """Collects the minimum and maximum of the device value."""
 
@@ -280,6 +297,7 @@ class MinMax(DevStatistics):
 DevStatistics.subclasses = {
     Average.statname: Average,
     MinMax.statname:  MinMax,
+    StdDev.statname: StdDev,
 }
 
 

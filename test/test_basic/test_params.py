@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -28,10 +28,10 @@ from numpy import array
 
 from nicos.core.errors import ConfigurationError, ProgrammingError
 from nicos.core.params import ArrayDesc, Attach, Param, Value, absolute_path, \
-    anytype, dictof, dictwith, floatrange, host, intrange, ipv4, limits, \
-    listof, mailaddress, nicosdev, none_or, nonemptylistof, nonemptystring, \
-    oneof, oneofdict, oneofdict_or, pvname, relative_path, setof, string, \
-    subdir, tacodev, tangodev, tupleof, vec3
+    anytype, boolean, dictof, dictwith, floatrange, host, intrange, ipv4, \
+    limits, listof, mailaddress, nicosdev, none_or, nonemptylistof, \
+    nonemptystring, oneof, oneofdict, oneofdict_or, pvname, relative_path, \
+    setof, string, subdir, tacodev, tangodev, tupleof, vec3
 
 from test.utils import raises
 
@@ -168,6 +168,16 @@ def test_string():
     assert string(b'blah') == 'blah'
     assert string() == ''
     assert string('blah') == 'blah'
+
+
+def test_boolean():
+    assert boolean(True) is True
+    assert boolean(False) is False
+    assert boolean() is False
+    assert boolean(10) is True
+    assert boolean(0) is False
+    assert raises(ValueError, boolean, 'True')
+    assert raises(ValueError, boolean, 'False')
 
 
 def test_dictof():

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -192,8 +192,8 @@ class Monitor(BaseCacheClient):
     def _wait_retry(self):
         if not self._keys_expired:
             time = currenttime()
-            for key in self._keymap:
-                for obj in self._keymap[key]:
+            for key, objs in self._keymap.items():
+                for obj in objs:
                     self.signalKeyChange(obj, key, None, time, True)
             self._keys_expired = True
         self.updateTitle('Disconnected (%s)' % strftime('%d.%m.%Y %H:%M:%S'))

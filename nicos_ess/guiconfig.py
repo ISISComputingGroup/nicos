@@ -2,14 +2,8 @@
 
 main_window = docked(
     tabbed(
-        ('Setup',
-         tabbed(
-             ('Experiment',
-              panel('nicos_ess.gui.panels.exp_panel.ExpPanel')),
-             ('Instrument',
-              panel('nicos.clients.flowui.panels.setup_panel.SetupsPanel')),
-         ),
-        ),
+        ('Experiment', panel('nicos_ess.gui.panels.exp_panel.ExpPanel')),
+        ('Setup', panel('nicos.clients.flowui.panels.setup_panel.SetupsPanel')),
         ('  ', panel('nicos.clients.flowui.panels.empty.EmptyPanel')),
         ('Instrument interaction',
          hsplit(
@@ -35,48 +29,34 @@ main_window = docked(
              panel(
                  'nicos.clients.flowui.panels.devices.DevicesPanel',
                  dockpos='right',
-                 param_display={'tas': 'scanmode',
-                                'Exp': ['lastpoint', 'lastscan']},
-                 filters=[('Detector', 'det'),
-                          ('Temperatures', '^T'),
-                          ],
+                 param_display={'Exp': ['lastpoint', 'lastscan']},
+                 filters=[],
              ),
          ),  # hsplit
          ),
         (
             'Batch file generation',
-            vsplit(
-                panel('nicos.clients.gui.panels.scriptbuilder.CommandsPanel'),
-                panel('nicos.clients.flowui.panels.editor.EditorPanel',
-                      tools=None),
-            ), # vsplit
+            panel('nicos.clients.flowui.panels.editor.EditorPanel',
+                  tools=None),
         ),
-        ('Detector Image',
-         panel('nicos.clients.flowui.panels.live.MultiLiveDataPanel')),
         (
             'History',
             panel('nicos.clients.flowui.panels.history.HistoryPanel'),
         ),
         ('Logs',
             tabbed(
-                ('Errors', panel('nicos.clients.gui.panels.errors.ErrorPanel')),
+                ('Errors', panel('nicos.clients.flowui.panels.errors.ErrorPanel')),
                 ('Log files', panel(
-                    'nicos.clients.gui.panels.logviewer.LogViewerPanel')),
+                    'nicos.clients.flowui.panels.logviewer.LogViewerPanel')),
             ),
          ),
-
-
-        ('  ', panel('nicos.clients.flowui.panels.empty.EmptyPanel')),
-
-        ('Finish Experiment',
-         panel('nicos.clients.flowui.panels.setup_panel.FinishPanel')),
-
         position='left',
+        margins=(0, 0, 0, 0),
+        textpadding=(30, 20),
     ), # tabbed
+    ) # docked
 
-    ) #docked
-
-windows = [ ]
+windows = []
 
 tools = [
     tool('Report NICOS bug or request enhancement',

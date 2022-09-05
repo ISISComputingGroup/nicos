@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,7 +21,9 @@
 #   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
+import os
 
+from nicos.clients.flowui import uipath
 from nicos.clients.flowui.panels import get_icon
 from nicos.clients.gui.panels.history import \
     HistoryPanel as DefaultHistoryPanel
@@ -30,6 +32,7 @@ from nicos.guisupport.qt import QActionGroup, QCheckBox, QComboBox, QFrame, \
 
 
 class HistoryPanel(DefaultHistoryPanel):
+    ui = os.path.join(uipath, 'panels', 'ui_files',  'history.ui')
 
     def __init__(self, parent, client, options):
         DefaultHistoryPanel.__init__(self, parent, client, options)

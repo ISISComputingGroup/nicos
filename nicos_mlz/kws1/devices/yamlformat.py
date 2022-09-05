@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,12 +24,17 @@
 
 """KWS-1 file format saver with YAML."""
 
+import gzip
+
+import numpy as np
+
 from nicos import session
 from nicos.core import Override, status
 from nicos.core.data.dataset import ScanDataset
 from nicos.core.data.sink import GzipFile
 from nicos.core.utils import formatStatus
-from nicos.devices.datasinks.image import ImageSink, SingleFileSinkHandler
+from nicos.devices.datasinks.image import ImageFileReader, ImageSink, \
+    SingleFileSinkHandler
 from nicos.utils import byteBuffer
 
 from nicos_mlz.devices.yamlbase import YAMLBaseFileSinkHandler
@@ -68,9 +73,13 @@ class YAMLFileSinkHandler(YAMLBaseFileSinkHandler):
 
         det1 = self._dict()
         det1['type'] = 'position_sensitive_detector'
-        det1['mode'] = self.dataset.metainfo['det_img', 'mode'][0]
-        # the first entry in "slices" is always 0 in the TOF modes
-        slices = self.dataset.metainfo['det_img', 'slices'][0][1:]
+        try:
+            det1['mode'] = self.dataset.metainfo['det_img', 'mode'][0]
+            # the first entry in "slices" is always 0 in the TOF modes
+            slices = self.dataset.metainfo['det_img', 'slices'][0][1:]
+        except KeyError:
+            det1['mode'] = 'normal'
+            slices = []
         det1['time_channels'] = len(slices) or 1
         det1['time_slices_us'] = self._flowlist(slices)
         det1['pixels_x'] = image.shape[-1]
@@ -161,3 +170,29 @@ class BinaryArraySink(ImageSink):
                                      default=[NAME_TEMPLATE + '.array.gz'],
                                      ),
     }
+
+
+class BinaryArrayReader(ImageFileReader):
+    filetypes = [('arraygz', 'Compressed image array (*.array.gz)')]
+
+    @classmethod
+    def fromfile(cls, filename):
+        yamlname = filename.replace('.array.gz', '.yaml')
+        dim_x = dim_y = dim_t = 1
+
+        with open(yamlname, 'r', encoding='utf-8') as fp:
+            for line in fp:
+                line = line.strip()
+                if line.startswith('pixels_x:'):
+                    dim_x = int(line.split()[-1])
+                elif line.startswith('pixels_y:'):
+                    dim_y = int(line.split()[-1])
+                elif line.startswith('time_channels:'):
+                    dim_t = int(line.split()[-1])
+        if dim_t > 1:
+            shape = (dim_t, dim_y, dim_x)
+        else:
+            shape = (dim_y, dim_x)
+
+        with gzip.open(filename) as fp:
+            return np.frombuffer(fp.read(), '<u4').reshape(shape)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,7 +21,7 @@
 #   Bertrand Roessli
 #   Marc Janoschek
 #   Florian Bernlochner
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -177,6 +177,7 @@ class unitcell:
         repstr = "<Unit cell object>\n"
         repstr += "a      b      c      alpha   beta   gamma\n"
         degree_sym = "deg"
+        # pylint: disable=bad-string-format-type
         repstr += "%2.3fA %2.3fA %2.3fA %3.1f%s   %3.1f%s   %3.1f%s\n" % \
             (self.a, self.b, self.c, degrees(self.alpha), degree_sym,
              degrees(self.beta), degree_sym, degrees(self.gamma), degree_sym)
@@ -826,8 +827,8 @@ Resolution Info:
         TT = real(self.S * matrix([h, k, l]).transpose())
         # cos(theta) and sin(theta) are the projections of the Q vector onto
         # the directions V1 and V2
-        cos_theta = TT[0, 0] / sqrt(dot(TT.transpose(), TT))
-        sin_theta = TT[1, 0] / sqrt(dot(TT.transpose(), TT))
+        cos_theta = float(TT[0, 0] / sqrt(dot(TT.transpose(), TT)))
+        sin_theta = float(TT[1, 0] / sqrt(dot(TT.transpose(), TT)))
 
         #----- Rotation matrix from system of resolution matrix
         # to system defined by V1, V2, V3 => V1,V2 define scattering plane,

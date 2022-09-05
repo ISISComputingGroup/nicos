@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -69,11 +69,11 @@ class SXTalBase(Instrument, Moveable):
 
     def doInit(self, mode):
         self.__dict__['h'] = SXTalIndex('h', unit='rlu', fmtstr='%.3f',
-                                        index=0, lowlevel=True, sxtal=self)
+                                        index=0, visibility=(), sxtal=self)
         self.__dict__['k'] = SXTalIndex('k', unit='rlu', fmtstr='%.3f',
-                                        index=1, lowlevel=True, sxtal=self)
+                                        index=1, visibility=(), sxtal=self)
         self.__dict__['l'] = SXTalIndex('l', unit='rlu', fmtstr='%.3f',
-                                        index=2, lowlevel=True, sxtal=self)
+                                        index=2, visibility=(), sxtal=self)
         self._last_calpos = None
 
     def doShutdown(self):
@@ -176,13 +176,13 @@ class SXTalBase(Instrument, Moveable):
         self._sim_min = tuple(map(min, pos, self._sim_min or pos))
         self._sim_max = tuple(map(max, pos, self._sim_max or pos))
 
-    def doStart(self, hkl):
-        poslist = self._extractPos(self._calcPos(hkl))
+    def doStart(self, target):
+        poslist = self._extractPos(self._calcPos(target))
         for (devname, devvalue) in poslist:
             dev = self._adevs[devname]
             dev.start(devvalue)
         # store the min and max values of h,k,l, and E for simulation
-        self._sim_setValue(hkl)
+        self._sim_setValue(target)
 
     def doFinish(self):
         # make sure index members read the latest value
@@ -315,7 +315,7 @@ class SXTalIndex(AutoDevice, Moveable):
     def doRead(self, maxage=0):
         return self._attached_sxtal.read(maxage)[self.index]
 
-    def doStart(self, pos):
+    def doStart(self, target):
         current = list(self._attached_sxtal.read(0.5))
-        current[self.index] = pos
+        current[self.index] = target
         self._attached_sxtal.start(current)

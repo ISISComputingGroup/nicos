@@ -1,5 +1,3 @@
-import test.nicos_sinq.amor.test_diaphragms
-
 description = 'Various devices for diaphragms in AMOR'
 
 devices = dict(
@@ -84,7 +82,7 @@ devices = dict(
         xs = 'xs',
         slit1 = 'slit1',
         slit2 = 'slit2',
-        lowlevel = True
+        visibility = (),
     ),
     div = device('nicos_sinq.amor.devices.slit.AmorSlitLogicalMotor',
         description = 'Logical motor vertical divergence',

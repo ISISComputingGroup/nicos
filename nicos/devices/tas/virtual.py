@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -107,8 +107,8 @@ class VirtualTasDetector(Measurable):
         return self._lastresult
 
     def _simulate(self):
-        from nicos.devices.tas.rescalc import resmat, calc_MC, demosqw
         from nicos.commands.tas import _resmat_args
+        from nicos.devices.tas.rescalc import calc_MC, demosqw, resmat
         taspos = self._attached_tas.read(0)
         mat = resmat(*_resmat_args(taspos, {}))
         self.log.debug('virtual TAS det: MC simulation at %r', taspos)

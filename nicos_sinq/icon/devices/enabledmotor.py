@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -46,11 +46,11 @@ class EnabledMotor(HomingProtectedEpicsMotor):
 
     _stop_sent = False
 
-    def doStart(self, pos):
+    def doStart(self, target):
         if self._attached_lock.read(0) == 0:
             raise NicosError(self, 'Motor cannot move while door is open')
         self._stop_sent = False
-        EpicsMotor.doStart(self, pos)
+        EpicsMotor.doStart(self, target)
 
     def doStatus(self, maxage=0):
         ret = EpicsMotor.doStatus(self, maxage)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -108,7 +108,7 @@ class HelpGenerator:
             return '<pre>' + html.escape(markup) + '</pre>'
         else:
             try:
-                return publish_parts(markup, writer_name='html')['fragment']
+                return publish_parts(markup, writer_name='html')['html_body']
             except Exception:
                 return '<pre>' + html.escape(markup) + '</pre>'
 
@@ -118,6 +118,13 @@ class HelpGenerator:
                '<a href="#devices">Devices</a>&nbsp;&nbsp;|&nbsp;&nbsp;'
                '<a href="#setups">Setups</a></p>']
         ret.append('<p>Welcome to the NICOS interactive help!</p>')
+
+        if session.help_topics:
+            ret.append(self.gen_heading('List of additional help topics for '
+                                        'currently loaded setup', 'help_topics'))
+            for topic in sorted(session.help_topics):
+                ret.append('<h4><a href="topic:%s">%s</a></h4>' % (topic, topic))
+
         cmds = []
         for name, obj in session.getExportedObjects():
             if not hasattr(obj, 'is_usercommand'):
@@ -291,6 +298,11 @@ class HelpGenerator:
     def gen_helptarget(self, target):
         if target == 'index':
             return self.gen_helpindex()
+        elif target in session.help_topics:
+            return self.gen_helptopic(target)
+        elif target.startswith('topic:'):
+            topicname = target[6:]
+            return self.gen_helptopic(topicname)
         elif target.startswith('cmd:'):
             cmdname = target[4:]
             obj = session.namespace[cmdname]
@@ -337,3 +349,9 @@ class HelpGenerator:
         else:
             return '', \
                 self.header + self.gen_genericdoc(obj) + self.footer
+
+    def gen_helptopic(self, obj):
+        ret = []
+        ret.append(self.gen_heading('Additional help for %s.' % obj, 'help_topics'))
+        ret.append(self.gen_markup(session.help_topics[obj]))
+        return ''.join(ret)

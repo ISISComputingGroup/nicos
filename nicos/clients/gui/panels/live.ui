@@ -109,6 +109,11 @@
     <string>Ctrl+U</string>
    </property>
   </action>
+  <action name="actionAttachElog">
+   <property name="text">
+    <string>Attach to electronic log</string>
+   </property>
+  </action>
   <action name="actionSavePlot">
    <property name="checkable">
     <bool>false</bool>
@@ -133,22 +138,6 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+L</string>
-   </property>
-  </action>
-  <action name="actionColormap">
-   <property name="text">
-    <string>&amp;Colormap</string>
-   </property>
-   <property name="toolTip">
-    <string>Select colormap</string>
-   </property>
-  </action>
-  <action name="actionROI">
-   <property name="text">
-    <string>&amp;Region Of Interest</string>
-   </property>
-   <property name="toolTip">
-    <string>Open region of interest in seperate window</string>
    </property>
   </action>
   <action name="actionMarkCenter">

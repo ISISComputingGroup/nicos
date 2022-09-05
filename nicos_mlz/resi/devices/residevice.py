@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -42,8 +42,8 @@ sys.path.append('/home/resi/pedersen/workspace/nonius_new/app')
 
 # imports from the nonius libs
 try:
-    from sc_scan_new import HuberScan
     from goniometer import position
+    from sc_scan_new import HuberScan
 except ImportError as e:
     # at least make the module importable for setup checking
     session.log.info(e)
@@ -120,8 +120,8 @@ class ResiDevice(Moveable):
     def doRead(self, maxage=0):
         return ResiPositionProxy(self._hardware.GetPosition(maxage))
 
-    def doStart(self, args):
-        self._hardware.Goto(**args)
+    def doStart(self, target):
+        self._hardware.Goto(**target)
 
     def doStatus(self, maxage=0):
         statusmap = {0: (OK, 'idle'), 1: (BUSY, 'moving')}
@@ -129,7 +129,7 @@ class ResiDevice(Moveable):
         return statusmap[hwstatus][0], statusmap[hwstatus][1]
 
     def doInfo(self):
-        info = list()
+        info = []
         pos = ResiPositionProxy(self._hardware.GetPosition())
         info.append(('position', pos, str(pos), '', 'experiment'))
         info.append(('reflex', self._hardware.current_reflex,
@@ -161,8 +161,8 @@ class ResiVAxis(Moveable):
     parameters = {
         'mapped_axis': Param('Mapped axis', type=str, mandatory=True)
     }
-    def doStart(self, value):
-        self._attached_basedevice.doStart({self.mapped_axis:value})
+    def doStart(self, target):
+        self._attached_basedevice.doStart({self.mapped_axis:target})
     def doRead(self, maxage=0):
         return math.degrees(getattr(self._attached_basedevice.read(maxage), self.mapped_axis))
     def doIsCompleted(self):

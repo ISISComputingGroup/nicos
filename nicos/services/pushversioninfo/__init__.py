@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -77,15 +77,16 @@ class PushVersionInfo(BaseCacheClient):
                             'disable. The access token and Version info is '
                             'directly appended to the URI, encoded as a '
                             'query parameter.',
-                            type=none_or(str), mandatory=True, userparam=False),
+                            type=none_or(str), mandatory=True,
+                            userparam=False),
         'tokenid': Param('Id used in the keystore for the update token',
                          type=str, default='frm2jenkins'),
-        'infokey':    Param('URI parameter key for the info dict', type=str,
-                            mandatory=True),
+        'infokey': Param('URI parameter key for the info dict', type=str,
+                         mandatory=True),
     }
 
     parameter_overrides = {
-        'prefix':     Override(mandatory=False, default='sysinfo/'),
+        'prefix': Override(mandatory=False, default='sysinfo/'),
     }
 
     def doInit(self, mode):
@@ -153,6 +154,7 @@ class PushVersionInfo(BaseCacheClient):
         update_string = self.update_uri + append
         update_string += urllib.parse.urlencode(paramdict)
         try:
+            # pylint: disable=consider-using-with
             urllib.request.urlopen(update_string)
             self.log.debug('update sent successfully for %s',
                            infodict.get('service', 'base'))

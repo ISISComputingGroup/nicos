@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -56,10 +56,10 @@ class SinqDetector(EpicsScalerRecord):
         for name in self.time_preset_names:
             yield name, self._attached_timepreset, 'time'
 
-    def _collectMasters(self):
+    def _collectControllers(self):
         self._channels = uniq(self._channels + [self._attached_monitorpreset,
                                                 self._attached_timepreset])
-        EpicsScalerRecord._collectMasters(self)
+        EpicsScalerRecord._collectControllers(self)
 
     def doSetPreset(self, **preset):
         # The counter box can set one time and count preset. If the time
@@ -74,10 +74,22 @@ class SinqDetector(EpicsScalerRecord):
         if countpreset and timepreset:
             self.log.debug('Both count and time preset cannot be set at '
                            'the same time.')
-            self.log.debug('Using just the count preset.')
-            for name in timepreset:
-                preset.pop(name)
-            timepreset = set()
+            self.log.debug('Using the best preset')
+            # The best preset is the one which is not 0,
+            # The monitor preset is preferred
+            monname = list(countpreset)[0]
+            timename = list(timepreset)[0]
+            monval = preset[monname]
+            timeval = preset[timename]
+            if monval > 0:
+                for name in timepreset:
+                    preset.pop(name)
+                timepreset = set()
+                timeval = 0
+            elif timeval > 0:
+                for name in countpreset:
+                    preset.pop(name)
+                countpreset = set()
 
         if timepreset:
             preset['m'] = 0
@@ -94,6 +106,23 @@ class SinqDetector(EpicsScalerRecord):
         # Let the parent handle the rest
         EpicsScalerRecord.doSetPreset(self, **preset)
 
+    def _getPreset(self, preset):
+        if preset:
+            return preset
+        # None given, deduce from values
+        result = {}
+        timepreset = self._attached_timepreset.read()
+        monpreset = self._attached_monitorpreset.read()
+        if monpreset[0] > 0:
+            # Prefer the monitor preset over the timepreset
+            # This reflects SINQ usage
+            # When we have a time preset, other logic ensures
+            # that the monitor preset is 0
+            result['m'] = monpreset[0]
+            return result
+        result['t'] = max(1, timepreset[0])
+        return result
+
     def doInfo(self):
         ret = EpicsScalerRecord.doInfo(self)
 
@@ -101,15 +130,15 @@ class SinqDetector(EpicsScalerRecord):
         mode = ''
         value = 0
         unit = ''
-        for d in self._masters:
-            for k in self._presetkeys:
-                if self._presetkeys[k] and\
-                        self._presetkeys[k][0].name == d.name:
+        for d in self._controlchannels:
+            for pkey in self._presetkeys.items():
+                if pkey and pkey[1][0].name == d.name:
                     preselection = d.preselection
                     if preselection != 0:
                         value = preselection
                         unit = d.unit
-                        mode = 'timer' if k.startswith('t') else 'monitor'
+                        mode = 'timer' if pkey[0].startswith('t') \
+                            else 'monitor'
                         break
         ret.append(('mode', mode, mode, '', 'presets'))
         ret.append(('preset', value, '%s' % value, unit, 'presets'))
@@ -123,48 +152,53 @@ class SinqDetector(EpicsScalerRecord):
 
 class ControlDetector(Detector):
     """
-    This is a base class for classes which wish to coordinate multiple
-    detectors. The model is that there are multiple slave detectors (like
+    Base class for classes which wish to coordinate multiple detectors.
+
+    The model is that there are multiple follower detectors (like
     Histogram Memories) and one trigger detector which when started,
     actually starts data acquisition on the assembly. This implementation
     passes most Detector methods through to all participating detectors.
     start() and doIsCompleted() are implemented in such a way that it does
     the right thing for the SINQ combination of el737 counter box as
-    trigger and HM slaves.
+    trigger and HM follower.
     """
 
     attached_devices = {
         'trigger': Attach('Detector which triggers data acquisition',
                           Detector),
-        'slave_detectors': Attach('Slave detectors', Measurable,
-                                  multiple=True, optional=True),
+        'followers': Attach('Follower detectors', Measurable,
+                            multiple=True, optional=True),
     }
     _slaves_stopped = False
+    _followers_stopped = False
 
     def doSetPreset(self, **preset):
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             det.setPreset(**preset)
         self._attached_trigger.setPreset(**preset)
 
+    def _getPreset(self, preset):
+        return self._attached_trigger._getPreset(preset)
+
     def doPrepare(self):
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             det.prepare()
         self._attached_trigger.prepare()
 
     def doStart(self):
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             det.start()
         self._attached_trigger.start()
-        self._slaves_stopped = False
+        self._followers_stopped = False
 
     def doIsCompleted(self):
         if self._attached_trigger.isCompleted():
-            if not self._slaves_stopped:
-                for det in self._attached_slave_detectors:
+            if not self._followers_stopped:
+                for det in self._attached_followers:
                     det.stop()
-                    self._slaves_stopped = True
-                    return False
-            for det in self._attached_slave_detectors:
+                self._followers_stopped = True
+                return False
+            for det in self._attached_followers:
                 if not det.isCompleted():
                     return False
             return True
@@ -172,13 +206,13 @@ class ControlDetector(Detector):
             return False
 
     def doFinish(self):
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             det.finish()
         self._attached_trigger.finish()
 
     def readResults(self, quality):
         data, arrays = self._attached_trigger.readResults(quality)
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             d1, ar2 = det.readResults(quality)
             data = data + d1
             arrays = arrays + ar2
@@ -186,31 +220,31 @@ class ControlDetector(Detector):
 
     def doPause(self):
         self._attached_trigger.pause()
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             det.pause()
 
     def doResume(self):
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             det.resume()
         self._attached_trigger.resume()
 
     def doStop(self):
         self._attached_trigger.stop()
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             det.stop()
 
-    def duringMeasurementHook(self, elapsed):
-        res = self._attached_trigger.duringMeasurementHook(elapsed)
+    def duringMeasureHook(self, elapsed):
+        res = self._attached_trigger.duringMeasureHook(elapsed)
         if res:
             return res
-        for det in self._attached_slave_detectors:
-            res = det.duringMeasurementHook(elapsed)
+        for det in self._attached_followers:
+            res = det.duringMeasureHook(elapsed)
             if res:
                 return res
 
     def doInfo(self):
         res = self._attached_trigger.doInfo()
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             res = res + det.doInfo()
         return res
 
@@ -221,24 +255,24 @@ class ControlDetector(Detector):
         if not self._attached_trigger:
             self.doInit('')
         res = self._attached_trigger.valueInfo()
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             res = res + det.valueInfo()
         return res
 
     def arrayInfo(self):
         res = self._attached_trigger.arrayInfo()
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             res = res + det.arrayInfo()
         return res
 
     def doRead(self, maxage=0):
         res = self._attached_trigger.doRead(maxage)
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             res = res + det.doRead(maxage)
         return res
 
     def doReadArrays(self, quality):
         res = self._attached_trigger.doReadArrays(quality)
-        for det in self._attached_slave_detectors:
+        for det in self._attached_followers:
             res += det.doReadArrays(quality)
         return res

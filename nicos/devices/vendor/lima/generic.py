@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -162,7 +162,7 @@ class GenericLimaCCD(PyTangoDevice, ImageChannelMixin, PassiveChannel):
         # Create hw specific device if given
         if self.hwdevice:
             self._hwDev = HwDevice(self.name + '._hwDev',
-                                   tangodevice=self.hwdevice, lowlevel=True)
+                                   tangodevice=self.hwdevice, visibility=())
 
         # optional components
         self._shutter = None
@@ -190,7 +190,7 @@ class GenericLimaCCD(PyTangoDevice, ImageChannelMixin, PassiveChannel):
 
     def doInit(self, mode):
         # Determine image type
-        self.arraydesc = ArrayDesc('data', self._width_height[::-1],
+        self.arraydesc = ArrayDesc(self.name, self._width_height[::-1],
                                    self._getImageType())
 
     def doShutdown(self):

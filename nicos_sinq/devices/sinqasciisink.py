@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,7 @@ from nicos.core import Override, Param, listof, nicosdev, tupleof
 from nicos.core.constants import POINT, SCAN, SUBSCAN
 from nicos.core.data import DataSinkHandler
 from nicos.devices.datasinks import FileSink
+from nicos_sinq.sxtal.instrument import SXTalBase
 
 
 class SINQAsciiSinkHandler(DataSinkHandler):
@@ -57,7 +58,7 @@ class SINQAsciiSinkHandler(DataSinkHandler):
         return value
 
     def _initHeader(self):
-        with open(self.sink.templatefile, 'r') as fin:
+        with open(self.sink.templatefile, 'r', encoding='utf-8') as fin:
             template = fin.read()
 
         template = template.replace('!!FILE!!', self.dataset.filepaths[0])
@@ -74,7 +75,7 @@ class SINQAsciiSinkHandler(DataSinkHandler):
                 lsp = dev.split(',')
                 if len(lsp) > 1:
                     dev = lsp[0]
-                    par = lsp[1]
+                    par = lsp[1].strip()
                 else:
                     dev = lsp[0]
                     par = 'value'
@@ -110,26 +111,30 @@ class SINQAsciiSinkHandler(DataSinkHandler):
         for _, det in self.sink.scaninfo:
             self.scanvalues[det] = []
 
-    def addSubset(self, point):
-        if point.settype != POINT:
+    def addSubset(self, subset):
+        if subset.settype != POINT:
             return
 
-        if point.number == 1:
+        if subset.number == 1:
             self._initHeader()
 
         for i in range(len(self.dataset.devices)):
-            self.scanvalues[self.dataset.devices[i].name].append(
-                point.devvaluelist[i])
+            dev = self.dataset.devices[i]
+            if isinstance(dev, SXTalBase):
+                self.scanvalues[dev.name].append(tuple(subset.devvaluelist[
+                                                       i:i+3]))
+            else:
+                self.scanvalues[dev.name].append(subset.devvaluelist[i])
 
         for _, det in self.sink.scaninfo:
-            if det in point.values:
-                self.scanvalues[det].append(point.values[det])
+            if det in subset.values:
+                self.scanvalues[det].append(subset.values[det])
             else:
                 session.log.warning('Detector %s not found when saving scan '
                                     'data', det)
 
     def end(self):
-        with open(self.dataset.filepaths[0], 'w') as out:
+        with open(self.dataset.filepaths[0], 'w', encoding='utf-8') as out:
             out.write(self.header)
 
             # Do the scan variable and steps line
@@ -139,7 +144,11 @@ class SINQAsciiSinkHandler(DataSinkHandler):
                 out.write(dev.name + ',')
                 vals = self.scanvalues[dev.name]
                 if len(vals) > 1:
-                    steps.append(str(vals[1] - vals[0]))
+                    if isinstance(vals[0], tuple):
+                        hklstep = [v1 - v2 for v1, v2 in zip(vals[1], vals[0])]
+                        steps.append(str(tuple(hklstep)))
+                    else:
+                        steps.append(str(vals[1] - vals[0]))
                 else:
                     steps.append(str(.0))
             out.write(' Steps: ')
@@ -156,12 +165,15 @@ class SINQAsciiSinkHandler(DataSinkHandler):
             out.write('Mode: ' + mode + ',')
             mp = self.dataset.preset.values()
             preset = list(mp)[0]
-            out.write('Preset %f\n' % (preset))
+            out.write(' Preset %f\n' % (preset))
 
             # Scan data header
             out.write('%-4s' % 'NP')
             for dev in self.dataset.devices:
-                out.write('%-9s' % dev.name)
+                if isinstance(dev, SXTalBase):
+                    out.write('    H       K       L ')
+                else:
+                    out.write('%-9s' % dev.name)
             for cter, _ in self.sink.scaninfo:
                 out.write('%-11s' % cter)
             out.write('\n')
@@ -172,11 +184,14 @@ class SINQAsciiSinkHandler(DataSinkHandler):
                 out.write('%-4d' % np)
                 for dev in self.dataset.devices:
                     val = self.scanvalues[dev.name][np]
-                    out.write('%-9.4f' % val)
+                    if isinstance(val, tuple):
+                        out.write('%-7.3f %-7.3f %-7.3f ' % val)
+                    else:
+                        out.write('%-9.4f ' % val)
                 for _, cter in self.sink.scaninfo:
                     val = self.scanvalues[cter][np]
                     if isinstance(val, int):
-                        out.write('%-11d' % val)
+                        out.write('%-10d' % val)
                     else:
                         out.write('%-8.3f   ' % val)
                 out.write('\n')

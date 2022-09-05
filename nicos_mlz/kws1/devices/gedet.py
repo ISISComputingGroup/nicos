@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,15 +26,15 @@
 
 import time
 
-import PyTango
+from tango import DevState
 
 from nicos import session
 from nicos.core import Attach, Moveable, NicosTimeoutError, Override, Param, \
     Readable, dictof, status, tupleof, usermethod
+from nicos.devices.entangle import PowerSupply
 from nicos.devices.epics import EpicsAnalogMoveable, EpicsReadable
 from nicos.devices.generic.sequence import BaseSequencer, SeqMethod, SeqSleep
 from nicos.devices.generic.switcher import Switcher
-from nicos.devices.tango import PowerSupply
 
 
 class HVSwitcher(Switcher):
@@ -51,9 +51,9 @@ class HVSwitcher(Switcher):
                            type=dictof(str, list), mandatory=True),
     }
 
-    def _mapReadValue(self, pos):
+    def _mapReadValue(self, value):
         prec = self.precision
-        for name, value in self.mapping.items():
+        for name, pos in self.mapping.items():
             if prec:
                 if all(abs(p - v) <= prec for (p, v) in zip(pos, value)):
                     return name
@@ -61,8 +61,8 @@ class HVSwitcher(Switcher):
                 return name
         return self.fallback
 
-    def doTime(self, old, new):
-        if old != new:
+    def doTime(self, old_value, target):
+        if old_value != target:
             session.clock.tick(90)
         return 0
 
@@ -173,11 +173,11 @@ class GEPowerSupply(PowerSupply):
     Conversely, when setting voltage to zero, the device is switched OFF.
     """
 
-    def doStart(self, value):
-        if value != 0 and self._dev.State() == PyTango.DevState.OFF:
+    def doStart(self, target):
+        if target != 0 and self._dev.State() == DevState.OFF:
             self._dev.On()
-            PowerSupply.doStart(self, value)
-        elif value == 0:
+            PowerSupply.doStart(self, target)
+        elif target == 0:
             self._dev.Off()
 
 

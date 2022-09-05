@@ -1,5 +1,6 @@
 <RCC>
   <qresource>
+    <file alias="hamburger">icons/hamburger-icon.png</file>
     <file alias="finishearly">icons/media-playback-finish.png</file>
     <file alias="viewonly">icons/emblem-readonly.png</file>
     <file alias="appicon-48">icons/48x48/nicos.png</file>
@@ -63,6 +64,10 @@
     <file alias="splitterv">splitterv.png</file>
     <file alias="polarization">icons/polarization.png</file>
     <file alias="strategy">icons/strategy.png</file>
+    <file alias="nicos-logo">nicos-logo.svg</file>
+    <file alias="mlz-logo-auth">mlz-logo-auth.svg</file>
+    <file alias="ess-logo-auth">ess-logo-auth.svg</file>
+    <file alias="psi-logo-auth">psi-logo-auth.svg</file>
   </qresource>
   <qresource prefix="leds">
     <file alias="status_white">leds/simplewhite.png</file>

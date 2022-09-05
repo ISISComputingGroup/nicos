@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -43,8 +43,8 @@ class SH_Cylinder(Moveable):
                            mandatory=False, unit='s'),
     }
 
-    def doStart(self, position):
-        if position == self.read(0):
+    def doStart(self, target):
+        if target == self.read(0):
             return
 
         if self._checkAir() != 1:
@@ -57,8 +57,8 @@ class SH_Cylinder(Moveable):
         if self._attached_io_ref.read(0) != 1:
             raise NicosError(self, 'Cannot close the shutter!')
 
-        if position != -1:
-            self._attached_io_pos.move(position)
+        if target != -1:
+            self._attached_io_pos.move(target)
             session.delay(self.timedelay)
             self._attached_io_air.move(1)
             session.delay(self.timedelay)

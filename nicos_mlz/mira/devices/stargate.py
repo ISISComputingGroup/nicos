@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -40,16 +40,16 @@ bits of three consecutive 16-bit holding registers (offset_out).  Readback is
 done in three different holding registers with addresses n, n+2, n+4.
 """
 
-from time import time as currenttime
+from time import monotonic
 
 from nicos.core import SIMULATION, Attach, InvalidValueError, Param, listof, \
     status
-from nicos.devices import tango
+from nicos.devices import entangle
 
 from nicos_mlz.mira.devices.axis import HoveringAxis
 
 
-class Stargate(tango.DigitalOutput):
+class Stargate(entangle.DigitalOutput):
     """Device for controlling the MIRA-Stargate blocks."""
 
     valuetype = listof(int)
@@ -79,14 +79,14 @@ class Stargate(tango.DigitalOutput):
         return chevrons[:11]
 
     def doStatus(self, maxage=0):
-        if self._started and self._started + 3 > currenttime():
+        if self._started and self._started + 3 > monotonic():
             return status.BUSY, 'moving/waiting'
         return status.OK, ''
 
-    def doStart(self, value):
+    def doStart(self, target):
         bitvals = [0, 0, 0]
-        for curidx in range(len(value)):
-            curval = value[curidx]
+        for curidx in range(len(target)):
+            curval = target[curidx]
 
             byteidx = curidx // 4
             bitidx = (curidx % 4) * 2
@@ -97,7 +97,7 @@ class Stargate(tango.DigitalOutput):
                 bitvals[byteidx] |= (1 << (bitidx+1))
 
         self._dev.WriteOutputWords([self.offset_out] + bitvals)
-        self._started = currenttime()
+        self._started = monotonic()
 
     def doIsAllowed(self, value):
         if len(value) != 11:
@@ -156,12 +156,12 @@ class ATT(HoveringAxis):
         self._move_stargate()
         HoveringAxis._preMoveAction(self)
 
-    def doStart(self, pos):
+    def doStart(self, target):
         # Since the _preMoveAction is not executed in simulation mode,
         # we have to move the stargate here too.
         if self._mode == SIMULATION:
             self._move_stargate()
-        HoveringAxis.doStart(self, pos)
+        HoveringAxis.doStart(self, target)
 
     def doStatus(self, maxage=0):
         if not self.movestargate:

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,8 @@
 
 from os import path
 
-from nicos.guisupport.qt import QDialog, QRegExp, QRegExpValidator, uic
+from nicos.guisupport.qt import QDialog, QRegularExpression, \
+    QRegularExpressionValidator, uic
 
 
 class NewSetupDialog(QDialog):
@@ -39,8 +40,8 @@ class NewSetupDialog(QDialog):
         if instrument:
             self.setCurrentInstrument(instrument)
             self.comboBoxInstrument.setDisabled(True)
-        self.lineEditFileName.setValidator(QRegExpValidator(
-            QRegExp('[A-Za-z_]{1}[A-Za-z0-9_]*')))
+        self.lineEditFileName.setValidator(QRegularExpressionValidator(
+            QRegularExpression('[A-Za-z_]{1}[A-Za-z0-9_]*')))
 
     def setInstruments(self, instruments):
         self.comboBoxInstrument.addItems(sorted(instruments))

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -164,21 +164,24 @@ class DelayedTrigger(Condition):
             self.t_trigger = 0
 
 
-class Precondition(Condition):
-    """A condition that passes through another condition's triggered state,
-    but only if a different condition (the precondition) was triggered before
-    the main one triggered.
+class ConditionWithPrecondition(Condition):
+    """A condition that will be still triggered, even if precondition doesn't
+    satisfy the new values, however it was triggered for enough of time in the
+    past within a cooldown period
     """
 
-    def __init__(self, log, pre, cond):
+    def __init__(self, log, pre, cond, cooldown):
         Condition.__init__(self, log)
         self.pre = pre
         self.cond = cond
-        self.pre_latch = False
+        self.cooldown = cooldown
+        self.cooldown_timer = 0
+        self.cooldown_flag = False
 
     @property
     def triggered(self):
-        return self.enabled and self.pre_latch and self.cond.triggered
+        return self.enabled and self.cond.triggered and \
+            (self.cooldown_flag or self.pre.triggered)
 
     def is_expired(self, time):
         return self.pre.is_expired(time) or self.cond.is_expired(time)
@@ -197,7 +200,11 @@ class Precondition(Condition):
         prev_pre_triggered = self.pre.triggered
         self.pre.update(time, keydict)
         self.cond.update(time, keydict)
-        if (prev_pre_triggered or self.pre.triggered) and self.cond.triggered:
-            self.pre_latch = True
-        if not self.cond.triggered:
-            self.pre_latch = False
+
+        if prev_pre_triggered and not self.pre.triggered:
+            self.cooldown_timer = time + self.cooldown
+        elif not prev_pre_triggered and self.pre.triggered:
+            self.cooldown_timer = 0
+
+        if self.cooldown_timer:
+            self.cooldown_flag = time <= self.cooldown_timer

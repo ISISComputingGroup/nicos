@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,7 @@ from nicos.core.params import Param, dictwith
 from nicos.core.utils import USER, usermethod
 from nicos.devices.datasinks.image import ImageSink as BaseImageSink, \
     SingleFileSinkHandler as BaseSingleFileSinkHandler
-from nicos.devices.tango import ImageChannel as TangoImageChannel
+from nicos.devices.entangle import ImageChannel as TangoImageChannel
 
 # available energy parameters
 ENERGY_PARAMETERS = ('xray', 'threshold')

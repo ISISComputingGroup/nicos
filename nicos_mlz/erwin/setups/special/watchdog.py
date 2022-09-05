@@ -23,7 +23,7 @@ group = 'special'
 #   (default '')
 # 'action' -- code to execute if condition is true (default no code is executed)
 
-watchlist = [
+watch_conditions = [
     dict(condition = 'LogSpace_status[0] == WARN',
          message = 'Disk space for the log files becomes too low.',
          type = 'critical',
@@ -40,6 +40,7 @@ watchlist = [
          # setup = 'source',
          message = 'Small detector high voltage current too high',
          type = 'critical',
+         setup = 'charmsmall',
          action = 'maw(s_hv, "off")',
          actiontimeout = 600,
          # gracetime = 5,
@@ -50,6 +51,7 @@ watchlist = [
          # setup = 'source',
          message = 'Big detector high voltage current too high',
          type = 'critical',
+         setup = 'charmbig',
          action = 'maw(b_hv, "off")',
          actiontimeout = 600,
          # gracetime = 5,
@@ -64,7 +66,7 @@ devices = dict(
         cache = 'localhost:14869',
         notifiers = {'default': [],
                      'critical': []},
-        watch = watchlist,
-        loglevel = 'debug',
+        watch = watch_conditions,
+        loglevel = 'info',
     ),
 )

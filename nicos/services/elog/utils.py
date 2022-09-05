@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -27,6 +27,7 @@
 import html
 import time
 from logging import DEBUG, ERROR, FATAL, INFO, WARNING
+from os import path
 
 from nicos.utils.loggers import ACTION, INPUT
 
@@ -94,3 +95,16 @@ def pretty2(fmtstr, value1, value2):
         if value2 != 0 and abs((value2 - value1)/value2) < 0.00001:
             return fmt1
     return '%s - %s' % (fmt1, fmt2)
+
+
+def create_or_open(filename, prolog=b''):
+    if not path.isfile(filename):
+        open(filename, 'wb').close()  # pylint: disable=consider-using-with
+    # we have to open in binary mode since we want to do a nonzero seek from
+    # the end, which the text wrapper doesn't support
+    fd = open(filename, 'r+b')  # pylint: disable=consider-using-with
+    fd.seek(0, 2)
+    if fd.tell() == 0:
+        fd.write(prolog)
+        fd.flush()
+    return fd

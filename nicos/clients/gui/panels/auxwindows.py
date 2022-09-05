@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -29,7 +29,7 @@ from nicos.clients.gui.panels.base import Panel, SetupDepWindowMixin
 from nicos.clients.gui.utils import SettingGroup, loadBasicWindowSettings, \
     loadUi, loadUserStyle
 from nicos.guisupport.qt import QColorDialog, QFontDialog, QMainWindow, \
-    QSplitter, QVBoxLayout, QWidget, pyqtSignal, pyqtSlot
+    QSplitter, QToolBar, QVBoxLayout, QWidget, pyqtSignal, pyqtSlot
 from nicos.utils import checkSetupSpec
 from nicos.utils.loggers import NicosLogger
 
@@ -117,6 +117,12 @@ class AuxiliaryWindow(SetupDepWindowMixin, QMainWindow):
         self.closed.emit(self)
         del self.panels[:]  # this is necessary to get the Qt objects destroyed
 
+    def show(self):
+        QMainWindow.show(self)
+        for tb in self.findChildren(QToolBar):
+            if not tb.isVisible():
+                tb.show()
+
     @pyqtSlot()
     def on_actionFont_triggered(self):
         font, ok = QFontDialog.getFont(self.user_font, self)
@@ -137,7 +143,7 @@ class AuxiliaryWindow(SetupDepWindowMixin, QMainWindow):
 
 
 class AuxiliarySubWindow(QMainWindow):
-    def __init__(self, item, window, menuwindow, parent):
+    def __init__(self, item, window, menuwindow, parent, margins):
         from nicos.clients.gui.panels.utils import createWindowItem
         QMainWindow.__init__(self, parent)
         self.user_color = window.user_color
@@ -151,8 +157,7 @@ class AuxiliarySubWindow(QMainWindow):
         # around the central widget
         central = QWidget(self)
         layout = QVBoxLayout()
-        # only keep margin at the top (below the tabs)
-        layout.setContentsMargins(0, 6, 0, 0)
+        layout.setContentsMargins(*margins)
         if len(item) == 1:
             (subitem, setupSpec) = item + (None,)
         else:

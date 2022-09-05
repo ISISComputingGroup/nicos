@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -132,8 +132,8 @@ class OverwriteQuestion(QMessageBox):
         self.b2 = self.addButton('Cancel', QMessageBox.RejectRole)
         self.b2.setIcon(self.style().standardIcon(QStyle.SP_DialogCancelButton))
 
-    def exec_(self):
-        QMessageBox.exec_(self)
+    def exec(self):
+        QMessageBox.exec(self)
         btn = self.clickedButton()
         if btn == self.b0:
             return QMessageBox.Yes    # Append

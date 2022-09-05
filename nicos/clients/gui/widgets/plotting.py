@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Christian Felder <c.felder@fz-juelich.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
@@ -379,7 +379,7 @@ class ArbitraryFitter(Fitter):
 
     def begin(self):
         dlg = ArbyFitDialog(self.plot)
-        ret = dlg.exec_()
+        ret = dlg.exec()
         if ret != QDialog.Accepted:
             return
 
@@ -622,7 +622,7 @@ class NicosPlot(DlgUtils):
             for _, descr in visible_curves:
                 QListWidgetItem(descr, dlg.list)
             dlg.list.setCurrentRow(0)
-            if dlg.exec_() != QDialog.Accepted:
+            if dlg.exec() != QDialog.Accepted:
                 return
             fitcurve = visible_curves[dlg.list.currentRow()][0]
         else:
@@ -690,7 +690,7 @@ class NicosPlot(DlgUtils):
                 dlg.operation.setFocus()
             else:
                 li.setCheckState(Qt.Unchecked)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         # evaluate selection
         op = dlg.operation.text()
@@ -780,9 +780,9 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
         pass  # not implemented
 
     def updateDisplay(self):
-        self._plot.title = self.titleString()
+        self._plot.title = self._adjustTitleLength(self.titleString())
         if self.subTitleString():
-            self._plot.subTitle = self.subTitleString()
+            self._plot.subTitle = self._adjustTitleLength(self.subTitleString())
         self._plot.xlabel = self.xaxisName()
         self._plot.ylabel = self.yaxisName()
         if self.normalized:
@@ -813,6 +813,15 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
                     curwin[1] = max(xmaxs)
             axes.setWindow(curwin[0], curwin[1], scale[0], scale[1])
         InteractiveGRWidget.update(self)
+
+    def _adjustTitleLength(self, title):
+        title_bytes = title.encode()
+        if len(title_bytes) > gr.text_maxsize:
+            # truncate string to byte length, incomplete UTF-8 chars will
+            # be removed
+            title = title_bytes[:gr.text_maxsize - 3].decode(errors='ignore')
+            title += '...'  # indicate truncation
+        return title
 
     def isLegendEnabled(self):
         return self._plot.isLegendEnabled()
@@ -845,10 +854,10 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
                 return curves[0].isErrorBarEnabled(1)
         return False
 
-    def setErrorBarEnabled(self, flag):
+    def setErrorBarEnabled(self, on):
         for axis in self._plot.getAxes():
             for curve in axis.getCurves():
-                curve.setErrorBarEnabled(flag)
+                curve.setErrorBarEnabled(on)
         self.update()
 
     def setSymbols(self, on):
@@ -896,8 +905,8 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
                 actionClipboard = QAction("Copy fit values to clipboard", menu)
                 menu.addAction(actionClipboard)
                 p0dc = event.getDC()
-                selectedItem = menu.exec_(self.mapToGlobal(QPoint(p0dc.x,
-                                                                  p0dc.y)))
+                selectedItem = menu.exec(
+                    self.mapToGlobal(QPoint(p0dc.x, p0dc.y)))
                 if selectedItem == actionClipboard:
                     res = event.roi.reference
                     text = '\n'.join(
@@ -945,10 +954,11 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
                 existing_curve.errorBar2 = plotcurve.errorBar2
             if existing_curve not in self.plotcurves:
                 self.plotcurves.append(existing_curve)
-        else:
-            color = self._color.getNextColorIndex()
-            plotcurve.linecolor = color
-            plotcurve.markercolor = color
+        elif plotcurve.x.size:  # this should imply 'and plotcurve.y.size'
+            if not plotcurve.linecolor:
+                color = self._color.getNextColorIndex()
+                plotcurve.linecolor = color
+                plotcurve.markercolor = color
             plotcurve.markertype = self._markertype if self.hasSymbols \
                 else gr.MARKERTYPE_DOT
             if plotcurve.errorBar1:
@@ -1014,10 +1024,10 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
         self.setCursor(self._cursor)
         self.setMouseSelectionEnabled(self._mouseSelEnabled)
 
-    def _plotFit(self, res):
+    def _plotFit(self, fitter):
         color = self._color.getNextColorIndex()
-        resultcurve = NicosPlotCurve(res.curve_x, res.curve_y,
-                                     legend=res._title,
+        resultcurve = NicosPlotCurve(fitter.curve_x, fitter.curve_y,
+                                     legend=fitter._title,
                                      linecolor=color, markercolor=color)
         self.addPlotCurve(resultcurve, True)
         resultcurve.markertype = gr.MARKERTYPE_DOT
@@ -1027,13 +1037,13 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
             (n + ': ' if n else '') +
             (v if isinstance(v, str) else '%g' % v) +
             (dv if isinstance(dv, str) else ' +/- %g' % dv)
-            for (n, v, dv) in res.label_contents)
-        grtext = Text(res.label_x, res.label_y, text, self._axes, .012,
+            for (n, v, dv) in fitter.label_contents)
+        grtext = Text(fitter.label_x, fitter.label_y, text, self._axes, .012,
                       hideviewport=False)
         resultcurve.dependent.append(grtext)
         coord = CoordConverter(self._axes.sizex, self._axes.sizey,
                                self._axes.getWindow())
-        roi = RegionOfInterest(reference=res, regionType=RegionOfInterest.TEXT,
+        roi = RegionOfInterest(reference=fitter, regionType=RegionOfInterest.TEXT,
                                axes=self._axes)
         for nxi, nyi in zip(*grtext.getBoundingBox()):
             coord.setNDC(nxi, nyi)
@@ -1109,7 +1119,9 @@ class ViewPlot(NicosGrPlot):
         n = series.n
         if n > 0:
             color = self._color.getNextColorIndex()
-            plotcurve = NicosPlotCurve(series.x, series.y,
+            nans = np.argwhere(np.isnan(series.y))
+            plotcurve = NicosPlotCurve(np.delete(series.x, nans),
+                                       np.delete(series.y, nans),
                                        legend=series.title,
                                        linecolor=color, markercolor=color)
             plotcurve._parent = series
@@ -1130,10 +1142,12 @@ class ViewPlot(NicosGrPlot):
 
     def pointsAdded(self, series):
         plotcurve = self.series2curve[series]
-        plotcurve.x = series.x
-        plotcurve.y = series.y
+        nans = np.argwhere(np.isnan(series.y))
+        plotcurve.x = np.delete(series.x, nans)
+        plotcurve.y = np.delete(series.y, nans)
         plotcurve.legend = series.title
-        self._axes.addCurves(plotcurve)
+        if plotcurve.x.size:  # this should imply 'and plotcurve.y.size'
+            self._axes.addCurves(plotcurve)
         InteractiveGRWidget.update(self)
 
     def setSlidingWindow(self, window):
@@ -1148,7 +1162,7 @@ class ViewPlot(NicosGrPlot):
         dlg = DataExportDialog(self, curvenames,
                                'Select curve(s), file name and format',
                                '', 'ASCII data files (*.dat)')
-        res = dlg.exec_()
+        res = dlg.exec()
         if res != QDialog.Accepted:
             return
         if not dlg.selectedFiles():

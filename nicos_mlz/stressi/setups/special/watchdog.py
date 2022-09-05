@@ -1,7 +1,7 @@
 description = 'setup for the NICOS watchdog'
 group = 'special'
 
-# watchlist:
+# watch_conditions:
 # The entries in this list are dictionaries. Possible keys:
 #
 # 'setup' -- setup that must be loaded (default '' to mean all setups)
@@ -22,7 +22,7 @@ group = 'special'
 #     or 'stop' or 'immediatestop' to cancel script execution
 #     (default '')
 # 'action' -- code to execute if condition is true (default no code is executed)
-watchlist = [
+watch_conditions = [
     dict(condition = 'LogSpace_status[0] == WARN',
          message = 'Disk space for log files becomes too low.',
          type = 'critical',
@@ -36,6 +36,7 @@ watchlist = [
         type = 'critical',
         # action = 'stop()',
         gracetime = 300,
+        setup = 'reactor',
     ),
     dict(
         condition = 'hv1_value < 3000',
@@ -44,6 +45,7 @@ watchlist = [
         message = 'High voltage problem (anode voltage felt down)',
         type = 'highvoltage',
         gracetime = 5,
+        setup = 'detector',
     ),
     dict(
         condition = 'hv2_value > -2300',
@@ -52,6 +54,7 @@ watchlist = [
         message = 'High voltage problem (drift voltage felt down)',
         type = 'highvoltage',
         gracetime = 5,
+        setup = 'detector',
     ),
 ]
 
@@ -71,6 +74,6 @@ devices = dict(
         cache = 'stressictrl.stressi.frm2',
         notifiers = notifiers,
         mailreceiverkey = 'email/receivers',
-        watch = watchlist,
+        watch = watch_conditions,
     ),
 )

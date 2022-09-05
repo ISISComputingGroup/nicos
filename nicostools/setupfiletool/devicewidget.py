@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -47,12 +47,12 @@ class DeviceWidget(QWidget):
     def addParameter(self):
         dlg = AddParameterDialog(self.myClass.parameters, self.parameters)
 
-        if dlg.exec_():
+        if dlg.exec():
             param = dlg.getValue()
             if not param:
                 QMessageBox.warning(self, 'Error',
                                     'No name parameter name entered.')
-            if param in self.parameters.keys():
+            if param in self.parameters:
                 QMessageBox.warning(self, 'Error', 'Parameter already exists.')
                 return
             self.parametersLayout.takeAt(self.parametersLayout.count() - 1)
@@ -74,9 +74,7 @@ class DeviceWidget(QWidget):
 
     def getClassOfDevice(self, device):
         myClass = device.classString.split('.')[-1]
-        mod = device.classString.split('.')
-        mod.pop()
-        mod = '.'.join(mod)
+        mod = '.'.join(device.classString.split('.')[:-1])
         return getattr(classparser.modules[mod], myClass)
 
     def loadDevice(self, device):
@@ -101,6 +99,7 @@ class DeviceWidget(QWidget):
 
         mandatoryParams = []
         optionalParams = []
+
         for param in sorted(device.parameters):
             try:
                 mandatory = self.myClass.parameters[param].mandatory
@@ -111,12 +110,7 @@ class DeviceWidget(QWidget):
             else:
                 optionalParams.append(param)
 
-        for param in mandatoryParams:
-            value = device.parameters[param]
-            newParam = self.createParameterWidget(param, value)
-            self.parametersLayout.addWidget(newParam)
-            self.parameters[param] = newParam
-        for param in optionalParams:
+        for param in mandatoryParams + optionalParams:
             value = device.parameters[param]
             newParam = self.createParameterWidget(param, value)
             self.parametersLayout.addWidget(newParam)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -20,7 +20,7 @@
 # Module authors:
 #   Peter Link <peter.link@frm2.tum.de>
 #   Holger Gibhardt <hgibhar@gwdg.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -83,8 +83,8 @@ class EulerianCradle(Moveable):
         # XXX how to get the real plane?
         return self.target
 
-    def doStart(self, value):
-        r1, r2 = value
+    def doStart(self, target):
+        r1, r2 = target
         for val in self.reflex1, self.reflex2, self.angles1, self.angles2:
             if all(v == 0 for v in val):
                 raise NicosError(self, 'Please first set the Eulerian cradle '

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2018-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2018-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -56,21 +56,21 @@ class AmorExpPanel(GenericPanel):
     def on_proposalBtn_clicked(self):
         dlg = PanelDialog(self, self.client, AmorNewExpPanel, 'Proposal info',
                           uifile='nicos_sinq/amor/gui/panels/newexp.ui')
-        dlg.exec_()
+        dlg.exec()
 
     @pyqtSlot()
     def on_setupBtn_clicked(self):
         dlg = PanelDialog(self, self.client, SetupsPanel, 'Setups')
-        dlg.exec_()
+        dlg.exec()
 
     @pyqtSlot()
     def on_sampleBtn_clicked(self):
         dlg = PanelDialog(self, self.client, GenericSamplePanel,
                           'Sample information')
-        dlg.exec_()
+        dlg.exec()
 
     @pyqtSlot()
     def on_detenvBtn_clicked(self):
         dlg = PanelDialog(self, self.client, DetEnvPanel,
                           'Detectors and environment')
-        dlg.exec_()
+        dlg.exec()

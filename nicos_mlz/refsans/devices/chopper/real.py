@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -31,10 +31,10 @@ from nicos.core.errors import ConfigurationError
 from nicos.core.mixins import DeviceMixinBase, HasOffset
 from nicos.core.params import Attach
 from nicos.devices.abstract import Motor
-from nicos.devices.tango import StringIO
+from nicos.devices.entangle import StringIO
 
-from nicos_mlz.refsans.devices.chopper.base import ChopperDisc as ChopperDiscBase, \
-    ChopperDisc2 as ChopperDisc2Base, \
+from nicos_mlz.refsans.devices.chopper.base import \
+    ChopperDisc as ChopperDiscBase, ChopperDisc2 as ChopperDisc2Base, \
     ChopperDiscTranslation as ChopperDiscTranslationBase, \
     ChopperMaster as ChopperMasterBase
 
@@ -515,9 +515,9 @@ class ChopperDiscTranslation(ChopperDiscTranslationBase, ChopperBase,
                           mandatory=False, default=1),
     }
 
-    def doStart(self, value):
-        self.log.info('requested position %d', value)
-        what = 'm4077=%d' % value
+    def doStart(self, target):
+        self.log.info('requested position %d', target)
+        what = 'm4077=%d' % target
         self.log.debug('doWritePos what: %s', what)
         res = self._attached_comm.writeLine(what)
         self.log.debug('doWritePos res: %d', res)

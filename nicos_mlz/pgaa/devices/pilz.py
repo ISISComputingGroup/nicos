@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@
 from nicos import session
 from nicos.core import SIMULATION, Param, status, tangodev
 from nicos.core.mixins import HasTimeout
-from nicos.devices.tango import NamedDigitalOutput
+from nicos.devices.entangle import NamedDigitalOutput
 from nicos.utils import HardwareStub
 
 
@@ -102,7 +102,7 @@ class Switch(HasTimeout, NamedDigitalOutput):
         return status.ERROR, 'target not reached'
 
 
-class Attenuator(Switch):
+class AttenuatorSwitch(Switch):
     """The attentuator switch must write always a '1' to change the value."""
 
     def _writeValue(self, value):

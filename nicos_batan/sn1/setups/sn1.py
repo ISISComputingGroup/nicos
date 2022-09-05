@@ -1,4 +1,4 @@
-description = 'BATAN virtual triple-axis spectrometer SN1'
+description = 'BATAN triple-axis spectrometer SN1'
 group = 'basic'
 
 modules = ['nicos.commands.tas']
@@ -135,25 +135,25 @@ devices = dict(
     ),
     ssl = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-20, 40),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
         speed = 5,
     ),
     ssr = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-40, 20),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
         speed = 5,
     ),
     ssb = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-50, 30),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
         speed = 5,
     ),
     sst = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-30, 50),
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
         speed = 5,
     ),

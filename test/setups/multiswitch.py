@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@ includes = ['stdsystem']
 
 devices = dict(
     x = device('nicos.devices.generic.VirtualMotor',
-        lowlevel = True,
+        visibility = (),
         fmtstr = '%.2f',
         abslimits = (0, 600),
         jitter = 0.02,
@@ -44,7 +44,7 @@ devices = dict(
         blockingmove = False,
     ),
     y = device('nicos.devices.generic.VirtualMotor',
-        lowlevel = True,
+        visibility = (),
         fmtstr = '%.2f',
         abslimits = (-50, 50),
         jitter = 0.02,

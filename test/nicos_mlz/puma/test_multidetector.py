@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -83,14 +83,16 @@ class TestMultiDetector:
 
         dirname = os.path.dirname(__file__)
         # read good targets from file
-        with open(os.path.join(dirname, 'med_test.txt')) as f:
+        with open(os.path.join(dirname, 'med_test.txt'),
+                  encoding='utf-8') as f:
             for s in f.readlines():
                 # convert stringified list to list avoiding use of 'eval'
                 v = ast.literal_eval(s)
                 assert med.isAllowed(v)[0]
 
         # read bad targets from file
-        with open(os.path.join(dirname, 'med_test_fail.txt')) as f:
+        with open(os.path.join(dirname, 'med_test_fail.txt'),
+                  encoding='utf-8') as f:
             for s in f.readlines():
                 # convert stringified list to list avoiding use of 'eval'
                 v = ast.literal_eval(s)

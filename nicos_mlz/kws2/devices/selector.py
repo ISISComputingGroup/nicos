@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -76,10 +76,10 @@ class SelectorLambda(Moveable):
                     (value - self.offsets[tilted])))
         return self._attached_seldev.isAllowed(speed)
 
-    def doStart(self, value):
+    def doStart(self, target):
         tilted = bool(self._attached_tiltdev.read(0))
         speed = int(round(60 * self.constants[tilted] /
-                    (value - self.offsets[tilted])))
+                    (target - self.offsets[tilted])))
         self.log.debug('moving selector to %f rpm', speed)
         self._attached_seldev.start(speed)
 

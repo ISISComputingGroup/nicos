@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -158,7 +158,7 @@ class EntryWidget(base_class, ui_class):
         dlg.fillEntry(self.entry)
         dlg.valueTime.setText('')  # we want current timestamp by default
         dlg.valueKey.setReadOnly(True)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         entry = dlg.getEntry()
         self.client.put(entry.key, entry)

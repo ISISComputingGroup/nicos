@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -175,7 +175,7 @@ class HistogramConfAxis(HistogramConfElement):
                       volatile=True),
         'mapping': Param('The mapping type of the axis',
                          type=oneof('direct', 'calculate', 'boundary',
-                                    'lookuptable')),
+                                    'lookuptable', 'map')),
         'multiplier': Param('Multiplier in case mapping is calculate',
                             type=int),
         'divisor': Param('Divisor in case mapping is calculate', type=int),
@@ -230,9 +230,9 @@ class HistogramConfAxis(HistogramConfElement):
         if self._attached_array:
             array = self._attached_array
             attrs['array'] = array.tag
-            if array.threshold is not None:
+            if array.threshold:
                 attrs['threshold'] = array.threshold
-            if array.offset is not None:
+            if array.offset:
                 attrs['offset'] = array.offset
 
         return attrs
@@ -327,8 +327,9 @@ class ConfiguratorBase(HistogramConfElement):
     """
     parameters = {
         'filler': Param('Filler algorithm to be used',
-                        type=oneof('dig', 'tof', 'tofmap', 'psd', 'hrpt')),
-        'mask': Param('Mask anded to the data packets on fiber optics',
+                        type=oneof('dig', 'tof', 'tofmap', 'psd',
+                                   'hrpt', '0mq')),
+        'mask': Param('Mask added to the data packets on fiber optics',
                       type=str, default='0x000000'),
         'active': Param('The must have value for the packets anded with mask',
                         type=str, default='0x000000'),

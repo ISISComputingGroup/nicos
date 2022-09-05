@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -28,28 +28,28 @@ includes = ['stdsystem']
 
 devices = dict(
     timer = device('nicos.devices.generic.VirtualTimer',
-        lowlevel = True,
+        visibility = (),
     ),
     mon1 = device('nicos.devices.generic.VirtualCounter',
-        lowlevel = True,
+        visibility = (),
         type = 'monitor',
         countrate = 1000.,
         fmtstr = '%d',
     ),
     ctr1 = device('nicos.devices.generic.VirtualCounter',
-        lowlevel = True,
+        visibility = (),
         type = 'counter',
         countrate = 2000.,
         fmtstr = '%d',
     ),
     ctr2 = device('nicos.devices.generic.VirtualCounter',
-        lowlevel = True,
+        visibility = (),
         type = 'counter',
         countrate = 120.,
         fmtstr = '%d',
     ),
     img = device('nicos.devices.generic.VirtualImage',
-        lowlevel = True,
+        visibility = (),
         background = 0,
     ),
     det = device('nicos.devices.generic.Detector',

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -167,7 +167,6 @@ class ScriptStatusPanel(Panel):
             tooltip = 'Aborts the current executed script'
             self.actionStop.setToolTip(tooltip)
             self.actionStop.setText('Abort current script')
-            self.actionStop2.setToolTip(tooltip)
 
         self.showETA = bool(options.get('eta', False))
         self.etaWidget.hide()
@@ -190,12 +189,21 @@ class ScriptStatusPanel(Panel):
         dropdown1.addAction(self.actionBreak)
         dropdown1.addAction(self.actionBreakCount)
         dropdown1.addAction(self.actionFinishEarly)
-        self.actionBreak2.setMenu(dropdown1)
+        self.actionBreak2 = dropdown1.menuAction()
+        self.actionBreak2.setText('&amp;Pause after current scan point')
+        self.actionBreak2.setIcon(QIcon(':/break'))
+        self.actionBreak2.triggered.connect(self.on_actionBreak2_triggered)
+
         dropdown2 = QMenu('', self)
         dropdown2.addAction(self.actionStop)
         dropdown2.addAction(self.actionFinish)
         dropdown2.addAction(self.actionFinishEarlyAndStop)
-        self.actionStop2.setMenu(dropdown2)
+        self.actionStop2 = dropdown2.menuAction()
+        self.actionStop2.setText('&amp;Stop after current scan point')
+        self.actionStop2.setToolTip(self.actionStop.toolTip())
+        self.actionStop2.setIcon(QIcon(':/stop'))
+        self.actionStop2.triggered.connect(self.on_actionStop2_triggered)
+
         bar.addAction(self.actionBreak2)
         bar.addAction(self.actionContinue)
         bar.addAction(self.actionStop2)

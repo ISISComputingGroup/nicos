@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,14 +18,14 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Jens Krüger <jens.krueger@frm2.tum.de>
 #
 # *****************************************************************************
 
 from nicos.core.status import OK
 from nicos.guisupport.qt import QBrush, QColor, QPainter, QPen, QPointF, \
-    QPolygonF, QSize, Qt, QWidget
+    QPolygonF, QRectF, QSize, Qt, QWidget
 from nicos.guisupport.widget import NicosWidget, PropDef
 from nicos.utils import readonlylist
 
@@ -141,8 +141,8 @@ class VRefsans(NicosWidget, QWidget):
             self.update()
 
     def sizeHint(self):
-        return QSize(self.props['width'] * self._scale + 2,
-                     self.props['height'] * self._scale + 2)
+        return QSize(round(self.props['width'] * self._scale) + 2,
+                     round(self.props['height'] * self._scale) + 2)
 
     def _calculatePoint(self, ind, x, y):
         w, h = self.width * self._scale, self.height * self._scale
@@ -158,7 +158,7 @@ class VRefsans(NicosWidget, QWidget):
 
         painter.setPen(QColor('black'))
         painter.setBrush(_white)
-        painter.drawRect(1, 1, w, h)
+        painter.drawRect(QRectF(1, 1, w, h))
 
         # determine positions
         beam = QPolygonF([QPointF(4, 5)])

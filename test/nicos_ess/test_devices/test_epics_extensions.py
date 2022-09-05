@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -30,14 +30,12 @@ from nicos.core import ConfigurationError
 from nicos.core.device import Device
 from nicos.devices.epics import EpicsDevice
 
-pytest.importorskip('epics')
 pytest.importorskip('kafka')
 
 from nicos_ess.devices.epics.extensions import HasDisablePv
 
 from test.nicos_ess.test_devices.utils import create_method_patch, \
     create_patch, return_value_wrapper
-
 
 session_setup = 'ess_extensions'
 
@@ -73,7 +71,7 @@ class TestHasDisablePv(unittest.TestCase):
         raw_value = 'on'
         disable_value = self.device.switchstates['disable']
         enable_value = self.device.switchstates['enable']
-        assert not raw_value in [disable_value, enable_value]
+        assert raw_value not in [disable_value, enable_value]
         create_method_patch(self, EpicsDeviceThatHasDisablePv, '_get_pv',
                             return_value_wrapper(raw_value))
         with self.assertRaises(Exception) as context:

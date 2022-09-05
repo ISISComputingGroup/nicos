@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,28 +23,11 @@
 # *****************************************************************************
 
 devices = dict(
-    KafkaForwarderCommand = device('nicos_ess.devices.forwarder.EpicsKafkaForwarderControl',
-        description = "Configures commands to forward-epics-to-kafka",
-        cmdtopic = 'TEST_forwarderCommands',
-        instpvtopic = "TEST_metadata",
-        instpvschema = 'f142',
-        brokers = [
-            'localhost:9092',
-        ],
-    ),
     KafkaForwarder = device('nicos_ess.devices.forwarder.EpicsKafkaForwarder',
         description = "Monitors and controls forward-epics-to-kafka",
         statustopic = "TEST_forwarderStatus",
         brokers = [
             'localhost:9092',
         ],
-    ),
-    KafkaForwarderIntegration = device('nicos_ess.devices.forwarder.EpicsKafkaForwarder',
-        description = "Monitors and controls forward-epics-to-kafka",
-        statustopic = "TEST_forwarderStatus",
-        brokers = [
-            'localhost:9092',
-        ],
-        forwarder_control = "KafkaForwarderCommand"
     ),
 )

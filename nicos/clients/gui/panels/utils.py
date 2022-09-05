@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -78,6 +78,19 @@ def createHorizontalSplitter(item, window, menuwindow, topwindow, log):
     return HorizontalSplitter(item, window, menuwindow, topwindow)
 
 
+class NotClosableDockWidget(QDockWidget):
+    def __init__(self, title, parent):
+        QDockWidget.__init__(self, title, parent)
+        self.setFeatures(
+            QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
+
+    def closeEvent(self, event):
+        # Workaround for the fact that undocked QDockWidgets can still be
+        # closed with Alt-F4 (or equivalent shortcuts) if DockWidgetClosable
+        # is not set in the features
+        event.ignore()
+
+
 def createDockedWidget(item, window, menuwindow, topwindow, log):
     dockPosMap = {'left': Qt.LeftDockWidgetArea,
                   'right': Qt.RightDockWidgetArea, 'top': Qt.TopDockWidgetArea,
@@ -86,10 +99,7 @@ def createDockedWidget(item, window, menuwindow, topwindow, log):
     mainitem, dockitems = item
     main = createWindowItem(mainitem, window, menuwindow, topwindow, log)
     for title, ditem in dockitems:
-        dw = QDockWidget(title, window)
-        # prevent closing the dock widget
-        dw.setFeatures(
-            QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
+        dw = NotClosableDockWidget(title, window)
         # make the dock title bold
         dw.setStyleSheet('QDockWidget { font-weight: bold; }')
         dw.setObjectName(title)

@@ -2,7 +2,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,12 +28,12 @@
 import sys
 from struct import pack, unpack
 
+# pylint: disable=import-error
+from pymodbus.client.sync import ModbusTcpClient
+
 from nicos.guisupport.qt import QApplication, QFormLayout, QFrame, \
     QHBoxLayout, QLabel, QLineEdit, QMainWindow, QPushButton, QScrollArea, \
     QVBoxLayout, QWidget
-
-# pylint: disable=import-error
-from pymodbus.client.sync import ModbusTcpClient
 
 # This is supposed to be a custom instrument specific stand-alone tool!
 
@@ -486,7 +486,7 @@ def main():
     myWindow = MainWindow()
     myWindow.resize(800, 600)
     myWindow.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":

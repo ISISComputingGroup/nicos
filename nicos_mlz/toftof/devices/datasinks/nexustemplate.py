@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the FRM-II
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,14 +26,14 @@
 
 
 from nicos.nexus.elements import ConstDataset, DeviceAttribute, \
-    DeviceDataset, NXAttribute
+    DeviceDataset, EndTime, NXAttribute, StartTime
 from nicos.nexus.nexussink import NexusTemplateProvider
 
 from nicos_mlz.toftof.devices.datasinks.elements import ChannelList, DetInfo, \
-    Duration, ElasticPeakGuess, EndTime, EntryIdentifier, ExperimentTitle, \
-    FileName, GonioDataset, HVDataset, LVDataset, Mode, MonitorData, \
-    MonitorRate, MonitorTof, MonitorValue, SampleCountRate, SampleCounts, \
-    StartTime, Status, TableDataset, TOFTOFImageDataset, ToGo
+    Duration, ElasticPeakGuess, EntryIdentifier, ExperimentTitle, FileName, \
+    GonioDataset, HVDataset, LVDataset, Mode, MonitorData, MonitorRate, \
+    MonitorTof, MonitorValue, SampleCountRate, SampleCounts, Status, \
+    TableDataset, TOFTOFImageDataset, ToGo
 
 seconds = NXAttribute('s', 'string')
 signal = NXAttribute(1, 'int64')

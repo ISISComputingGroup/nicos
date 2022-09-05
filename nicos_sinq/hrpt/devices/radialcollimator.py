@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,11 +26,10 @@ from nicos import session
 from nicos.core import Param, oneof, pvname, status
 from nicos.core.errors import ConfigurationError
 from nicos.devices.abstract import MappedMoveable
+from nicos.devices.epics import EpicsDevice
 
-from nicos_ess.devices.epics.base import EpicsDeviceEss
 
-
-class RadialCollimator(EpicsDeviceEss, MappedMoveable):
+class RadialCollimator(EpicsDevice, MappedMoveable):
     """
         HRPT has a radial collimator which can be switched on and off. When
         on, it oscillates between a minimum
@@ -49,6 +48,8 @@ class RadialCollimator(EpicsDeviceEss, MappedMoveable):
                         type=oneof('on', 'off'), mandatory=False,
                         volatile=False, default='off', userparam=True,
                         settable=True),
+        'type': Param('Type of the radial collimator', type=str,
+                      userparam=True, settable=True),
         'readback': Param('Radial Collimator Status Readback',
                           type=oneof('on', 'off'), volatile=True,
                           default='off', userparam=True, settable=False),
@@ -61,14 +62,15 @@ class RadialCollimator(EpicsDeviceEss, MappedMoveable):
                              'collimator on count', type=bool, settable=True,
                              default=False, userparam=True)}
 
-    pv_parameters = {'target', 'readback'}
+    def _get_pv_parameters(self):
+        return ['target', 'readback']
 
     def _get_pv_name(self, pvparam):
         prefix = getattr(self, 'basepv')
         if pvparam == 'target':
             return prefix + 'RUN'
         elif pvparam == 'readback':
-            return prefix + 'RUNRBV'
+            return prefix + 'RUN_RBV'
         else:
             raise ConfigurationError(
                 'requested invalid pv %s for radial collimator' % (pvparam))

@@ -17,7 +17,7 @@ display_order = 100
 modules = [
     'nicos.commands.standard', 'nicos_sinq.commands.sics',
     'nicos.commands.imaging', 'nicos_sinq.commands.hmcommands',
-    'nicos_sinq.commands.epicscommands'
+    'nicos_sinq.commands.epicscommands', 'nicos_sinq.icon.commands.iconcommands'
 ]
 
 includes = ['notifiers']
@@ -35,7 +35,7 @@ devices = dict(
     Sample = device('nicos.devices.experiment.Sample',
         description = 'The defaultsample',
     ),
-    Exp = device('nicos_sinq.devices.experiment.SinqExperiment',
+    Exp = device('nicos_sinq.devices.experiment.TomoSinqExperiment',
         description = 'experiment object',
         dataroot = configdata('config.DATA_PATH'),
         sendmail = False,
@@ -48,7 +48,6 @@ devices = dict(
         minfree = 5,
     ),
     emergency = device('nicos.devices.epics.EpicsReadable',
-        epicstimeout = 3.0,
         description = 'Emergency stop indicator',
         readpv = 'SQ:ICON:b1io1:EmergencyRBV',
     ),
@@ -64,6 +63,6 @@ devices = dict(
         description = 'Keeps the index of the last measured image',
         unit = '',
         abslimits = (0, 1e9),
-        lowlevel = True,
+        visibility = (),
     ),
 )

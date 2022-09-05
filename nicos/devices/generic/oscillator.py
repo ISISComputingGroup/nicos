@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -99,8 +99,9 @@ class Oscillator(Moveable):
         if self.stoppable:
             self._stop()
         else:
-            raise UsageError(self, "Please use: 'move(%s, 'off')' to stop the "
-                             "moving device" % self)
+            if self._osc_thread:
+                raise UsageError(self, "Please use: 'move(%s, 'off')' to stop "
+                                       "the moving device" % self)
 
     def doRead(self, maxage=0):
         """Return the current status of the moveable controller."""

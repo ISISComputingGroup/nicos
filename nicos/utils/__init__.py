@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,15 +18,17 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
 """NICOS utilities independent from an active session."""
 
+import ast
 import fnmatch
 import inspect
 import linecache
+import locale
 import os
 import re
 import signal
@@ -48,6 +50,8 @@ from stat import S_IRGRP, S_IROTH, S_IRUSR, S_IRWXU, S_IWUSR, S_IXGRP, \
 from time import localtime, mktime, sleep, strftime, strptime, \
     time as currenttime
 
+import numpy
+
 # do **not** import nicos.session here
 # session dependent nicos utilities should be implemented in nicos.core.utils
 from nicos import config, get_custom_version, nicos_version
@@ -57,6 +61,11 @@ try:
     import pwd
 except ImportError:
     pwd = grp = None
+
+try:
+    LOCALE_ENCODING = locale.getpreferredencoding(False)
+except Exception:
+    LOCALE_ENCODING = 'utf-8'
 
 
 # all builtin number types (useful for isinstance checks)
@@ -689,7 +698,8 @@ def safeWriteFile(filepath, content, maxbackups=10):
     if isinstance(content, list):
         writeFile(tmpfile, content)
     else:
-        open(tmpfile, 'w', encoding='utf-8').write(content)
+        with open(tmpfile, 'w', encoding='utf-8') as fp:
+            fp.write(content)
     try:
         if maxbackups:
             moveOutOfWay(filepath, maxbackups)
@@ -830,41 +840,84 @@ def enableDirectory(startdir, enableDirMode=DEFAULT_DIR_MODE,
     # maybe logging is better done in the caller of enableDirectory
 
 
-field_re = re.compile('{{(?P<key>[^:#}]+)(?::(?P<default>[^#}]*))?'
-                      '(?:#(?P<description>[^}]+))?}}')
+# template handling
+T_BEGIN = '{{'
+T_END = '}}'
+T_SPLITTER = f'({T_BEGIN}|{T_END})'
+T_expr_re = re.compile('(?P<key>[^!:#]+)(?:!(?P<replace>[^:#]*))?(?::(?P<default>[^#]*))?'
+                      '(?:#(?P<description>.*))?')
+
+def _evaluate_template_expression(expr, keywords, expr_re=T_expr_re):
+    """evaluate a single template expression match
+
+    Syntax is key[!replace][:default][#description] where all fields except
+    key are optional. If the key exists within the given keywords dictionary,
+    the whole string is replaced by the value of either replace (if given)
+    or the given dictionary item with the requested key. If the key does not exist,
+    default is used instead (or '' if there is no default).
+
+    Returns a tuple (result, how, groupdict) where
+    result is the result of the expression,
+    how is one of 'replaced', 'resolved', 'defaulted' or 'missing'
+    and groupdict contains the matched fields of the expression.
+    """
+    g = expr_re.match(expr).groupdict()
+    key = g['key'].strip()
+    if key in keywords:
+        if g['replace'] is not None:
+            return g['replace'], 'replaced', g
+        return str(keywords[key]), 'resolved', g
+    if g['default'] is not None:
+        return g['default'], 'defaulted', g
+    return '', 'missing', g
 
 
-def expandTemplate(template, keywords, field_re=field_re):
+def expandTemplate(template, keywords):
     """Simple template field replacement engine.
 
-    Syntax is {{key:default#description}} where default and description
-    are optional. The whole string is replaced by the value of the given
-    dictionary item with the requested key. If this does not exist,
-    default is used instead.
+    Syntax is {{expression}} where all expressions are handled by
+    `_evaluate_template_expression` and (sub)expressions can be nested.
+    The {{expression}} is then replaced by the result of the evaluation
+    and the evaluation of the whole template continues, until all
+    (sub)expressions are resolved.
+
+    note: if the result of an evaluation contains {{something}},
+    this is not re-evaluated to avoid endless loops, i.e. evaluation
+    pattern is statically given by the template.
 
     Returns a ``tuple(<replaced string>, [missed keys where default was used],
     [list of missing keys without default])``.
-    Each list item is a dictionary with three keys:
-    key, default and description.
+    Each list item is a dictionary with the matched fields of the expression
+    (key, replace, default and description).
     """
-    result = []
-    current = 0
-    missing = []
-    defaulted = []
-    for field in field_re.finditer(template):
-        result.append(template[current:field.start()])
-        replacement = keywords.get(field.group('key'))
-        if replacement is None:
-            replacement = field.group('default')
-            if replacement is None:
-                missing.append(field.groupdict())
-                replacement = ''
-            else:
-                defaulted.append(field.groupdict())
-        result.append(str(replacement))
-        current = field.end()
-    result.append(template[current:])
-    return ''.join(result), defaulted, missing
+    stats = dict(
+        missing = [],   # key not in keywords, no default given -> resolved to ''
+        defaulted = [], # key not in keywords, literal default value used
+        replaced = [],  # key in keywords, literal replacement value used
+        resolved = [],  # key in keywords, value from keywords used
+    )
+
+    tokens = re.split(T_SPLITTER, template)
+    found = True
+    while found:
+        found = False
+        for i in range(0, len(tokens)-4, 2):
+            # collate a literal/T_BEGIN/literal/T_END/literal quintuple into a single literal
+            if tokens[i+1] == T_BEGIN and tokens[i+3] == T_END:
+                res, how, gd = _evaluate_template_expression(tokens[i+2], keywords)
+                stats[how].append(gd)
+
+                replacement = ''.join([tokens[i], res, tokens[i+4]])
+                del tokens[i+1:i+5]
+                tokens[i] = replacement
+                found = True
+                break
+    if len(tokens) > 1:
+        # malformed template (number of T_BEGIN != T_END)
+        # XXX: improve error msg!
+        raise ValueError('malformed template! resolving of %r stopped at position %d'%
+                         (''.join(tokens), len(tokens[0])))
+    return tokens[0], stats['defaulted'], stats['missing']
 
 
 # daemonizing processes
@@ -911,9 +964,9 @@ def daemonize():
     os.close(2)
 
     # redirect standard file descriptors
-    # pylint: disable=consider-using-with
-    sys.stdin = open('/dev/null', 'r')
-    sys.stdout = sys.stderr = open('/dev/null', 'w')
+    # pylint: disable=consider-using-with,unspecified-encoding
+    sys.stdin = open('/dev/null', 'r', encoding=None)
+    sys.stdout = sys.stderr = open('/dev/null', 'w', encoding=None)
 
 
 def setuser(recover=True):
@@ -1188,10 +1241,16 @@ def readFileCounter(counterpath, key):
 
 
 def updateFileCounter(counterpath, key, value):
-    """Update a counter file."""
+    """Update a counter file.
+
+       If the file does not exist, it will get created.
+    """
     if not path.isdir(path.dirname(counterpath)):
         os.makedirs(path.dirname(counterpath))
-    lines = readFile(counterpath)
+    try:
+        lines = readFile(counterpath)
+    except OSError:
+        lines = []
     new_lines = []
     for line in lines:
         linekey, _ = line.split()
@@ -1407,8 +1466,21 @@ def num_sort(x, inf=float('inf')):
         return (inf, x)
 
 
+def natural_sort(values):
+    """Sorts a list of values using natural ordering.
+
+    :param values: list of values to sort.
+    :return: the sorted list.
+    """
+    def _natural_key(key):
+        parts = re.split(r'(\d*\.\d+|\d+)', str(key))
+        return tuple((e.swapcase() if i % 2 == 0 else float(e))
+                     for i, e in enumerate(parts))
+    return sorted(values, key=_natural_key)
+
+
 class ReaderRegistry:
-    readers = dict()
+    readers = {}
 
     @classmethod
     def registerReader(cls, rdcls):
@@ -1430,7 +1502,7 @@ class ReaderRegistry:
 
 
 class FitterRegistry:
-    fitters = dict()
+    fitters = {}
 
     @classmethod
     def registerFitter(cls, rdcls):
@@ -1446,50 +1518,105 @@ class FitterRegistry:
                            (key, ', '.join(cls.fitters))) from None
 
 
-keyexpr_re = re.compile(r'(?P<dev_or_key>[a-zA-Z_0-9./]+)'
-                        r'(?P<indices>(?:\[[0-9]+\])*)'
-                        r'(?P<scale>\*-?[0-9.]+(?:[eE][+-]?[0-9]+)?)?'
-                        r'(?P<offset>[+-][0-9.]+(?:[eE][+-]?[0-9]+)?)?$')
+class KeyExprTransform(ast.NodeTransformer):
+    def visit_BinOp(self, node):
+        self.generic_visit(node)
+        if isinstance(node.op, ast.Div) and \
+           isinstance(node.left, ast.Name) and \
+           isinstance(node.right, ast.Name):
+            return ast.Name(id=node.left.id + '/' + node.right.id,
+                            ctx=ast.Load())
+        return node
+
+    def visit_Attribute(self, node):
+        self.generic_visit(node)
+        if isinstance(node.value, ast.Name):
+            return ast.Name(id=node.value.id + '.' + node.attr,
+                            ctx=ast.Load())
+        return node
 
 
-def extractKeyAndIndex(spec, append_value=True,
-                       normalize=lambda s: s.lower().replace('.', '/')):
-    """Extract a key and possibly subindex from a cache key specification
-    given by the user.  This takes into account the following changes:
+KEYEXPR_NS = {}
+for name in [
+        'pi', 'sqrt', 'sin', 'cos', 'tan', 'arcsin', 'arccos',
+        'arctan', 'exp', 'log', 'radians', 'degrees', 'ceil', 'floor']:
+    KEYEXPR_NS[name] = getattr(numpy, name)
+KEYEXPR_NS['numpy'] = numpy
 
-    * '.' is replaced by '/' if *normalize* is not redefined.
-    * If it is not in the form 'dev/key', '/value' is automatically appended
-      if *append_value* is not false.
-    * Subitems can be specified: ``dev.keys[10], det.rates[0][1]``.
-    * A scale factor can be added with ``*X``.
-    * An offset can be added with ``+X`` or ``-X``.
+
+def _split_spec(spec, exprs):
+    """Return the code for each *expr* in the code *spec*."""
+    offset = 0
+    snippets = []
+    for expr in exprs[1:]:
+        new_offset = expr.col_offset
+        snippets.append(spec[offset:new_offset].strip().rstrip(','))
+        offset = new_offset
+    snippets.append(spec[offset:].strip())
+    return snippets
+
+
+def parseKeyExpression(spec, append_value=True,
+                       normalize=lambda s: s.lower().replace('.', '/'),
+                       multiple=False):
+    """Extract expression(s) depending on cache keys from a string.
+
+    An expression must contain a single cache key (given as "a.b" or "a/b"),
+    and can otherwise employ Python expression syntax for indexing, scaling
+    etc., converting the value to a final form.  Useful math functions from
+    `numpy` (as present in the NICOS namespace) and `numpy` itself are defined.
+
+    `/value` is appended to keys without slash if *append_value* is true, and
+    dots are replaced by slashes if *normalize* is not redefined.
+    If *multiple* is true, multiple expressions forming a tuple are allowed.
+
+    Returns:
+
+    * the normalized key name (or a list if multiple)
+    * a code object that calculates the final value from the cache key which
+      must be given the name `x` (or a list if multiple), or None if no
+      calculation is needed
+    * a string with the cleaned expression
+
+    Raises `ValueError` if the expression can't be parsed or is invalid.
     """
-    match = keyexpr_re.match(spec.replace(' ', ''))
-    if not match:
-        return normalize(spec), (), 1.0, 0
-    groups = match.groupdict()
-    key = normalize(groups['dev_or_key'])
-    if '/' not in key and append_value:
-        key += '/value'
-    indices = groups['indices']
     try:
-        if indices is not None:
-            indices = tuple(map(int, indices[1:-1].split('][')))
+        expr = ast.parse(spec, mode='eval').body
+    except SyntaxError:
+        raise ValueError('invalid key spec: %r' % spec) from None
+    if isinstance(expr, ast.Tuple) and multiple:
+        exprs = expr.elts
+        descs = _split_spec(spec, exprs)
+    else:
+        exprs = [expr]
+        descs = [spec]
+    keys = []
+    funs = []
+    transformer = KeyExprTransform()
+    for expr in exprs:
+        # normalize names occuring in the formula
+        expr = ast.fix_missing_locations(transformer.visit(expr))
+        # find the variable and replace by "x"
+        key = None
+        for node in ast.walk(expr):
+            if isinstance(node, ast.Name) and node.id not in KEYEXPR_NS:
+                key = normalize(node.id)
+                if '/' not in key and append_value:
+                    key += '/value'
+                node.id = 'x'
+                break
+        if key is None:
+            raise ValueError('no variable in key spec %r' % descs[-1])
+        keys.append(key)
+        # expression can be None to mean "identity"
+        if isinstance(expr, ast.Name) and expr.id == 'x':
+            funs.append(None)
         else:
-            indices = ()
-    except ValueError:
-        indices = ()
-    scale = groups['scale']
-    try:
-        scale = float(scale[1:]) if scale is not None else 1.0
-    except ValueError:
-        scale = 1.0
-    offset = groups['offset']
-    try:
-        offset = float(offset) if offset is not None else 0.0
-    except ValueError:
-        offset = 0.0
-    return key, indices, scale, offset
+            funs.append(compile(ast.Expression(body=expr), '<expr>', 'eval'))
+
+    if multiple:
+        return keys, funs, descs
+    return keys[0], funs[0], descs[0]
 
 
 def checkSetupSpec(setupspec, setups, log=None):

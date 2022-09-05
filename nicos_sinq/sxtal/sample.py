@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -104,11 +104,12 @@ class SXTalSample(Sample):
             except Exception:
                 self.log.warning('invalid angles spec ignored, should be '
                                  '[alpha, beta, gamma]')
-        self.a = parameters.pop('a', None)
-        if self.a is None:
+        aa = parameters.pop('a', None)
+        if aa is None:
             if 'cell' not in parameters:
-                self.log.warning('using dummy lattice constant of 5 A')
-            self.a = 5.0
+                self.log.warning('using dummy lattice constant of 6.28 A')
+            self.a = 6.28
+        self.a = aa
         self.b = parameters.pop('b', self.a)
         self.c = parameters.pop('c', self.a)
         self.alpha = parameters.pop('alpha', 90.0)
@@ -116,6 +117,7 @@ class SXTalSample(Sample):
         self.gamma = parameters.pop('gamma', 90.0)
         self.bravais = parameters.pop('bravais', 'P')
         self.laue = parameters.pop('laue', '1')
+        self.ubmatrix = list(self.getUB().flatten())
         Sample.new(self, parameters)
 
     def _applyParams(self, number, parameters):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,8 @@
 
 from math import asin, pi, radians
 
-from nicos.devices.vendor.astrium import SelectorLambda as NicosSelectorLambda, \
+from nicos.devices.vendor.astrium import \
+    SelectorLambda as NicosSelectorLambda, \
     SelectorLambdaSpread as NicosSelectorLambdaSpread
 
 
@@ -64,8 +65,8 @@ class SelectorLambda(NicosSelectorLambda):
     def doRead(self, maxage=0):
         return self.sel(maxage)
 
-    def doStart(self, value):
-        speed = int(self.sel_inv(value))
+    def doStart(self, target):
+        speed = int(self.sel_inv(target))
         self.log.debug('moving selector to %d rpm', speed)
         self._attached_seldev.start(speed)
 

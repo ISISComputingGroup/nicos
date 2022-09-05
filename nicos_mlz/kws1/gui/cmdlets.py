@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -40,9 +40,9 @@ class MeasureTable(Cmdlet):
 
     meas_def_class = MeasDef
 
-    def __init__(self, parent, client):
+    def __init__(self, parent, client, options):
         uipath = findResource('nicos_mlz/kws1/gui/table.ui')
-        Cmdlet.__init__(self, parent, client, uipath)
+        Cmdlet.__init__(self, parent, client, options, uipath)
         self.measdef = self.meas_def_class(rtmode=False)
         self.rt_settings = RtConfigDialog.DEFAULT_SETTINGS.copy()
         self.rtConfBtn.setEnabled(False)
@@ -68,7 +68,7 @@ class MeasureTable(Cmdlet):
                                 'a daemon to be able to select samples.')
             return
         dlg = SampleDialog(self, self.measdef, self.client)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         self.measdef.samplefile = dlg.samplefile
         self.measdef.samples = dlg.toDefs()
@@ -81,7 +81,7 @@ class MeasureTable(Cmdlet):
                                 'a daemon to be able to select settings.')
             return
         dlg = DetsetDialog(self, self.measdef, self.client)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         self.measdef.detsets = dlg.toDefs()
         self.updateTable()
@@ -93,7 +93,7 @@ class MeasureTable(Cmdlet):
                                 'a daemon to be able to select devices.')
             return
         dlg = DevicesDialog(self, self.measdef, self.client)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         self.measdef.devices = dlg.toDefs()
         self.updateTable()
@@ -136,7 +136,7 @@ class MeasureTable(Cmdlet):
     def on_rtConfBtn_clicked(self):
         dlg = RtConfigDialog(self)
         dlg.setSettings(self.rt_settings)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         self.rt_settings = dlg.getSettings()
 

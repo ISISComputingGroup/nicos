@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -228,13 +228,13 @@ class PointDataset(BaseDataset):
         """Value statistics.
 
         The value statistics is a dictionary where the key is the device name
-        and the value is a tuple of mean value, standard deviation, minimum value
-        and maximum value.
+        and the value is a tuple of mean value, standard deviation, minimum
+        value and maximum value.
         """
         res = {}
         with self._statslock:
-            for devname in self._valuestats:
-                t0, t1, t2, mini, maxi, _, lastv = self._valuestats[devname]
+            for devname, (t0, t1, t2,
+                          mini, maxi, _, lastv) in self._valuestats.items():
                 if t0 > 0:
                     mean = t1 / t0
                     stdev = sqrt(abs(t2 / t0 - t1 ** 2 / t0 ** 2))

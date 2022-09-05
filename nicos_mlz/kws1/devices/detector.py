@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,22 +26,13 @@
 
 from nicos.core import MASTER, SIMULATION, Attach, ConfigurationError, \
     DeviceMixinBase, HasLimits, Moveable, MoveError, Override, Param, dictof, \
-    dictwith, multiReset, multiStop, none_or, oneof, status
+    dictwith, multiReset, multiStop, none_or, status
 from nicos.devices.abstract import MappedMoveable
+from nicos.devices.entangle import Motor as TangoMotor
 from nicos.devices.generic.sequence import BaseSequencer, SeqDev, SeqSleep, \
     SequencerMixin
-from nicos.devices.tango import Motor as TangoMotor
 from nicos.utils import num_sort
-
-
-class oneof_detector(oneof):
-    def __call__(self, val=None):
-        try:
-            return oneof.__call__(self, val)
-        except ValueError:
-            raise ValueError(
-                'preset %r does not exist for the current selector setting' %
-                val) from None
+from nicos_mlz.kws1.devices.params import oneof_detector
 
 
 class DetectorPosSwitcherMixin(DeviceMixinBase):
@@ -116,7 +107,7 @@ class DetectorPosSwitcher(DetectorPosSwitcherMixin, SequencerMixin,
         except Exception:
             self.log.warning('could not update detector mapping', exc=1)
 
-    def _startRaw(self, pos):
+    def _startRaw(self, target):
         if self._seq_is_running():
             if self._mode == SIMULATION:
                 self._seq_thread.join()
@@ -127,18 +118,18 @@ class DetectorPosSwitcher(DetectorPosSwitcherMixin, SequencerMixin,
 
         det_z = self._attached_det_z
         seq = []
-        seq.append(SeqDev(self._attached_bs_y, pos[1], stoppable=True))
-        seq.append(SeqDev(self._attached_bs_x, pos[0], stoppable=True))
-        seq.append(SeqDev(det_z, pos[2], stoppable=True))
+        seq.append(SeqDev(self._attached_bs_y, target[1], stoppable=True))
+        seq.append(SeqDev(self._attached_bs_x, target[0], stoppable=True))
+        seq.append(SeqDev(det_z, target[2], stoppable=True))
 
         # if z has to move, reposition beamstop y afterwards by going to
         # some other value (damping vibrations) and back
         if self.beamstopsettlepos is not None and \
-           abs(det_z.read(0) - pos[2]) > det_z.precision:
+           abs(det_z.read(0) - target[2]) > det_z.precision:
             seq.append(SeqDev(self._attached_bs_y, self.beamstopsettlepos,
                               stoppable=True))
             seq.append(SeqSleep(30))
-            seq.append(SeqDev(self._attached_bs_y, pos[1], stoppable=True))
+            seq.append(SeqDev(self._attached_bs_y, target[1], stoppable=True))
 
         self._startSequence(seq)
 
@@ -146,9 +137,9 @@ class DetectorPosSwitcher(DetectorPosSwitcherMixin, SequencerMixin,
         return {n: (d.read(maxage), getattr(d, 'precision', 0))
                 for (n, d) in self._adevs.items()}
 
-    def _mapReadValue(self, pos):
+    def _mapReadValue(self, value):
         def eq(posname, val):
-            return abs(pos[posname][0] - val) <= pos[posname][1]
+            return abs(value[posname][0] - val) <= value[posname][1]
 
         for name, values in self.mapping.items():
             if eq('det_z', values[2]) and eq('bs_x', values[0]) and \

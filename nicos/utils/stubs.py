@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Alexander Lenz <alexander.lenz@frm2.tum.de>
 #
 # *****************************************************************************
@@ -70,29 +70,31 @@ STUBS = dict(
     ProfibusDP = ['class IO'],
     Detector = ['class Detector'],
     SIS3400 = ['class Timer', 'class MonitorCounter', 'class HistogramCounter'],
-    PyTango = ['class DeviceProxy', 'class DevState', 'class DevVoid',
-               'class DeviceAttribute', 'class DeviceState',
-               'member DevState.ON=0',
-               'member DevState.OFF=1',
-               'member DevState.CLOSE=2',
-               'member DevState.OPEN=3',
-               'member DevState.INSERT=4',
-               'member DevState.EXTRACT=5',
-               'member DevState.MOVING=6',
-               'member DevState.STANDBY=7',
-               'member DevState.FAULT=8',
-               'member DevState.INIT=9',
-               'member DevState.RUNNING=10',
-               'member DevState.ALARM=11',
-               'member DevState.DISABLE=12',
-               'member DevState.UNKNOWN=13',
-               'exception ConnectionFailed', 'exception CommunicationFailed',
-               'exception WrongNameSyntax', 'exception DevFailed',
-               'exception NonDbDevice', 'exception WrongData',
-               'exception NonSupportedFeature', 'exception AsynCall',
-               'exception AsynReplyNotArrived', 'exception EventSystemFailed',
-               'exception DeviceUnlocked', 'exception NotAllowed',
-               ],
+    tango = ['class DeviceProxy', 'class DevState', 'class DevVoid',
+             'class DeviceAttribute', 'class DeviceState',
+             'member DevState.ON=0',
+             'member DevState.OFF=1',
+             'member DevState.CLOSE=2',
+             'member DevState.OPEN=3',
+             'member DevState.INSERT=4',
+             'member DevState.EXTRACT=5',
+             'member DevState.MOVING=6',
+             'member DevState.STANDBY=7',
+             'member DevState.FAULT=8',
+             'member DevState.INIT=9',
+             'member DevState.RUNNING=10',
+             'member DevState.ALARM=11',
+             'member DevState.DISABLE=12',
+             'member DevState.UNKNOWN=13',
+             'class constants',
+             'member constants.NUMPY_SUPPORT=True',
+             'exception ConnectionFailed', 'exception CommunicationFailed',
+             'exception WrongNameSyntax', 'exception DevFailed',
+             'exception NonDbDevice', 'exception WrongData',
+             'exception NonSupportedFeature', 'exception AsynCall',
+             'exception AsynReplyNotArrived', 'exception EventSystemFailed',
+             'exception DeviceUnlocked', 'exception NotAllowed',
+             ],
 )
 
 

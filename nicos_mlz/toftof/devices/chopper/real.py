@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Tobias Unruh <tobias.unruh@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -29,7 +29,7 @@ from time import time as currenttime
 
 from nicos import session
 from nicos.core import ADMIN, SIMULATION, Attach, NicosError, requires, status
-from nicos.devices.tango import StringIO
+from nicos.devices.entangle import StringIO
 
 from nicos_mlz.toftof.devices import calculations as calc
 from nicos_mlz.toftof.devices.chopper.base import BaseChopperController

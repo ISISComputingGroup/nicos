@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -226,8 +226,8 @@ class Override:
 
     def apply(self, paraminfo):
         newinfo = copy.copy(paraminfo)
-        for attr in self._kw:
-            setattr(newinfo, attr, self._kw[attr])
+        for attr, val in self._kw.items():
+            setattr(newinfo, attr, val)
         return newinfo
 
 
@@ -497,17 +497,20 @@ _notset = object()
 def convdoc(conv):
     if isinstance(conv, type):
         return conv.__name__
-    return conv.__doc__ or ''
+    return (conv.__doc__.splitlines() or [''])[0].strip()
 
 
 def fixup_conv(conv):
     """Fix-up a single converter type.
 
     This changes `str` to `string`, a converter that decodes bytes instead of
-    converting them using `repr`.
+    converting them using `repr`, and `bool` to `boolean`, which refuses to
+    convert strings due to the trap of ``'False'`` being true.
     """
     if conv is str:
         return string
+    elif conv is bool:
+        return boolean
     return conv
 
 
@@ -521,6 +524,13 @@ def string(s=None):
     return str(s)
 
 
+def boolean(v=None):
+    """a boolean value"""
+    if isinstance(v, str):
+        raise ValueError('please use True or False without quotes, or 1/0)')
+    return bool(v)
+
+
 class listof:
 
     def __init__(self, conv):
@@ -531,7 +541,7 @@ class listof:
 
     def __call__(self, val=None):
         val = val if val is not None else []
-        if not isinstance(val, (list, tuple)):
+        if not isinstance(val, (list, tuple, np.ndarray)):
             raise ValueError('value needs to be a list')
         return readonlylist(map(self.conv, val))
 
@@ -545,7 +555,7 @@ class nonemptylistof:
     def __call__(self, val=None):
         if val is None:
             return readonlylist([self.conv()])
-        if not isinstance(val, (list, tuple)) or len(val) < 1:
+        if not isinstance(val, (list, tuple, np.ndarray)) or len(val) < 1:
             raise ValueError('value needs to be a nonempty list')
         return readonlylist(map(self.conv, val))
 
@@ -580,11 +590,11 @@ class tupleof:
 def limits(val=None):
     """a tuple of lower and upper limit"""
     val = val if val is not None else (0, 0)
-    if not isinstance(val, (list, tuple)) or len(val) != 2:
+    if not isinstance(val, (list, tuple, np.ndarray)) or len(val) != 2:
         raise ValueError('value must be a list or tuple and have 2 elements')
     ll = float(val[0])
     ul = float(val[1])
-    if not ll <= ul:
+    if ll > ul:
         raise ValueError('upper limit must be greater than lower limit')
     return (ll, ul)
 
@@ -642,7 +652,7 @@ class intrange:
                              'A boolean was given!')
         fr = int(fr)
         to = int(to)
-        if not fr <= to:
+        if fr > to:
             raise ValueError('intrange must fulfill from <= to, given was '
                              '[%f, %f]' % (fr, to))
         self.__doc__ = 'an integer in the range [%d, %d]' % (fr, to)
@@ -667,7 +677,7 @@ class floatrange:
         fr = float(fr)
         if to is not None:
             to = float(to)
-            if not fr <= to:
+            if fr > to:
                 raise ValueError('floatrange must fulfill from <= to, given '
                                  'was [%f, %f]' % (fr, to))
             self.__doc__ = 'a float in the range [%f, %f]' % (fr, to)
@@ -684,9 +694,8 @@ class floatrange:
             if not self.fr <= val <= self.to:
                 raise ValueError('value needs to fulfill %f <= x <= %f' %
                                  (self.fr, self.to))
-        else:
-            if not self.fr <= val:
-                raise ValueError('value needs to fulfill %f <= x' % self.fr)
+        elif self.fr > val:
+            raise ValueError('value needs to fulfill %f <= x' % self.fr)
         return val
 
 

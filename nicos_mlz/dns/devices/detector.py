@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,9 +28,10 @@ import numpy
 from nicos import session
 from nicos.core import SIMULATION, Value
 from nicos.core.params import ArrayDesc, Attach, Param, tupleof
+from nicos.devices.entangle import TOFChannel
 from nicos.devices.generic.detector import Detector
 from nicos.devices.polarized.flipper import OFF, ON, BaseFlipper
-from nicos.devices.tango import PyTangoDevice, TOFChannel
+from nicos.devices.tango import PyTangoDevice
 
 P_TIME = 't'
 P_TIME_SF = 'tsf'
@@ -58,7 +59,7 @@ class TofChannel(TOFChannel):
         if mode != SIMULATION:
             self._dev.set_timeout_millis(10000)
             shape = tuple(self._dev.detectorSize)[::-1]
-        self.arraydesc = ArrayDesc('data', shape=shape, dtype='<u4')
+        self.arraydesc = ArrayDesc(self.name, shape=shape, dtype='<u4')
 
     def doPrepare(self):
         self._dev.Clear()
@@ -86,8 +87,8 @@ class TofChannel(TOFChannel):
                      for i in range(start, end + 1))
 
     def doReadArray(self, quality):
-        self.arraydesc = ArrayDesc('data', shape=tuple(self._dev.detectorSize)[::-1],
-                                   dtype='<u4')
+        self.arraydesc = ArrayDesc(
+            self.name, shape=tuple(self._dev.detectorSize)[::-1], dtype='<u4')
         start, end = self.readchannels
         # get current data array from detector
         array = numpy.asarray(self._dev.value, numpy.uint32)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,21 +18,21 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
 """NICOS slit device."""
 
 from nicos import session
-from nicos.core import Attach, AutoDevice, HasPrecision, InvalidValueError, \
-    Moveable, Override, Param, Value, dictof, multiReset, multiStatus, \
-    multiWait, oneof, tupleof
+from nicos.core import Attach, AutoDevice, HasAutoDevices, HasPrecision, \
+    InvalidValueError, Moveable, Override, Param, Value, dictof, multiReset, \
+    multiStatus, multiWait, oneof, tupleof
 from nicos.core.utils import devIter, multiReference
 from nicos.devices.abstract import CanReference
 
 
-class Slit(CanReference, Moveable):
+class Slit(HasAutoDevices, CanReference, Moveable):
     """A rectangular slit consisting of four blades.
 
     The slit can operate in four "opmodes", controlled by the `opmode`
@@ -118,18 +118,13 @@ class Slit(CanReference, Moveable):
 
         for name in self._axnames:
             self.__dict__[name] = self._adevs[name]
-
         for name, cls in [
             ('centerx', CenterXSlitAxis), ('centery', CenterYSlitAxis),
             ('width', WidthSlitAxis), ('height', HeightSlitAxis)
         ]:
-            self.__dict__[name] = cls(self.name+'.'+name, slit=self,
-                                      unit=self.unit, lowlevel=True)
-
-    def doShutdown(self):
-        for name in ['centerx', 'centery', 'width', 'height']:
-            if name in self.__dict__:
-                self.__dict__[name].shutdown()
+            self.add_autodevice(name, cls, slit=self,
+                                unit=self.unit,
+                                visibility=self.autodevice_visibility)
 
     def _getPositions(self, target):
         if self.opmode == '4blades':
@@ -285,6 +280,7 @@ class Slit(CanReference, Moveable):
     def doWriteOpmode(self, value):
         if self._cache:
             self._cache.invalidate(self, 'value')
+            self._cache.put(self, 'fmtstr', self.fmtstr_map[value])
 
     def doUpdateOpmode(self, value):
         if value == 'centered':

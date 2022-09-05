@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
@@ -69,8 +69,8 @@ class MezeiFlipper(BaseFlipper):
                           type=tupleof(float, float)),
     }
 
-    def doStart(self, value):
-        if value == ON:
+    def doStart(self, target):
+        if target == ON:
             self._attached_flip.start(self.currents[0])
             self._attached_corr.start(self.currents[1])
         else:
@@ -104,8 +104,8 @@ class KFlipper(BaseFlipper):
                              unit='A'),  # actually A * Angstroms ** index
     }
 
-    def doStart(self, value):
-        if value == ON:
+    def doStart(self, target):
+        if target == ON:
             # query current momentum and calculate polinomial
             k = self._attached_kvalue.read(0)
             flip_current = sum(v * (k ** i) for i, v in enumerate(self.flipcurrent))

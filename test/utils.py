@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 """NICOS test suite utilities."""
@@ -31,10 +31,9 @@ import shutil
 import signal
 import subprocess
 import sys
-import time
 from logging import DEBUG, ERROR, WARNING, Formatter, StreamHandler
 from os import path
-from time import sleep
+from time import monotonic, sleep
 
 import mock
 import pytest
@@ -545,7 +544,7 @@ def startSubprocess(filename, *args, **kwds):
         popen_kwds = dict(stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     else:
-        popen_kwds = dict()
+        popen_kwds = {}
     proc = createSubprocess(
         [sys.executable, path.join(module_root, 'test', 'bin', filename)] +
         list(args), **popen_kwds)
@@ -569,9 +568,9 @@ def killSubprocess(proc):
     sys.stderr.write(' [%s terminate %s...' % (proc.nicos_name, proc.pid))
     if proc.poll() is None:
         proc.terminate()
-        start = time.time()
-        while time.time() < start + 2:
-            time.sleep(0.05)
+        start = monotonic()
+        while monotonic() < start + 2:
+            sleep(0.05)
             if proc.poll() is not None:
                 break
         else:
@@ -585,12 +584,12 @@ def startCache(hostport, setup='cache', wait=10):
     # start the cache server
     def cache_wait_cb():
         if wait:
-            start = time.time()
-            while time.time() < start + wait:
+            start = monotonic()
+            while monotonic() < start + wait:
                 try:
                     s = tcpSocket(hostport, 0)
                 except OSError:
-                    time.sleep(0.02)
+                    sleep(0.02)
                 except Exception as e:
                     sys.stderr.write('%r' % e)
                     raise

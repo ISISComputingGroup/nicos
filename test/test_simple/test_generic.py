@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,13 +18,14 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
 """NICOS generic devices test suite."""
 
 import mock
+import pytest
 
 from nicos.commands.measure import count
 from nicos.core import ConfigurationError, InvalidValueError, LimitError, \
@@ -159,6 +160,34 @@ class TestSwitcher:
         v3.curvalue = 3.0
         assert sw2.status(0)[0] == status.OK
         assert sw2.read(0) == 'right'
+
+    @pytest.fixture(scope='function')
+    def relaxed_switcher(self, session):
+        sw = session.getDevice('sw2')
+        fallback = sw.fallback
+        relax_mapping = sw.relax_mapping
+        sw.relax_mapping = True
+        sw._setROParam('fallback', 'unknown')
+        v = session.getDevice('v3')
+        v.maw(9)
+
+        yield sw
+
+        sw.relax_mapping = relax_mapping
+        sw._setROParam('fallback', fallback)
+
+    def test_switcher_relaxing(self, relaxed_switcher):
+        sw = relaxed_switcher
+        assert sw.read(0) == 'unknown'
+        assert sw.status(0)[0] == status.UNKNOWN
+
+        sw._setROParam('fallback', None)
+        assert sw.read(0) == '9.000 mm'
+        assert sw.status(0)[0] == status.NOTREACHED
+
+        sw.relax_mapping = False
+        assert raises(PositionError, sw.read, 0)
+        assert sw.status(0)[0] == status.NOTREACHED
 
 
 def test_paramdev(session):

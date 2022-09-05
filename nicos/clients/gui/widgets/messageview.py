@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -30,8 +30,8 @@ from logging import DEBUG, ERROR, FATAL, INFO, WARNING
 from time import localtime, strftime
 
 from nicos.guisupport.qt import QBrush, QColor, QFont, QMainWindow, QPainter, \
-    QPixmap, QRect, QRegExp, QSize, Qt, QTextBrowser, QTextCharFormat, \
-    QTextCursor, QTextEdit
+    QPixmap, QRect, QRegularExpression, QSize, Qt, QTextBrowser, \
+    QTextCharFormat, QTextCursor, QTextEdit
 from nicos.utils.loggers import ACTION, INPUT
 
 levels = {DEBUG: 'DEBUG', INFO: 'INFO', WARNING: 'WARNING',
@@ -251,7 +251,7 @@ class MessageView(QTextBrowser):
     def findNext(self, what, regex=False):
         cursor = self.textCursor()
         if regex:
-            rx = QRegExp(what, Qt.CaseInsensitive)
+            rx = QRegularExpression(what, Qt.CaseInsensitive)
             newcurs = self.document().find(rx, cursor)
         else:
             newcurs = self.document().find(what, cursor)
@@ -261,8 +261,8 @@ class MessageView(QTextBrowser):
     def occur(self, what, regex=False):
         content = self.toPlainText().split('\n')
         if regex:
-            regexp = QRegExp(what, Qt.CaseInsensitive)
-            content = [line for line in content if regexp.indexIn(line) >= 0]
+            rx = QRegularExpression(what, Qt.CaseInsensitive)
+            content = [line for line in content if rx.match(line).hasMatch()]
         else:
             what = what.lower()
             content = [line for line in content if what in line.lower()]

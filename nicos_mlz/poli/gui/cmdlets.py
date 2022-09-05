@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -33,8 +33,8 @@ class Lubrication(Cmdlet):
     name = 'Lubricate lifting counter'
     category = 'Other'
 
-    def __init__(self, parent, client):
-        Cmdlet.__init__(self, parent, client,
+    def __init__(self, parent, client, options):
+        Cmdlet.__init__(self, parent, client, options,
                         findResource('nicos_mlz/poli/gui/lube.ui'))
         self.start.textChanged.connect(self.changed)
         self.end.textChanged.connect(self.changed)
@@ -56,8 +56,8 @@ class CenterPeak(Cmdlet):
     name = 'Center peak'
     category = 'Scan'
 
-    def __init__(self, parent, client):
-        Cmdlet.__init__(self, parent, client,
+    def __init__(self, parent, client, options):
+        Cmdlet.__init__(self, parent, client, options,
                         findResource('nicos_mlz/poli/gui/centerpeak.ui'))
         self.multiList.entryAdded.connect(self.on_entryAdded)
         self.multiList.uifile = findResource('nicos_mlz/poli/gui/centerpeak_one.ui')
@@ -133,8 +133,8 @@ class RefineMatrix(Cmdlet):
     name = 'Refine matrix'
     category = 'Orientation'
 
-    def __init__(self, parent, client):
-        Cmdlet.__init__(self, parent, client,
+    def __init__(self, parent, client, options):
+        Cmdlet.__init__(self, parent, client, options,
                         findResource('nicos_mlz/poli/gui/refinematrix.ui'))
         self._boxes = [self.aBox, self.bBox, self.cBox,
                        self.aaBox, self.bbBox, self.ccBox,

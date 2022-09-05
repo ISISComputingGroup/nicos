@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -71,10 +71,10 @@ class DaemonSession(NoninteractiveSession):
         if value is not None and getattr(value, '__display__', True):
             self.log.log(INFO, repr(value))
 
-    def _beforeStart(self, daemondev, daemonized):
+    def _beforeStart(self, maindev, daemonized):
         from nicos.services.daemon.utils import DaemonLogHandler
-        self.daemon_device = daemondev
-        self.daemon_handler = DaemonLogHandler(daemondev)
+        self.daemon_device = maindev
+        self.daemon_handler = DaemonLogHandler(self.daemon_device)
         # create a new root logger that gets the daemon handler
         self.createRootLogger(console=not daemonized)
         self.log.addHandler(self.daemon_handler)
@@ -84,12 +84,12 @@ class DaemonSession(NoninteractiveSession):
         sys.stdout = LoggingStdout()
 
         # add an object to be used by DaemonSink objects
-        self.emitfunc = daemondev.emit_event
-        self.emitfunc_private = daemondev.emit_event_private
+        self.emitfunc = self.daemon_device.emit_event
+        self.emitfunc_private = self.daemon_device.emit_event_private
 
         # call stop() upon emergency stop
         from nicos.commands.device import stop
-        daemondev._controller.add_estop_function(stop, ())
+        self.daemon_device._controller.add_estop_function(stop, ())
 
         # pretend that the daemon setup doesn't exist, so that another
         # setup can be loaded by the user

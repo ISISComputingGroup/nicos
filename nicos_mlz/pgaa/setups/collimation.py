@@ -5,16 +5,16 @@ group = 'lowlevel'
 tango_base = 'tango://pgaahw.pgaa.frm2.tum.de:10000/pgaa/sample/'
 
 devices = dict(
-    ell = device('nicos.devices.tango.DigitalOutput',
+    ell = device('nicos.devices.entangle.DigitalOutput',
         description = '',
         tangodevice = tango_base + 'elcol_press1',
-        lowlevel = True,
+        visibility = (),
         fmtstr = '%d',
     ),
-    col = device('nicos.devices.tango.DigitalOutput',
+    col = device('nicos.devices.entangle.DigitalOutput',
         description = '',
         tangodevice = tango_base + 'elcol_press2',
-        lowlevel = True,
+        visibility = (),
         fmtstr = '%d',
     ),
     ellcol = device('nicos_mlz.pgaa.devices.BeamFocus',

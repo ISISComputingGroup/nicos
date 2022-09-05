@@ -10,7 +10,7 @@
 ### END INIT INFO
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -58,7 +58,7 @@ def printout(*args, **kwargs):
 
 if path.isfile(_DEFAULT) and 'INSTRUMENT' not in os.environ:
     try:
-        with open(_DEFAULT, 'r') as fd:
+        with open(_DEFAULT, 'r', encoding='utf-8') as fd:
             for line in fd:
                 if not line.startswith('#'):
                     (key, sep, value) = line.partition('=')
@@ -90,11 +90,8 @@ def get_config():
         services = config.services
     log_path = path.join(nicos_root, config.logging_path)
     pid_path = path.join(nicos_root, config.pid_path)
-    if services.lower().strip() in ['', 'none']:
-        services = []
-    else:
-        services = [svc.strip() for svc in services.split(',')]
     return services, log_path, pid_path
+
 
 SERVICES, LOG_PATH, PID_PATH = get_config()
 
@@ -129,8 +126,9 @@ def read_pidfile(name, wait=0):
     pidpath = path.join(PID_PATH, '%s.pid' % name)
     while True:
         try:
-            pid = open(pidpath, 'rb').read()
-            pid = int(pid)
+            with open(pidpath, 'rb') as f:
+                pid = f.read()
+                pid = int(pid)
         except (OSError, ValueError):
             if time.time() > begin + wait:
                 return
@@ -320,6 +318,7 @@ def main(args):
             check_stray_procs(name)
 
     return exitstatus
+
 
 try:
     exitstatus = main(sys.argv)

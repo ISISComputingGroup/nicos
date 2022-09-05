@@ -6,13 +6,13 @@ excludes = ['table_lifting_virtual']
 tango_base = 'tango://phys.poli.frm2:10000/poli/'
 
 devices = dict(
-    co_lftctr = device('nicos.devices.tango.Sensor',
-        lowlevel = True,
+    co_lftctr = device('nicos.devices.entangle.Sensor',
+        visibility = (),
         tangodevice = tango_base + 'lftctr/lftctrenc',
         unit = 'deg',
     ),
-    mo_lftctr = device('nicos.devices.tango.Motor',
-        lowlevel = True,
+    mo_lftctr = device('nicos.devices.entangle.Motor',
+        visibility = (),
         tangodevice = tango_base + 'lftctr/lftctrmot',
         unit = 'deg',
         precision = 0.01,
@@ -30,6 +30,6 @@ devices = dict(
     lubrication = device('nicos_mlz.poli.devices.lubrication.LubeSwitch',
         description = 'lubrication switch',
         tangodevice = tango_base + 's7_digital/lubrication',
-        lowlevel = True,
+        visibility = (),
     ),
 )

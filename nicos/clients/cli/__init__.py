@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -51,8 +51,8 @@ from nicos.core import MAINTENANCE, MASTER, SIMULATION, SLAVE
 from nicos.protocols.daemon import BREAK_AFTER_LINE, BREAK_AFTER_STEP, \
     SIM_STATES, STATUS_IDLE, STATUS_IDLEEXC, STATUS_INBREAK
 from nicos.protocols.daemon.classic import DEFAULT_PORT
-from nicos.utils import colorize, formatDuration, formatEndtime, \
-    parseConnectionString, terminalSize
+from nicos.utils import LOCALE_ENCODING, colorize, formatDuration, \
+    formatEndtime, parseConnectionString, terminalSize
 from nicos.utils.loggers import ACTION, INPUT
 
 levels = {DEBUG: 'DEBUG', INFO: 'INFO', WARNING: 'WARNING',
@@ -91,6 +91,7 @@ def readline_finish_callback(result):
     librl.rl_callback_handler_remove()
     # NULL pointer gives None, which means EOF
     readline_result = result
+
 
 c_readline_finish_callback = rl_vcpfunc_t(readline_finish_callback)
 
@@ -780,7 +781,8 @@ class NicosCmdClient(NicosClient):
                 return
             fpath = path.join(self.scriptpath, path.expanduser(arg))
             try:
-                code = open(fpath).read()
+                with open(fpath, encoding=LOCALE_ENCODING) as f:
+                    code = f.read()
             except Exception as e:
                 self.put_error('Unable to open file: %s.' % e)
                 return
@@ -801,7 +803,8 @@ class NicosCmdClient(NicosClient):
                 return
             fpath = path.join(self.scriptpath, path.expanduser(arg))
             try:
-                code = open(fpath).read()
+                with open(fpath, encoding=LOCALE_ENCODING) as f:
+                    code = f.read()
             except Exception as e:
                 self.put_error('Unable to open file: %s.' % e)
                 return
@@ -816,7 +819,8 @@ class NicosCmdClient(NicosClient):
             # detect whether we have a filename or potential Python code
             if path.isfile(fpath) or fpath.endswith(('.py', '.txt')):
                 try:
-                    code = open(fpath).read()
+                    with open(fpath, encoding=LOCALE_ENCODING) as f:
+                        code = f.read()
                 except Exception as e:
                     self.put_error('Unable to open file: %s.' % e)
                     return
@@ -896,7 +900,7 @@ class NicosCmdClient(NicosClient):
             self.put_client('End of stacktrace.')
         elif cmd == 'debugclient':
             import pdb
-            pdb.set_trace()
+            pdb.set_trace()  # pylint: disable=forgotten-debug-statement
         elif cmd == 'debug':
             self.tell('debug', arg)
         elif cmd == 'eval':

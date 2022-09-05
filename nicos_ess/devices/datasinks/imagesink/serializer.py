@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,8 +27,9 @@ import numpy
 
 try:
     import flatbuffers
-    from nicos_ess.devices.fbschemas.hs00 import ArrayUInt, ArrayFloat, \
-        DimensionMetaData, EventHistogram, Array
+
+    from nicos_ess.devices.fbschemas.hs00 import Array, ArrayFloat, \
+        ArrayUInt, DimensionMetaData, EventHistogram
 
     uint32_bytes = flatbuffers.number_types.Uint32Flags.bytewidth
 except ImportError:

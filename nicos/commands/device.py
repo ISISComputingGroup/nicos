@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -566,7 +566,7 @@ def reset(*devlist):
 @spmsyntax(AnyDev, DevParam, Bare)
 @parallel_safe
 def set(dev, parameter, value):  # pylint: disable=redefined-builtin
-    """Set a the parameter of the device to a new value.
+    """Set a parameter of the device to a new value.
 
     The following commands are equivalent:
 
@@ -592,15 +592,15 @@ def set(dev, parameter, value):  # pylint: disable=redefined-builtin
 @spmsyntax(AnyDev, DevParam)
 @parallel_safe
 def get(dev, parameter):
-    """Return the value of a parameter of the device.
+    """Print the value of a parameter of the device.
 
-    A parameter value can also be read using attribute syntax,
-    i.e. ``dev.param``.
+    The parameter value can also be get using attribute syntax,
+    i.e. ``dev.param``, to use it programmatically.
 
     Examples:
 
     >>> get(phi, 'speed')
-    >>> print(phi.speed)
+    >>> print(phi.speed * 2)
     """
     dev = session.getDevice(dev)
     value = getattr(dev, parameter)
@@ -650,8 +650,12 @@ def setall(param, value):
         if param not in dev.parameters:
             continue
         prevalue = getattr(dev, param)
-        setattr(dev, param, value)
-        dev.log.info('%s set to %r (was %r)', param, value, prevalue)
+        try:
+            setattr(dev, param, value)
+        except Exception:
+            dev.log.error('could not set %s', param, exc=1)
+        else:
+            dev.log.info('%s set to %r (was %r)', param, value, prevalue)
 
 
 @usercommand
@@ -670,8 +674,8 @@ def info(*devlist):
     >>> info(Sample)     # show information relevant to the Sample object
     """
     if not devlist:
-        devlist = [dev for dev in session.devices.values()
-                   if not dev.lowlevel]
+        devlist = [session.devices[devname]
+                   for devname in session.explicit_devices]
     bycategory = {}
     for dev in devlist:
         for key, _value, strvalue, unit, category in dev.info():
@@ -799,7 +803,7 @@ def adjust(dev, value, newvalue=None):
         value, newvalue = dev.read(0), value
     dev.doAdjust(value, newvalue)
     dev.log.info('adjusted to %s, new offset is %.3f',
-                 dev.format(value, unit=True), dev.offset)
+                 dev.format(newvalue, unit=True), dev.offset)
 
 
 @usercommand

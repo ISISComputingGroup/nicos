@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,13 +21,26 @@
 #   Andreas Schulz <andreas.schulz@frm2.tum.de>
 #
 # *****************************************************************************
+
 excluded_device_classes = [
-    'nicos.devices.abstract.Coder',
-    'nicos.devices.abstract.Motor',
-    'nicos.devices.abstract.Axis',
-    'nicos.devices.abstract.MappedReadable',
-    'nicos.devices.abstract.MappedMoveable',
+    'nicos.core.device.Device',
     'nicos.core.device.Readable',
     'nicos.core.device.Moveable',
     'nicos.core.device.Measurable',
+    'nicos.core.device.SubScanMeasurable',
+    'nicos.devices.abstract.Coder',
+    'nicos.devices.abstract.Motor',
+    'nicos.devices.abstract.Axis',
+    'nicos.devices.abstract.TransformedReadable',
+    'nicos.devices.abstract.TransformedMoveable',
+    'nicos.devices.abstract.MappedReadable',
+    'nicos.devices.abstract.MappedMoveable',
+    'nicos.devices.generic.detector.PassiveChannel',
+    'nicos.devices.generic.detector.PostprocessPassiveChannel',
+    'nicos.devices.generic.detector.ScanningDetector',
+    'nicos.devices.generic.magnet.BipolarSwitchingMagnet',
+    'nicos.devices.generic.sequence.BaseSequencer',
+    'nicos.devices.generic.sequence.MeasureSequencer',
+    'nicos.devices.tas.spectro.TASConstant',
+    'nicos.devices.sxtal.instrument.SXTalBase',
 ]

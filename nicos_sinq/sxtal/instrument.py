@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,21 +28,23 @@
 import numpy as np
 
 from nicos import session
-from nicos.core import Attach, AutoDevice, LimitError, Moveable, Override, \
-    Param, Value, dictof, intrange, listof, oneof, tupleof, vec3
+from nicos.core import Attach, AutoDevice, HasAutoDevices, LimitError, \
+    Moveable, Override, Param, Value, dictof, intrange, listof, oneof, \
+    tupleof, vec3, nicosdev
 from nicos.core.errors import InvalidValueError
 from nicos.devices.generic.mono import Monochromator, from_k, to_k
 from nicos.devices.instrument import Instrument
 
 from nicos_sinq.sxtal.singlexlib import calcNBUBFromCellAndReflections, \
     calcTheta, calcUBFromCellAndReflections, rotatePsi, z1FromAngles, \
-    z1FromNormalBeam, z1ToBisecting, z1ToNormalBeam
+    z1FromNormalBeam, z1ToBisecting, z1ToNormalBeam, eulerian_to_kappa, \
+    kappa_to_eulerian
 from nicos_sinq.sxtal.tasublib import calcPlaneNormal, calcTasQAngles, \
     calcTasQH, calcTasUBFromTwoReflections, energyToK, tasAngles, \
     tasQEPosition, tasReflection
 
 
-class SXTalBase(Instrument, Moveable):
+class SXTalBase(HasAutoDevices, Instrument, Moveable):
     """An instrument class that can move in q space.
 
     When setting up a single xtal configuration, use a subclass that reflects
@@ -50,7 +52,7 @@ class SXTalBase(Instrument, Moveable):
     """
 
     attached_devices = {
-        'mono': Attach('Monochromator device', Monochromator),
+        'mono': Attach('Monochromator device', Moveable),
     }
 
     parameters = {
@@ -63,11 +65,18 @@ class SXTalBase(Instrument, Moveable):
                             userparam=True, settable=True, default=40),
         'scan_uvw':   Param('U,V,W Param', type=vec3, userparam=True,
                             settable=True, default=[1.0, 1.0, 1.0]),
+        'scan_width_multiplier': Param('Multiplier for the scan width '
+                                       'calculated from scan_uvw',
+                                       type=float, userparam=True,
+                                       settable=True, default=3.),
         'center_counter': Param('Counter to use for centering',
                                 type=str),
         'center_maxpts': Param('Width for centering', type=int,
                                userparam=True, settable=True,
                                default=60),
+        'center_order': Param('Optional order of motors for centering',
+                              type=listof(nicosdev), userparam=True,
+                              settable=True, default=[]),
         'center_steps': Param('Step width for each angle to use for centering',
                               type=listof(float),
                               userparam=True, settable=True,
@@ -76,6 +85,10 @@ class SXTalBase(Instrument, Moveable):
                           type=bool, default=False,
                           settable=True,
                           userparam=True),
+        'orienting_reflections': Param('Reflections from which the UB'
+                                       'was calculated',
+                                       type=tupleof(int, int), settable=True,
+                                       default=(0, 0)),
     }
 
     parameter_overrides = {
@@ -89,18 +102,16 @@ class SXTalBase(Instrument, Moveable):
     _last_calpos = None
 
     def doInit(self, mode):
-        self.__dict__['h'] = SXTalIndex('h', unit='rlu', fmtstr='%.3f',
-                                        index=0, lowlevel=True, sxtal=self)
-        self.__dict__['k'] = SXTalIndex('k', unit='rlu', fmtstr='%.3f',
-                                        index=1, lowlevel=True, sxtal=self)
-        self.__dict__['l'] = SXTalIndex('l', unit='rlu', fmtstr='%.3f',
-                                        index=2, lowlevel=True, sxtal=self)
+        self.add_autodevice('h', SXTalIndex, namespace='global',
+                            unit='rlu', fmtstr='%.3f', index=0,
+                            visibility=self.autodevice_visibility, sxtal=self)
+        self.add_autodevice('k', SXTalIndex, namespace='global',
+                            unit='rlu', fmtstr='%.3f', index=1,
+                            visibility=self.autodevice_visibility, sxtal=self)
+        self.add_autodevice('l', SXTalIndex, namespace='global',
+                            unit='rlu', fmtstr='%.3f', index=2,
+                            visibility=self.autodevice_visibility, sxtal=self)
         self._last_calpos = None
-
-    def doShutdown(self):
-        for name in ['h', 'k', 'l']:
-            if name in self.__dict__:
-                self.__dict__[name].shutdown()
 
     def _calcPos(self, hkl, wavelength=None):
         """Calculate the Z1 vector for a given HKL position."""
@@ -184,9 +195,7 @@ class SXTalBase(Instrument, Moveable):
         """
         Test if this position it to close to the incoming beam
         """
-        if poslist[0] > 3.:
-            return True
-        return False
+        return abs(poslist[0][1]) <= 3
 
     def doIsAllowed(self, hkl):
         try:
@@ -194,7 +203,7 @@ class SXTalBase(Instrument, Moveable):
         except Exception as err:
             return False, str(err)
         zero = np.zeros((len(poslist),))
-        if np.allclose(poslist, zero):
+        if np.allclose([p[1] for p in poslist], zero):
             return False, 'Failed to calculate angles for ' + str(hkl)
         if self._isToClose(poslist):
             return False, 'Reflection %s to close to incoming beam'\
@@ -220,13 +229,13 @@ class SXTalBase(Instrument, Moveable):
         self._sim_min = tuple(map(min, pos, self._sim_min or pos))
         self._sim_max = tuple(map(max, pos, self._sim_max or pos))
 
-    def doStart(self, hkl):
-        poslist = self._extractPos(self._calcPos(hkl))
+    def doStart(self, target):
+        poslist = self._extractPos(self._calcPos(target))
         for (devname, devvalue) in poslist:
             dev = self._adevs[devname]
             dev.start(devvalue)
         # store the min and max values of h,k,l, and E for simulation
-        self._sim_setValue(hkl)
+        self._sim_setValue(target)
 
     def doFinish(self):
         # make sure index members read the latest value
@@ -253,7 +262,7 @@ class SXTalBase(Instrument, Moveable):
         if self._attached_mono.unit != 'A':
             oldunit = self._attached_mono.unit
             self._attached_mono.unit = 'A'
-        result = self._attached_mono.read(0)
+        result = float(self._attached_mono.read(0))
         if oldunit:
             self._attached_mono.unit = oldunit
         return result
@@ -266,10 +275,7 @@ class SXTalBase(Instrument, Moveable):
         w2 = self.scan_uvw[0] + \
             self.scan_uvw[1] * tan_th + \
             self.scan_uvw[2] * (tan_th ** 2)
-        if w2 > 0:
-            return np.sqrt(w2)
-        else:
-            return -np.sqrt(-w2)
+        return abs(w2)
 
     def get_motors(self):
         """Get the attached goniometer motors"""
@@ -293,11 +299,14 @@ class EulerSXTal(SXTalBase):
     parameters = {
         'searchpars': Param('Limits and steps for peak searching',
                             dictof(str, tupleof(float, float, float)),
-                            settable=True)
+                            settable=True),
+        't2angle': Param('Two theta angle when to switch to t2t mode',
+                         type=float, settable=True, userparam=True,
+                         default=60.),
     }
 
     def _extractPos(self, pos):
-        om, chi, phi = z1ToBisecting(self._attached_mono.read(0),
+        om, chi, phi = z1ToBisecting(self.wavelength,
                                      pos)
         tth = 2. * om
         poslist = [
@@ -379,9 +388,12 @@ class LiftingSXTal(SXTalBase):
 
     def _extractPos(self, pos):
         gamma, omega, nu = z1ToNormalBeam(self.wavelength, pos)
+        om = np.rad2deg(omega)
+        if om < -180:
+            om += 360
         return [
             ('gamma', np.rad2deg(gamma)),
-            ('omega', np.rad2deg(omega)),
+            ('omega', om),
             ('nu',    np.rad2deg(nu)),
         ]
 
@@ -403,7 +415,7 @@ class LiftingSXTal(SXTalBase):
 
     def get_motors(self):
         return [
-            self._attached_ttheta,
+            self._attached_gamma,
             self._attached_omega,
             self._attached_nu,
         ]
@@ -422,6 +434,120 @@ class LiftingSXTal(SXTalBase):
         r1d = self._refl_to_dict(r1)
         r2d = self._refl_to_dict(r2)
         return calcNBUBFromCellAndReflections(cell, r1d, r2d)
+
+
+class KappaSXTal(SXTalBase):
+    """ Kappa geometry goniometer"""
+
+    attached_devices = {
+        'stt': Attach('Two Theta', Moveable),
+        'omega': Attach('Kappa omega device', Moveable),
+        'kappa': Attach('kappa motor', Moveable),
+        'kphi': Attach('Kappa phi rotation', Moveable),
+    }
+
+    parameters = {
+        'searchpars': Param('Limits and steps for peak searching',
+                            dictof(str, tupleof(float, float, float)),
+                            settable=True),
+        'kappa_angle': Param('Kappa angle of the goniometer',
+                             type=float, mandatory=True),
+        'right_hand': Param('Boolean if the goniometer is right handed or not',
+                            type=bool, mandatory=True),
+    }
+
+    def _extractPos(self, pos):
+        eom, echi, ephi = z1ToBisecting(self.wavelength,
+                                        pos)
+        # Chi must be below 2*alpha for the kappa calculation to work.
+        # Thus we rotate in PSI until this is the case.
+        stt = np.rad2deg(eom) * 2.
+        psi = 10
+        psichi = echi
+        psiom = eom
+        psiphi = ephi
+        while psichi > 2. * np.deg2rad(self.kappa_angle) and psi < 360:
+            psiom, psichi, psiphi = rotatePsi(eom, echi, ephi, np.deg2rad(psi))
+            # self.log.info('chi, psi: %f, %f', np.rad2deg(psichi), psi)
+            psi += 10
+        # self.log.info('Found solution at psi: %f', psi)
+        # self.log.info('Kappa eulerian, om, chi, phi: %f, %f, %f',
+        #              np.rad2deg(psiom), np.rad2deg(psichi),
+        #              np.rad2deg(psiphi))
+        status, komega, kappa, kphi = eulerian_to_kappa(np.rad2deg(psiom),
+                                                        np.rad2deg(psichi),
+                                                        np.rad2deg(psiphi),
+                                                        self.kappa_angle,
+                                                        self.right_hand)
+        # This code not be needed if we have a motor with limits
+        # in the 0 - 360 range
+        if kphi < -180.:
+            kphi += 360.
+        if kphi > 180.:
+            kphi -= 360.
+        # self.log.info('Kappa om, kappa, kphi: %f, %f, %f', komega,
+        #              kappa, kphi)
+        if not status:
+            self.log.error('Cannot reach reflection')
+        return [('stt', stt), ('omega', komega),
+                ('kappa', kappa), ('kphi', kphi)]
+
+    def _convertPos(self, pos, wavelength=None):
+        status, om, chi, phi = kappa_to_eulerian(pos[1], pos[2], pos[3],
+                                                 self.kappa_angle,
+                                                 self.right_hand)
+        # self.log.info('Eulerian om, chi, phi when calculating back:'
+        #              ' %f, %f, %f',
+        #              om, chi, phi)
+        if status:
+            return z1FromAngles(self.wavelength,
+                                np.deg2rad(pos[0]),
+                                np.deg2rad(om),
+                                np.deg2rad(chi),
+                                np.deg2rad(phi))
+        else:
+            self.log.error('Failed to convert from kappa to eulerian angles')
+            return [1., 0, 0]
+
+    def _readPos(self, maxage=0):
+        apos = (self._attached_stt.read(maxage),
+                self._attached_omega.read(maxage),
+                self._attached_kappa.read(maxage),
+                self._attached_kphi.read(maxage))
+        return apos
+
+    def _createPos(self, stt, komega, kappa, kphi):
+        apos = (stt, komega, kappa, kphi)
+        return apos
+
+    def get_motors(self):
+        return [
+            self._attached_stt,
+            self._attached_omega,
+            self._attached_kappa,
+            self._attached_kphi
+        ]
+
+    def _refl_to_dict(self, r):
+        status, om, chi, phi = kappa_to_eulerian(r[1][1], r[1][2], r[1][3],
+                                                 self.kappa_angle,
+                                                 self._right_hand)
+        if not status:
+            self.log.error('Failed to convert from kappa to eulerian angles')
+        rd = {}
+        rd['h'] = r[0][0]
+        rd['k'] = r[0][1]
+        rd['l'] = r[0][2]
+        rd['stt'] = r[1][0]
+        rd['om'] = om
+        rd['chi'] = chi
+        rd['phi'] = phi
+        return rd
+
+    def calc_ub(self, cell, r1, r2):
+        r1d = self._refl_to_dict(r1)
+        r2d = self._refl_to_dict(r2)
+        return calcUBFromCellAndReflections(cell, r1d, r2d)
 
 
 ENERGYMODES = ['FKI', 'FKE']
@@ -458,12 +584,14 @@ class TASSXTal(SXTalBase):
                        default='FKI'),
         'scattering_sense': Param('Scattering sense at the sample',
                                   type=oneof(-1, 1), settable=True,
-                                  default=1),
+                                  category='instrument', default=1),
         'plane_normal': Param('Plane normal',
                               type=tupleof(float, float, float),
-                              settable=True, default=(0, 0, 1)),
+                              settable=True, default=(0, 0, 1),
+                              category='instrument'),
         'out_of_plane': Param('Flag if we may move out of plane or not',
-                              type=bool, settable=True, default=True),
+                              type=bool, settable=True,
+                              category='instrument', default=True),
     }
 
     parameter_overrides = {
@@ -474,31 +602,26 @@ class TASSXTal(SXTalBase):
     def doInit(self, mode):
         SXTalBase.doInit(self, mode)
         if self.inelastic:
-            self.__dict__['en'] = SXTalIndex('en', unit='meV',
-                                             fmtstr='%.3f', index=3,
-                                             lowlevel=True, sxtal=self)
+            self.add_autodevice('en', SXTalIndex, namespace='global',
+                                unit='meV', fmtstr='%.3f', index=3,
+                                visibility=self.autodevice_visibility,
+                                sxtal=self)
             self.valuetype = tupleof(float, float, float, float)
 
-    def doShutdown(self):
-        for name in ['h', 'k', 'l', 'en']:
-            if name in self.__dict__:
-                self.__dict__[name].shutdown()
+    def _calcPos(self, hkl, wavelength=None):
+        return hkl
 
-    def _calcPos(self, hkle, wavelength=None):
-        return hkle
-
-    def _extractPos(self, hkle):
+    def _extractPos(self, pos):
         ki = self._attached_mono.read(0)
         kf = self._attached_ana.read(0)
         if self.inelastic:
             if self.emode == 'FKI':
-                kf = ki - hkle[3]
+                kf = ki - pos[3]
             else:
-                ki = kf + hkle[3]
+                ki = kf + pos[3]
         ki = to_k(ki, self._attached_mono.unit)
         kf = to_k(kf, self._attached_ana.unit)
-        qepos = tasQEPosition(ki, kf, hkle[0], hkle[1],
-                              hkle[2], 0)
+        qepos = tasQEPosition(ki, kf, pos[0], pos[1], pos[2], 0)
         ub = session.experiment.sample.getUB()
         try:
             angpos = calcTasQAngles(ub, np.array(self.plane_normal),
@@ -509,12 +632,16 @@ class TASSXTal(SXTalBase):
         poslist = [('a3', angpos.a3),
                    ('a4', angpos.sample_two_theta)]
 
-        if self.inelastic:
-            poslist.append(('mono', from_k(ki, self._attached_mono.unit)))
-            poslist.append(('ana', from_k(kf, self._attached_ana.unit)))
         if self.out_of_plane:
             poslist.append(('sgu', angpos.sgu))
             poslist.append(('sgl', angpos.sgl))
+        else:
+            poslist.append(('sgu', 0))
+            poslist.append(('sgl', 0))
+
+        if self.inelastic:
+            poslist.append(('mono', from_k(ki, self._attached_mono.unit)))
+            poslist.append(('ana', from_k(kf, self._attached_ana.unit)))
 
         return poslist
 
@@ -557,9 +684,7 @@ class TASSXTal(SXTalBase):
         """
         Test if this position it to close to the incoming beam
         """
-        if poslist[3] > 3.:
-            return True
-        return False
+        return abs(poslist[1][1]) <= 3
 
     def _rfl_to_reflection(self, r):
         """convert a reflection from reflection list format to internal
@@ -575,7 +700,7 @@ class TASSXTal(SXTalBase):
         tref1 = self._rfl_to_reflection(r1)
         tref2 = self._rfl_to_reflection(r2)
         self.plane_normal = calcPlaneNormal(tref1, tref2)
-        return calcTasUBFromTwoReflections(cell, tref1, tref2)
+        return calcTasUBFromTwoReflections(cell, tref1, tref2)/(np.pi * 2.)
 
 
 class SXTalIndex(AutoDevice, Moveable):
@@ -598,7 +723,7 @@ class SXTalIndex(AutoDevice, Moveable):
     def doRead(self, maxage=0):
         return self._attached_sxtal.read(maxage)[self.index]
 
-    def doStart(self, pos):
+    def doStart(self, target):
         current = list(self._attached_sxtal.read(0.5))
-        current[self.index] = pos
+        current[self.index] = target
         self._attached_sxtal.start(current)

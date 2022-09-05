@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,13 +18,13 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
 """Test the text client."""
 
-import time
+from time import monotonic, sleep
 
 import mock
 
@@ -71,20 +71,20 @@ def test_textclient(daemon):
             return any(msg in line for line in out)
 
         def has_msg_wait(msg, timeout=5):
-            start = time.time()
+            start = monotonic()
             while not any(msg in line for line in out):
-                time.sleep(0.01)
-                if time.time() > start + timeout:
+                sleep(0.01)
+                if monotonic() > start + timeout:
                     print('!!! messages:', out)
                     return False
             print('messages:', out)
             return True
 
         def wait_idle(timeout=5):
-            start = time.time()
+            start = monotonic()
             have_processing = have_busy = have_idle = False
             while not (have_processing and have_busy and have_idle):
-                time.sleep(0.01)
+                sleep(0.01)
                 for (name, data, _) in sig:
                     if name == 'processing':
                         have_processing = True
@@ -92,7 +92,7 @@ def test_textclient(daemon):
                         have_busy = True
                     elif name == 'status' and data[0] == STATUS_IDLE:
                         have_idle = True
-                if time.time() > start + timeout:
+                if monotonic() > start + timeout:
                     print('!!! events:', sig)
                     assert False, 'idle wait timeout'
             print('events:', sig)
@@ -136,7 +136,7 @@ def test_textclient(daemon):
         yield 'Q'  # queue
         assert has_msg('# Command queued')
 
-        time.sleep(0.1)  # wait for the new request event to arrive
+        sleep(0.1)  # wait for the new request event to arrive
         yield '/pending'
         assert has_msg('# Showing pending')
         assert has_msg('maw(dm2, 50)')

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -36,9 +36,9 @@ class PulseSwitch(ManualSwitch):
 
     _started_to = []
 
-    def doStart(self, pos):
-        self._started_to.append(pos)
-        ManualSwitch.doStart(self, pos)
+    def doStart(self, target):
+        self._started_to.append(target)
+        ManualSwitch.doStart(self, target)
 
 
 def test_params(session):

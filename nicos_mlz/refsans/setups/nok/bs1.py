@@ -1,3 +1,4 @@
+
 description = "DoubleSlit [slit k1] between nok8 and nok9"
 
 group = 'lowlevel'
@@ -31,7 +32,7 @@ devices = dict(
             'point': 0.70,  # 2021-03-17 15:37:19 TheoMH -1.725
             'gisans': -40.915 * optic_values['gisans_scale'],
         },
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
     ),
     bs1s = device(code_base + 'slits.SingleSlit',
@@ -46,7 +47,7 @@ devices = dict(
             'point': -1.00,  # 2021-03-17 15:37:19 TheoMH -2.255
             'gisans':-2.255,
         },
-        lowlevel = True,
+        visibility = (),
         unit = 'mm',
     ),
     bs1r_axis = device('nicos.devices.generic.Axis',
@@ -56,14 +57,14 @@ devices = dict(
         backlash = -0.5,
         precision = optic_values['precision_ipcsms'],
         unit = 'mm',
-        lowlevel = True,
+        visibility = (),
     ),
     bs1r_acc = device(code_base + 'nok_support.MotorEncoderDifference',
          description = 'calc error Motor and poti',
          motor = 'bs1r_motor',
          analog = 'bs1r_analog',
-         lowlevel = showcase_values['hide_acc'],
-         unit = 'mm'
+         visibility = showcase_values['hide_acc'],
+         unit = 'mm',
     ),
     bs1r_analog = device(code_base + 'nok_support.NOKPosition',
         description = 'Position sensing for BS1, reactor side',
@@ -74,13 +75,13 @@ devices = dict(
         poly = [-105.176, 998.068 / 3.835],
         serial = 7542,
         length = 250.0,
-        lowlevel = showcase_values['hide_poti'] and showcase_values['NOreference'],
+        visibility = showcase_values['hide_poti'] & showcase_values['NOreference'],
     ),
     bs1r_poti = device(code_base + 'nok_support.NOKMonitoredVoltage',
         description = 'Poti for BS1, reactor side',
         tangodevice = tango_base + 'test/wb_c/2_1',
         scale = 1,   # mounted from bottom
-        lowlevel = True,
+        visibility = (),
     ),
     bs1s_axis = device('nicos.devices.generic.Axis',
         description = 'Axis of BS1, sample side',
@@ -89,14 +90,14 @@ devices = dict(
         backlash = -0.5,
         precision = optic_values['precision_ipcsms'],
         unit = 'mm',
-        lowlevel = True,
+        visibility = (),
     ),
     bs1s_acc = device(code_base + 'nok_support.MotorEncoderDifference',
          description = 'calc error Motor and poti',
          motor = 'bs1s_motor',
          analog = 'bs1s_analog',
-         lowlevel = showcase_values['hide_acc'],
-         unit = 'mm'
+         visibility = showcase_values['hide_acc'],
+         unit = 'mm',
     ),
     bs1s_analog = device(code_base + 'nok_support.NOKPosition',
         description = 'Position sensing for BS1, sample side',
@@ -106,13 +107,13 @@ devices = dict(
         poly = [39.1, 999.452 / 1.919],
         serial = 7784,
         length = 500.0,
-        lowlevel = showcase_values['hide_poti'] and showcase_values['NOreference'],
+        visibility = showcase_values['hide_poti'] & showcase_values['NOreference'],
     ),
     bs1s_poti = device(code_base + 'nok_support.NOKMonitoredVoltage',
         description = 'Poti for BS1, sample side',
         tangodevice = tango_base + 'test/wb_c/2_5',
         scale = 1,   # mounted from bottom
-        lowlevel = True,
+        visibility = (),
     ),
 )
 

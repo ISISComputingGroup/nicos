@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,9 +25,10 @@
 
 import math
 
+from nicos import session
 from nicos.core import Attach, Moveable, Override, Param, Readable, intrange, \
     status
-from nicos.devices.tango import StringIO
+from nicos.devices.entangle import StringIO
 
 
 class RTE1104(Readable):
@@ -45,7 +46,7 @@ class RTE1104(Readable):
     }
 
     attached_devices = {
-       'io': Attach('Communication device', StringIO),
+        'io': Attach('Communication device', StringIO),
     }
 
     def doRead(self, maxage=0):
@@ -93,12 +94,13 @@ class RTE1104TimescaleSetting(Moveable):
         # main value is freq!
         if self._attached_freqgen:
             return self._attached_freqgen.read(maxage)
-        return self.timescale/float(self._attached_io.communicate(
-            'TIM:SCAL?' % self.channel))
+        return self.timescale / float(self._attached_io.communicate(
+            'TIM:SCAL?'))  # % self.channel))
 
     def doStart(self, target):
-        self._attached_io.writeLine('TIM:SCAL %g' %
-                                    (self.timescale/float(target)))
+        self._attached_io.writeLine(
+            'TIM:SCAL %g' % (self.timescale / float(target)))
+        session.delay(0.5)
         if self._attached_freqgen:
             self._attached_freqgen.start(target)
 
@@ -117,9 +119,9 @@ class RTE1104YScaleSetting(Moveable):
     }
 
     attached_devices = {
-       'io': Attach('Communication device', StringIO),
-       'regulator': Attach('regulator for the amplitude', Moveable,
-                           optional=True),
+        'io': Attach('Communication device', StringIO),
+        'regulator': Attach('regulator for the amplitude', Moveable,
+                            optional=True),
     }
 
     parameter_overrides = {
@@ -141,12 +143,12 @@ class RTE1104YScaleSetting(Moveable):
                                                       self.channel))
         return setting * 10. / (2.2 * math.sqrt(2))
 
-    def doStart(self, value):
-        setting = math.ceil(value * math.sqrt(2.) * 2.2) / 10.
+    def doStart(self, target):
+        setting = math.ceil(target * math.sqrt(2.) * 2.2) / 10.
         self._attached_io.writeLine('CHAN%d:SCAL %g' %
                                     (self.channel, setting))
         if self._attached_regulator:
-            self._attached_regulator.start(value)
+            self._attached_regulator.start(target)
 
     def doStatus(self, maxage=0):
         if self._attached_regulator:

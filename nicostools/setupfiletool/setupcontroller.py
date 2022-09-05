@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -115,11 +115,10 @@ class Setup:
         self.watch_conditions = copy(info[self.name]['watch_conditions'])
         self.devices = {}
         devs = info[self.name]['devices']
-        for deviceName in devs:
-            self.devices[deviceName] = (Device(deviceName,
-                                               devs[deviceName][0],
-                                               copy(devs[deviceName][1]))
-                                        )
+        for deviceName, device in devs.items():
+            self.devices[deviceName] = Device(deviceName,
+                                              device[0],
+                                              copy(device[1]))
 
 
 class Device:

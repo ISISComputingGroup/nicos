@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -61,10 +61,10 @@ class DataSinkHandler(BaseDataSinkHandler):
         self._measurement_id = None
         self._user_id = NICOS_USER_ID
 
-    def addSubset(self, point):
+    def addSubset(self, subset):
         self._user_id = session.getExecutingUser().data.get('ldap_id',
                                                             NICOS_USER_ID)
-        if point.settype != POINT or point.number != 1:
+        if subset.settype != POINT or subset.number != 1:
             return
         sample_id = session.experiment.sample.sampleid
         if self._user_id == NICOS_USER_ID and sample_id == DUMMY_SAMPLE_ID:

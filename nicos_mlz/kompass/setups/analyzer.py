@@ -1,29 +1,30 @@
 description = 'Analyzer tower devices'
 
-group = 'optional'
+group = 'lowlevel'
 
 tango_base = 'tango://kompasshw.kompass.frm2:10000/kompass/aircontrol/plc_'
 
 devices = dict(
     # att (A6)
-    att_m = device('nicos.devices.tango.Motor',
+    att_m = device('nicos.devices.entangle.Motor',
         tangodevice = tango_base + 'att_mot',
         fmtstr = '%.4f',
-        lowlevel = True,
+        visibility = (),
     ),
-    att_c = device('nicos.devices.tango.Sensor',
+    att_c = device('nicos.devices.entangle.Sensor',
         tangodevice = tango_base + 'att_enc',
         fmtstr = '%.4f',
-        lowlevel = True,
+        visibility = (),
     ),
-    air_detector = device('nicos.devices.tango.DigitalOutput',
+    air_detector = device('nicos.devices.entangle.DigitalOutput',
         tangodevice = tango_base + 'airpads_detector',
-        lowlevel = True,
+        visibility = (),
     ),
     att = device('nicos_mlz.mira.devices.axis.HoveringAxis',
         description = 'secondary spectrometer angle (A6)',
         motor = 'att_m',
         coder = 'att_c',
+        abslimits = (-130, 130),
         startdelay = 2,
         stopdelay = 2,
         switch = 'air_detector',
@@ -32,27 +33,39 @@ devices = dict(
         precision = 0.001,
     ),
     # apth (S-Bender)
-    apth = device('nicos.devices.tango.Motor',
+    apth = device('nicos.devices.entangle.Motor',
         description = 'apth',
         tangodevice = tango_base + 'apth_mot',
         fmtstr = '%.4f',
     ),
 
     # ahfh (Heusler-Analyzer)
-    ahfh = device('nicos.devices.tango.Motor',
+    ahfh = device('nicos.devices.entangle.Motor',
         description = 'ahfh',
         tangodevice = tango_base + 'ahfh_mot',
         fmtstr = '%.4f',
     ),
+    ana = device('nicos.devices.tas.Monochromator',
+        description = 'Analyzer unit to move outgoing wavevector',
+        unit = 'A-1',
+        dvalue = 3.355,
+        theta = 'ath',
+        twotheta = 'att',
+        focush = None,
+        focusv = None,
+        abslimits = (0.1, 10),
+        scatteringsense = 1,
+        crystalside = 1,
+    ),
 )
 
 for key in ('left', 'right'):
-    devices['asb_cyl_' + key] = device('nicos.devices.tango.NamedDigitalOutput',
+    devices['asb_cyl_' + key] = device('nicos.devices.entangle.NamedDigitalOutput',
         description = '%s ana shielding blocks lifter' % key,
         tangodevice = tango_base + 'asb_cyl_%s' % key,
         mapping = dict(up=1, down=0),
     )
-    devices['asb_cyl_%s_ofs' % key] = device('nicos.devices.tango.AnalogOutput',
+    devices['asb_cyl_%s_ofs' % key] = device('nicos.devices.entangle.AnalogOutput',
         description = 'offset of %s ana shielding blocks lift' % key,
         tangodevice = tango_base + 'asb_cyl_%s_ofs' % key,
         fmtstr = '%.3f',
@@ -65,14 +78,14 @@ for key in ('left', 'right'):
 # ay (aty)
 # afh
 # afv
-for key in ('ath', 'agx', 'atx', 'aty', 'afv', 'afh', ): #'nutator'):
+for key in ('ath', 'agx', 'atx', 'aty', 'afv', 'afh', ):  #'nutator'):
     devices[key] = device('nicos.devices.generic.Axis',
         description = key,
-        motor = device('nicos.devices.tango.Motor',
+        motor = device('nicos.devices.entangle.Motor',
             tangodevice = tango_base + '%s_mot' % key,
             fmtstr = '%.4f',
         ),
-        coder = device('nicos.devices.tango.Sensor',
+        coder = device('nicos.devices.entangle.Sensor',
             tangodevice = tango_base + '%s_enc' % key,
             fmtstr = '%.4f',
         ),
@@ -80,3 +93,6 @@ for key in ('ath', 'agx', 'atx', 'aty', 'afv', 'afh', ): #'nutator'):
         precision = 0.001,
     )
 
+startupcode = '''
+att.motor.speed=0.4
+'''

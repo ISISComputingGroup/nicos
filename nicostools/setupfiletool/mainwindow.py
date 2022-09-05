@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,8 +33,8 @@ from os import path
 from nicos.guisupport.qt import QApplication, QFileDialog, QIcon, QLabel, \
     QMainWindow, QMessageBox, Qt, QTreeWidgetItem, uic
 
-from . import classparser, setupcontroller
 from ..utils import format_setup_text
+from . import classparser, setupcontroller
 from .devicewidget import DeviceWidget
 from .setupwidget import SetupWidget
 from .utilities.utilities import ItemTypes, getNicosDir, getResDir
@@ -61,6 +61,8 @@ class MainWindow(QMainWindow):
 
         self.labelHeader = QLabel('Select Setup or device...')
         self.labelHeader.setAlignment(Qt.AlignCenter)
+
+        self.treeWidget.headerItem().setText(0, facility)
 
         # signal/slot connections
         self.treeWidget.itemActivated.connect(self.loadSelection)
@@ -151,7 +153,7 @@ class MainWindow(QMainWindow):
 
     def newDeviceAddedSlot(self, deviceName, _classString):
         setupItem = self.getCurrentSetupItem()
-        if setupItem.setup.abspath not in self.setupWidgets.keys():
+        if setupItem.setup.abspath not in self.setupWidgets:
             self.loadSetup(setupItem.setup, setupItem.parent().text(0))
 
         uncombinedModule = _classString.split('.')
@@ -184,7 +186,7 @@ class MainWindow(QMainWindow):
             setupItem.setup.edited = True
 
     def deviceRemovedSlot(self, setupItem, deviceName):
-        if setupItem.setup.abspath not in self.setupWidgets.keys():
+        if setupItem.setup.abspath not in self.setupWidgets:
             self.loadSetup(setupItem.setup, setupItem.parent().text(0))
 
         try:
@@ -206,7 +208,7 @@ class MainWindow(QMainWindow):
             setupItem.setup.edited = True
 
     def deviceAddedSlot(self, setupItem, newDeviceName):
-        if setupItem.setup.abspath not in self.setupWidgets.keys():
+        if setupItem.setup.abspath not in self.setupWidgets:
             self.loadSetup(setupItem.setup, setupItem.parent().text(0))
         else:
             for deviceName, device in setupItem.setup.devices.items():
@@ -237,8 +239,8 @@ class MainWindow(QMainWindow):
         if setupItemsToBeSaved:
             reply = QMessageBox.question(self, 'Unsaved changes',
                                          'Do you want to save your changes?',
-                                         QMessageBox.Yes,
-                                         QMessageBox.No,
+                                         QMessageBox.Yes|
+                                         QMessageBox.No|
                                          QMessageBox.Cancel)
             if reply == QMessageBox.Yes:
                 self.saveSetups(setupItemsToBeSaved)

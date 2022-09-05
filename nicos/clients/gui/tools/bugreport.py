@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -122,7 +122,7 @@ class BugreportTool(DlgUtils, QDialog):
         buttonbox.rejected.connect(dlg.reject)
         layout.addWidget(buttonbox)
         dlg.setLayout(layout)
-        if dlg.exec_() == QDialog.Accepted:
+        if dlg.exec() == QDialog.Accepted:
             rm = redminelib.Redmine(TRACKER_URL, username=userBox.text(),
                                     password=passwdBox.text())
             try:

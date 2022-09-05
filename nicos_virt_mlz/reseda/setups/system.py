@@ -24,7 +24,7 @@ devices = dict(
         website = 'http://www.mlz-garching.de/reseda',
         operators = ['Technische Universität München (TUM)'],
     ),
-    Exp = device('nicos_mlz.reseda.devices.experiment.Experiment',
+    Exp = device('nicos_mlz.reseda.devices.Experiment',
         description = 'Experiment object',
         dataroot = 'data',
         sendmail = True,
@@ -50,7 +50,7 @@ devices = dict(
         path = 'log',
         warnlimits = (.5, None),
         minfree = 0.5,
-        lowlevel = True,
+        visibility = (),
     ),
     LiveImgSink = device('nicos.devices.datasinks.PNGLiveFileSink',
         description = 'Saves live image as .png every now and then',
@@ -69,6 +69,6 @@ if not Exp.proposal and Exp._mode != SIMULATION:
     else:
         NewExperiment(0, 'NICOS demo experiment',
                       localcontact='Nico Suser <nico.suser@frm2.tum.de>')
-        AddUser('H. Maier-Leibnitz <heinz.maier-leibnitz@frm2.tum.de')
+        AddUser('H. Maier-Leibnitz', 'heinz.maier-leibnitz@frm2.tum.de', 'MLZ')
         NewSample('Gd3CdB7')
 '''

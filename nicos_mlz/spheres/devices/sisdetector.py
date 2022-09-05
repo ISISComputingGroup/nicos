@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,8 +33,8 @@ from nicos.core import FINAL, INTERMEDIATE, LIVE, NicosError, Param, \
     UsageError, oneof, status
 from nicos.core.constants import SIMULATION
 from nicos.core.params import Attach, Value, listof
+from nicos.devices.entangle import BaseImageChannel, NamedDigitalOutput
 from nicos.devices.generic.detector import Detector
-from nicos.devices.tango import BaseImageChannel, NamedDigitalOutput
 
 from nicos_mlz.spheres.devices.doppler import ELASTIC, INELASTIC
 

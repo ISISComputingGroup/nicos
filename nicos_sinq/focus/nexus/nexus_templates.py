@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -149,8 +149,7 @@ det_common = {
     "time_binning": ConfArray("hm_tof_array",
                               units=NXAttribute("us", "string"),
                               axis=NXAttribute(2, "int32"),
-                              scale=.1,
-                              ),
+                              scale=.1),
 }
 
 middlebank = {

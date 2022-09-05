@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -31,8 +31,8 @@ from nicos.guisupport.qt import QHBoxLayout, QWidget
 from nicos.guisupport.widget import NicosWidget
 
 try:
-    import mantid.simpleapi as simpleapi
     import mantidqtpython as mpy
+    from mantid import simpleapi
 except ImportError:
     simpleapi = None
     mpy = None

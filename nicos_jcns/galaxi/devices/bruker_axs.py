@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,7 @@
 """GALAXI Bruker AXS control"""
 
 from nicos.core import Waitable, status
-from nicos.devices.tango import NamedDigitalInput, PartialDigitalInput
+from nicos.devices.entangle import NamedDigitalInput, PartialDigitalInput
 
 
 class TubeConditioner(NamedDigitalInput, Waitable):
@@ -74,7 +74,7 @@ class WaterCooler(PartialDigitalInput):
         value = self._dev.value
         reason_dict = {0: 'pressure', 1: 'temperature', 2: 'flow rate',
                        4: 'conductance', 5: 'water level'}
-        reason = ', '.join(reason_dict[bit] for bit in reason_dict
+        reason = ', '.join(reason for bit, reason in reason_dict.items()
                            if not (value >> bit) & 1)
         if not reason:
             return status.UNKNOWN, 'error indicating bit set by mistake?'

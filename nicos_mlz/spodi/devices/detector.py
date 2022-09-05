@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -249,17 +249,15 @@ class Detector(MeasureSequencer):
     def _set_resosteps(self, value):
         # TODO: shape should be (y, x) not (x, y)
         image = self._attached_detector._attached_images[0]
-        if hasattr(image, 'size'):
+        if hasattr(image, 'size') and len(image.size) > 1:
             height = image.size[1]
-        elif hasattr(image, 'sizes'):
-            height = image.sizes[1]
         else:
             height = 256
         shape = (value * self.numinputs, height)
 
         self._step_size = self.range / value
         if not self._arraydesc:
-            self._arraydesc = ArrayDesc('data', shape=shape, dtype='<u4')
+            self._arraydesc = ArrayDesc(self.name, shape=shape, dtype='<u4')
             self._array_data = np.zeros(shape, dtype='<u4', order='F')
         else:
             self._arraydesc.shape = shape

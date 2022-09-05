@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,6 +23,9 @@
 # *****************************************************************************
 
 """VStressi detector image based on McSTAS simulation."""
+
+import re
+from math import log10
 
 from nicos.core import Attach, Override, Readable
 from nicos.devices.mcstas import McStasSimulation as BaseSimulation
@@ -58,7 +61,16 @@ class McStasSimulation(BaseSimulation):
     }
 
     def _dev(self, dev, scale=1):
-        return dev.fmtstr % (dev.read(0) / scale)
+        fmtstr = dev.fmtstr
+        if scale > 1:
+            sf = int(log10(scale))
+            expr = re.compile(r'(?<=\.)\d+')
+            nums = re.findall(expr, fmtstr)
+            if nums:
+                num = int(nums[0]) + sf
+                m = re.search(expr, fmtstr)
+                fmtstr = '%s%d%s' % (fmtstr[:m.start()], num, fmtstr[m.end()])
+        return fmtstr % (dev.read(0) / scale)
 
     def _prepare_params(self):
         return [

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,7 @@ Device related to the shutter at SPHERES
 from nicos.core import status
 from nicos.core.mixins import HasTimeout
 from nicos.core.params import Attach, Param
-from nicos.devices.tango import NamedDigitalInput, NamedDigitalOutput
+from nicos.devices.entangle import NamedDigitalInput, NamedDigitalOutput
 
 
 class ShutterCluster(HasTimeout, NamedDigitalOutput):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,7 @@
 from nicos.core import HasOffset, Param, Value
 from nicos.core.device import Moveable
 from nicos.core.params import Attach, Override
-from nicos.devices.tango import Motor as TangoMotor
+from nicos.devices.entangle import Motor as TangoMotor
 
 
 class InvertableMotor(HasOffset, TangoMotor):
@@ -65,10 +65,9 @@ class InvertableMotor(HasOffset, TangoMotor):
                   for l in TangoMotor.doReadAbslimits(self)]
         return min(limits), max(limits)
 
-    def doSetPosition(self, value):
-        return TangoMotor.doSetPosition(self,
-                                        self._invertPosition(value +
-                                                             self.offset))
+    def doSetPosition(self, pos):
+        return TangoMotor.doSetPosition(
+            self, self._invertPosition(pos + self.offset))
 
 
 class MasterSlaveMotor(Moveable):
@@ -98,9 +97,9 @@ class MasterSlaveMotor(Moveable):
         return [self._attached_master.read(maxage),
                 self._attached_slave.read(maxage)]
 
-    def doStart(self, pos):
-        self._attached_master.move(pos)
-        self._attached_slave.move(self._slavePos(pos))
+    def doStart(self, target):
+        self._attached_master.move(target)
+        self._attached_slave.move(self._slavePos(target))
 
     def doIsAllowed(self, pos):
         faultmsgs = []

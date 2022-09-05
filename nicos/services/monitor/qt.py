@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -146,8 +146,8 @@ class BlockBox(QFrame):
             mps = self.pos()
             msz = self.size()
             lsz = self._label.size()
-            self._label.move(mps.x() + 0.5*(msz.width() - lsz.width()),
-                             mps.y() - 0.5*lsz.height())
+            self._label.move(round(mps.x() + 0.5*(msz.width() - lsz.width())),
+                             round(mps.y() - 0.5*lsz.height()))
 
     def enableDisplay(self, layout, isvis):
         QFrame.setVisible(self, isvis)
@@ -170,7 +170,7 @@ class Monitor(BaseMonitor):
     _master = None
 
     def mainLoop(self):
-        self._qtapp.exec_()
+        self._qtapp.exec()
 
     def closeGui(self):
         if self._master:
@@ -242,7 +242,7 @@ class Monitor(BaseMonitor):
                                            QSizePolicy.Fixed)
             self._master.updateTitle.connect(self._titlelabel.setText)
             masterlayout.addWidget(self._titlelabel)
-            masterlayout.addSpacing(0.2 * tiheight)
+            masterlayout.addSpacing(round(0.2 * tiheight))
         else:
             self._titlelabel = None
 
@@ -352,7 +352,7 @@ class Monitor(BaseMonitor):
                     blocklayout_outer = QHBoxLayout()
                     blocklayout_outer.addStretch()
                     blocklayout = QVBoxLayout()
-                    blocklayout.addSpacing(0.5 * blheight)
+                    blocklayout.addSpacing(round(0.5 * blheight))
                     blockbox = BlockBox(displayframe, block._title, blockfont,
                                         block._options)
                     for row in block:
@@ -379,7 +379,7 @@ class Monitor(BaseMonitor):
                     if blockbox.setups:
                         self._onlyblocks.append((blocklayout_outer, blockbox))
                         blockbox.setHidden(True)  # start hidden
-                    blocklayout.addSpacing(0.3 * blheight)
+                    blocklayout.addSpacing(round(0.3 * blheight))
                     blockbox.setLayout(blocklayout)
                     blocklayout_outer.addWidget(blockbox)
                     blocklayout_outer.addStretch()
@@ -409,8 +409,8 @@ class Monitor(BaseMonitor):
     def newWidgetInfo(self, info):
         self._statuslabel.setText(info)
 
-    def updateTitle(self, title):
-        self._master.updateTitle.emit(title)
+    def updateTitle(self, text):
+        self._master.updateTitle.emit(text)
 
     def switchWarnPanel(self, on):
         self._master.switchWarnPanel.emit(on)

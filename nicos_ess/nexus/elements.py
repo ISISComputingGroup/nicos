@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,7 @@
 # *****************************************************************************
 
 from nicos import session
-from nicos.core import ConfigurationError, NicosError
+from nicos.core import ConfigurationError
 
 from nicos_ess.nexus.placeholder import DeviceValuePlaceholder, PlaceholderBase
 
@@ -106,9 +106,11 @@ class NXDataset(NexusElementBase):
             return {}
 
         root_dict = {
-            "type": "dataset",
-            "name": name,
-            "values": self.value,
+            "module": "dataset",
+            "config": {
+                "name": name,
+                "values": self.value,
+            }
         }
 
         # For lists and strings type is required
@@ -127,19 +129,8 @@ class NXDataset(NexusElementBase):
                 self.dtype = 'string'
 
         # Add the 'dtype' if specified
-        root_dict['dataset'] = {}
         if self.dtype:
-            root_dict['dataset']["type"] = self.dtype
-
-            # If the type is string/list then the size is to be written
-            if self.dtype == "string":
-                root_dict['dataset']['string_size'] = len(self.value) + 1
-
-        if isinstance(self.value, list):
-            # Only 1D array supported by NICOS
-            root_dict['dataset']['size'] = [len(self.value)]
-        else:
-            root_dict['dataset']['size'] = [1]
+            root_dict['config']['dtype'] = self.dtype
 
         # Add the attributes if present
         if self.attrs:
@@ -151,8 +142,7 @@ class NXDataset(NexusElementBase):
                     for attr_structure in attr.structure(attr_name, metainfo):
                         if attr_structure:
                             attr_dict.update(attr_structure)
-
-            root_dict["attributes"] = attr_dict
+            root_dict['attributes'] = attr_dict
 
         return [root_dict]
 
@@ -269,7 +259,10 @@ class KafkaStream(NexusElementBase):
             "stream": {k: v for k, v in self.stream.items() if v}
         }
 
-        # Add the attributes
+        self._add_attributes(metainfo, stream_dict)
+        return [stream_dict]
+
+    def _add_attributes(self, metainfo, stream_dict):
         if self.stream_attrs:
             attr_dict = {}
             for attr_name, attr in self.stream_attrs.items():
@@ -279,7 +272,6 @@ class KafkaStream(NexusElementBase):
                             attr_dict.update(attr_structure)
 
             stream_dict["attributes"] = attr_dict
-        return [stream_dict]
 
 
 class CacheStream(DeviceValuePlaceholder, KafkaStream):
@@ -333,94 +325,9 @@ class CacheStream(DeviceValuePlaceholder, KafkaStream):
         return struct
 
 
-class DeviceStream(DeviceValuePlaceholder, KafkaStream):
-    """ Streams device parameter using data of associated PVs present in
-    the form of Kafka messages. Note, to use this the forwarder must be
-    forwarding the PVs to the topics. Internally, PV names are fetched
-    from the device and corresponding topic and schema data is fetched
-    from the Forwarder Device.
-    """
-
-    def __init__(self, device, parameter='value', separate_log=True, **attr):
-        KafkaStream.__init__(self, **attr)
-        DeviceValuePlaceholder.__init__(self, device, parameter)
-        self.separate_log = separate_log
-
-    def structure(self, name, metainfo):
-        device = session.getDevice(self.device)
-        parameter = self.parameter
-
-        if parameter == 'value':
-            parameter = 'readpv'
-
-        # Fetch the PV name for the parameter. This will fail if the
-        # parameter name is not mapped to the PV in class
-        source = device._get_pv_name(parameter)
-
-        # Get the forwarded topic and schema for the PV
-        try:
-            forwarder = session.getDevice('KafkaForwarder')
-        except ConfigurationError:
-            session.log.warning("FORWARDER not found!! Can't track device "
-                                "%s..", device.name)
-            return
-
-        if not forwarder.is_process_running():
-            session.log.warning('Forwarder is not running. Correct values will'
-                                ' not be written for device %s.', device.name)
-
-        topicandschema = forwarder.pv_forwarding_info(source)
-        if not topicandschema:
-            raise NicosError('Info not found for device %s and its '
-                             'property: %s' % (device.name, parameter))
-
-        # Infer the type, count of PV
-        dbr_type = device._pvs[parameter].type
-        count = device._pvs[parameter].count
-        if '_' in dbr_type:
-            dbr_type = dbr_type.split('_')[-1]
-
-        if count > 1:
-            self.set('array_size', count)
-
-        self.set('type', dbr_type)
-        self.set('source', source)
-        self.set('topic', topicandschema[0])
-        self.set('writer_module', topicandschema[1])
-        self.set('broker', forwarder.brokers[0])
-
-        # Add the attributes
-        self.stream_attrs["nicos_name"] = NXAttribute(self.device)
-        self.stream_attrs["nicos_param"] = NXAttribute(self.parameter)
-        self.stream_attrs["source_name"] = NXAttribute(source)
-
-        info = self.fetch_info(metainfo)
-        if info:
-            self.stream_attrs["units"] = NXAttribute(info[2])
-
-        if self.separate_log:
-            self.store_latest_into(name)
-            gname = name + '_log'
-        else:
-            gname = name
-
-        group_dict = NXGroup('NXlog').structure(gname, metainfo)[0]
-        stream_dicts = KafkaStream.structure(self, name, metainfo)
-        group_dict["children"] += stream_dicts
-
-        struct = [group_dict]
-
-        if self.separate_log:
-            link = NXLink(gname + '/' + name).structure(name, metainfo)
-            struct += link
-
-        return struct
-
-
 class EventStream(KafkaStream):
     """ Stream that provides event data from Kafka
     """
-
     def __init__(self, topic, source, mod='ev42', dtype='uint64',
                  chunk_size=None, **attr):
         KafkaStream.__init__(self, **attr)
@@ -430,6 +337,21 @@ class EventStream(KafkaStream):
         self.set('type', dtype)
         if chunk_size:
             self.set('chunk_size', chunk_size)
+
+    def structure(self, name, metainfo):
+        stream_dict = {
+            'module': self.stream['writer_module'],
+            'config': {
+                'source': self.stream['source'],
+                'topic': self.stream['topic'],
+                'dtype': self.stream['type']
+            }
+        }
+        if self.stream['chunk_size']:
+            stream_dict['config']['chunk_size'] = self.stream['chunk_size']
+
+        self._add_attributes(metainfo, stream_dict)
+        return [stream_dict]
 
 
 class DeviceAttribute(NXAttribute):

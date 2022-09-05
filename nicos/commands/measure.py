@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -27,7 +27,7 @@
 
 from nicos import session
 from nicos.commands import helparglist, parallel_safe, usercommand
-from nicos.core.acquire import Average, CountResult, MinMax, acquire, \
+from nicos.core.acquire import Average, CountResult, MinMax, StdDev, acquire, \
     read_environment, stop_acquire_thread
 from nicos.core.device import Measurable, SubscanMeasurable
 from nicos.core.errors import NicosError, UsageError
@@ -38,7 +38,7 @@ __all__ = [
     'SetDetectors', 'AddDetector', 'ListDetectors',
     'SetEnvironment', 'AddEnvironment', 'ListEnvironment',
     'ListDatasinks',
-    'avg', 'minmax',
+    'avg', 'minmax', 'stddev',
 ]
 
 
@@ -91,7 +91,8 @@ def inner_count(detectors, preset, temporary=False, threaded=False):
     if not session.experiment.forcescandata:
         for filename in point.filenames:
             msg.append('file = %s' % filename)
-        session.log.info('count: %s', ', '.join(msg))
+        if msg:
+            session.log.info('count: %s', ', '.join(msg))
 
     return result
 
@@ -128,7 +129,7 @@ def _count(*detlist, **preset):
     names = set(preset)
     for det in detectors:
         names.difference_update(det.presetInfo())
-    if names:
+    if names and detectors:
         session.log.warning('these preset keys were not recognized by any of '
                             'the detectors: %s -- detectors are %s',
                             ', '.join(names), ', '.join(map(str, detectors)))
@@ -297,7 +298,7 @@ def ListDatasinks():
             for ds in session.datasinks
         ]
         printTable(('name', 'used for', 'active for detectors'),
-                    items, session.log.info)
+                   items, session.log.info)
     else:
         session.log.info('At the moment no data sinks are set.')
 
@@ -335,3 +336,22 @@ def minmax(dev):
     maximum of the device "T" over the counting period.
     """
     return MinMax(dev)
+
+
+@usercommand
+def stddev(dev):
+    """Create a "statistics device" that calculates the scan-point standard
+    deviation.
+
+    This pseudo-device can be used in the sample environment in order to
+    calculate the standard deviation of a device over the whole scan point,
+    as opposed to the value at the end of the scan point.
+
+    For example:
+
+    >>> SetEnvironment(stddev(T), minmax(T))
+
+    would record for every point in a scan the standard deviation and the
+    minimum and maximum of the device "T" over the counting period.
+    """
+    return StdDev(dev)

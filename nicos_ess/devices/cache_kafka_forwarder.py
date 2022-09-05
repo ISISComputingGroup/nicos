@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -150,7 +150,7 @@ class CacheKafkaForwarder(ForwarderBase, Device):
         dev_name = key[0:key.index('/')]
         if not self._checkKey(key) or not self._checkDevice(dev_name):
             return
-        self.log.debug('_putChange %s %s %s', key, value, time)
+        self.log.debug('_putChange %s %s %s', key, value, timestamp)
 
         with self._lock:
             if key.endswith('value'):

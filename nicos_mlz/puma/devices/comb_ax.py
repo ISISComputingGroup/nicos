@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -58,11 +58,11 @@ class CombAxis(Axis):
         self._fixpos = self.read(0) + self._attached_fix_ax.read(0) if val \
             else None
 
-    def doIsAllowed(self, pos):
-        mainax = Axis.doIsAllowed(self, pos)
+    def doIsAllowed(self, target):
+        mainax = Axis.doIsAllowed(self, target)
         if not self.iscomb:
             return mainax
-        relpos = self._fixpos - pos
+        relpos = self._fixpos - target
         fixax = self._attached_fix_ax.isAllowed(relpos)
         if mainax[0] and fixax[0]:
             return True, 'Ok'

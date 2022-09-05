@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@
 
 import sys
 from datetime import timedelta
-from time import time as currenttime
+from time import monotonic, time as currenttime
 
 from nicos import session
 from nicos.core import SIMULATION, Attach, Device, DeviceMixinBase, \
@@ -197,14 +197,14 @@ class SeqSleep(SequenceItem):
         if self.duration > 3:
             session.beginActionScope(self.reason or 'Sleeping %s (H:M:S)' %
                                      timedelta(seconds=self.duration))
-        self.endtime = currenttime() + self.duration
+        self.endtime = monotonic() + self.duration
 
     def isCompleted(self):
         if session.mode == SIMULATION:
             return True
-        if not self.stopflag and self.endtime > currenttime():
+        if not self.stopflag and self.endtime > monotonic():
             # arbitrary choice of max 5s
-            session.delay(min(5, self.endtime - currenttime()))
+            session.delay(min(5, self.endtime - monotonic()))
             return False
         if self.duration > 3:
             session.endActionScope()
@@ -217,7 +217,7 @@ class SeqSleep(SequenceItem):
         if self.endtime:
             # already started, __repr__ is used for updating status strings.
             return str(timedelta(
-                seconds=round(self.endtime - currenttime())))
+                seconds=round(self.endtime - monotonic())))
         else:
             return '%g s' % self.duration
 
@@ -390,7 +390,7 @@ class SequencerMixin(DeviceMixinBase):
                 # wait until all actions are finished
                 waiters = set(step)
                 while waiters:
-                    t = currenttime()
+                    t = monotonic()
                     self._set_seq_status(status.BUSY, 'waiting: ' +
                                          '; '.join(map(repr, waiters)))
                     for action in list(waiters):
@@ -414,7 +414,7 @@ class SequencerMixin(DeviceMixinBase):
                             dev.stop()
                         break
                     # 0.1s - code execution time
-                    t = .1 - (currenttime() - t)
+                    t = .1 - (monotonic() - t)
                     if waiters and t > 0:
                         session.delay(t)
 
@@ -455,7 +455,7 @@ class SequencerMixin(DeviceMixinBase):
         except NicosError as err:
             self._set_seq_status(status.ERROR, 'error %s upon ' % err +
                                  self._seq_status[1])
-            self.log.error(self._seq_status[1], exc=1)
+            self.log.debug(self._seq_status[1], exc=1)
         except Exception as err:
             self.log.error('%s', err, exc=1)
 
@@ -635,6 +635,10 @@ class LockedDevice(BaseSequencer):
                            default=None, type=none_or(anytype)),
     }
 
+    parameter_overrides = {
+        'unit': Override(volatile=True),
+    }
+
     def _generateSequence(self, target):
         device = self._attached_device
         lock = self._attached_lock
@@ -673,6 +677,9 @@ class LockedDevice(BaseSequencer):
     def doIsAllowed(self, target):
         return self._attached_device.isAllowed(target)
 
+    def doReadUnit(self):
+        return self._attached_device.unit
+
 
 class MeasureSequencer(SequencerMixin, Measurable):
     """Measurable performing a sequence necessary for the measurement.
@@ -705,7 +712,8 @@ class MeasureSequencer(SequencerMixin, Measurable):
                 self._seq_thread.join()
                 self._seq_thread = None
             else:
-                raise NicosError(self, 'Cannot start device, it is still busy')
+                raise NicosError(self, 'Cannot prepare device, it is still '
+                                 'busy')
 
         if self._seq_status[0] > status.OK and not self._seq_was_stopped:
             self.log.warning('resetting internal state %s',
@@ -718,6 +726,13 @@ class MeasureSequencer(SequencerMixin, Measurable):
         Just calls ``self._startSequence(self._generateSequence())``
 
         """
+        if self._seq_is_running():
+            if self._mode == SIMULATION:
+                self._seq_thread.join()
+                self._seq_thread = None
+            else:
+                raise NicosError(self, 'Cannot start device, sequence is still '
+                                 'running (at %s)!' % self._seq_status[1])
         self._startSequence(self._generateSequence())
 
     def _generateSequence(self):

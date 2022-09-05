@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,9 +24,9 @@
 
 """Analysator stuff for PANDA"""
 
-from nicos.core import Attach, Param, oneofdict, status
+from nicos.core import Attach, Moveable, Param, oneofdict, status
+from nicos.devices.entangle import AnalogOutput
 from nicos.devices.generic.axis import Axis
-from nicos.devices.tango import AnalogOutput
 
 ACTIONMODES = {0: 'alldown', 1: 'default', 2: 'dooropen', 3: 'service'}
 R_ACTIONMODES = {'alldown': 0, 'default': 1, 'dooropen': 2, 'service': 3}
@@ -70,7 +70,7 @@ class AnaBlocks(AnalogOutput):
 
 class ATT_Axis(Axis):
     attached_devices = {
-        'anablocks': Attach('AnaBlocks device', AnaBlocks),
+        'anablocks': Attach('AnaBlocks device', Moveable),
     }
 
     def _duringMoveAction(self, position):

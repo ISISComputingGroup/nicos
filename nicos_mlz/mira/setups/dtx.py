@@ -4,13 +4,13 @@ group = 'optional'
 tango_base = 'tango://miractrl.mira.frm2:10000/mira/'
 
 devices = dict(
-    # co_dtx = device('nicos.devices.tango.Sensor',
-    #     lowlevel = True,
+    # co_dtx = device('nicos.devices.entangle.Sensor',
+    #     visibility = (),
     #     tangodevice = tango_base + 'detector/dtx_enc',
     #     unit = 'mm',
     # ),
-    mo_dtx = device('nicos.devices.tango.Motor',
-        lowlevel = True,
+    mo_dtx = device('nicos.devices.entangle.Motor',
+        visibility = (),
         tangodevice = tango_base + 'detector/dtx_mot',
         unit = 'mm',
         # precision = 0.1,

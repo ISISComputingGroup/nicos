@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -53,7 +53,7 @@ class FakeEpicsMotor(EpicsMotor):
     }
 
     def doPreinit(self, mode):
-        self._record_fields = self._get_record_fields()
+        pass
 
     def doInit(self, mode):
         pass
@@ -80,10 +80,10 @@ class FakeEpicsMotor(EpicsMotor):
 
 
 class DerivedEpicsMotor(FakeEpicsMotor):
-    def _get_record_fields(self):
-        record_fields = FakeEpicsMotor._get_record_fields(self)
-        record_fields.update({'extra_field': 'XTR'})
-        return record_fields
+    def doPreinit(self, mode):
+        self._record_fields = dict(FakeEpicsMotor._record_fields)
+        self._record_fields.update({'extra_field': 'XTR'})
+
 
 class TestEpicsMotor:
     motor = None
@@ -164,9 +164,7 @@ class TestEpicsMotor:
                 high + new_offset) == self.motor.userlimits
 
 
-
 class TestDerivedEpicsMotor:
-
     @pytest.fixture(autouse=True)
     def prepare(self, session):
         self.session = session

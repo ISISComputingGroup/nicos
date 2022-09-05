@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -35,8 +35,8 @@ class SScan(Cmdlet):
     name = "Step Scan (start, step, end)"
     category = "Scan"
 
-    def __init__(self, parent, client):
-        Cmdlet.__init__(self, parent, client,
+    def __init__(self, parent, client, options):
+        Cmdlet.__init__(self, parent, client, options,
                         findResource('nicos_mlz/maria/gui/sscan.ui'))
         self.device.addItems(self._getDeviceList())
         self.on_device_change(self.device.currentText())
@@ -119,8 +119,8 @@ class KScan(Cmdlet):
     name = 'Kinematic Scan'
     category = 'Scan'
 
-    def __init__(self, parent, client):
-        Cmdlet.__init__(self, parent, client,
+    def __init__(self, parent, client, options):
+        Cmdlet.__init__(self, parent, client, options,
                         findResource('nicos_mlz/maria/gui/kscan.ui'))
         self.device.addItems(self._getDeviceList('hasattr(d, "speed")'))
         self.on_device_change(self.device.currentText())

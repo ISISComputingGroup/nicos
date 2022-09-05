@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,6 +18,15 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
+
+from nicos_mlz.toftof.devices.chopper import CRC, Controller, Disc, Ratio, \
+    SlitType, Speed, SpeedReadout, VirtualController, Wavelength
+from nicos_mlz.toftof.devices.detector import Detector, TOFTOFChannel
+from nicos_mlz.toftof.devices.experiment import Experiment
+from nicos_mlz.toftof.devices.neutronguide import Switcher
+from nicos_mlz.toftof.devices.safety import SafetyInputs, Shutter
+from nicos_mlz.toftof.devices.toni import DelayBox, LVPower, ToniBus
+from nicos_mlz.toftof.devices.virtual import VirtualImage

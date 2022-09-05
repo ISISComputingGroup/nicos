@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -26,9 +26,7 @@
 NICOS value plot widget.
 """
 
-import functools
 import itertools
-import operator
 from time import localtime, strftime, time as currenttime
 
 import gr
@@ -52,7 +50,7 @@ from nicos.guisupport.qt import QHBoxLayout, QSize, QTimer, QWidget, pyqtSignal
 from nicos.guisupport.qtgr import InteractiveGRWidget, LegendEvent, MouseEvent
 from nicos.guisupport.timeseries import TimeSeries, buildTickDistAndSubTicks
 from nicos.guisupport.widget import NicosWidget, PropDef
-from nicos.utils import extractKeyAndIndex
+from nicos.utils import parseKeyExpression
 
 DATEFMT = '%Y-%m-%d'
 TIMEFMT = '%H:%M:%S'
@@ -183,7 +181,7 @@ class NicosPlotAxes(PlotAxes):
 
     def drawGR(self):
         lwidth = gr.inqlinewidth()
-        gr.setlinewidth(0.)
+        gr.setlinewidth(0.1)
         PlotAxes.drawGR(self)
         gr.setlinewidth(lwidth)
 
@@ -250,7 +248,7 @@ To access items of a sequence, use subscript notation, e.g. T.userlimits[0]
     def __init__(self, parent, designMode=False):
         self.ncurves = 0
         self.ctimers = {}
-        self.keyindices = {}
+        self.keyexprs = {}
         self.plotcurves = {}
         self.series = {}
         self.legendobj = None
@@ -307,8 +305,8 @@ To access items of a sequence, use subscript notation, e.g. T.userlimits[0]
             self._showsecs = value < 300
         elif pname in ('width', 'height'):
             self.setMinimumSize(
-                QSize(self._scale * (self.props['width'] + .5),
-                      self._scale * (self.props['height'] + .5)))
+                QSize(round(self._scale * (self.props['width'] + .5)),
+                      round(self._scale * (self.props['height'] + .5))))
         elif pname == 'legend':
             self.plot.setLegend(value)
         NicosWidget.propertyUpdated(self, pname, value)
@@ -338,48 +336,41 @@ To access items of a sequence, use subscript notation, e.g. T.userlimits[0]
         self.ctimers[curve].start(5000)
 
     def on_keyChange(self, key, value, time, expired):
-        if key not in self.keyindices or value is None:
+        if key not in self.keyexprs or value is None:
             return
-        for index in self.keyindices[key]:
-            series = self.series[key, index]
+        for expr in self.keyexprs[key]:
+            series = self.series[key, expr]
             # restrict time of value to 1 minute past at
             # maximum, so that it doesn't get culled by the windowing
             time = max(time, currenttime() - 60)
-            if index:
-                try:
-                    fvalue = functools.reduce(operator.getitem, index, value)
-                    series.add_value(time, fvalue)
-                except Exception:
-                    pass
-            else:
-                series.add_value(time, value)
+            series.addValue(time, value)
 
-    def addcurve(self, key, index, title, scale, offset):
-        series = TimeSeries(key, self.props['plotinterval'], scale, offset,
+    def addcurve(self, key, expr, title):
+        series = TimeSeries(title, self.props['plotinterval'], expr,
                             self.props['plotwindow'], self)
-        series.init_empty()
+        series.initEmpty()
         curve = PlotCurve([currenttime()], [0], legend=title)
         self.plotcurves[series] = curve
         self.ncurves += 1
         self.curves.append(curve)
         self.axes.addCurves(curve)
-        self.series[key, index] = series
+        self.series[key, expr] = series
         self.widget.update()
 
         # record the current value at least every 5 seconds, to avoid curves
         # not updating if the value doesn't change
         def update():
-            series.synthesize_value()
+            series.synthesizeValue()
         self.ctimers[curve] = QTimer(singleShot=True)
         self.ctimers[curve].timeout.connect(update)
 
     def registerKeys(self):
-        for key, name in itertools.zip_longest(self.props['devices'],
-                                               self.props['names']):
-            if name is None:
-                name = key
-            key, index, scale, offset = extractKeyAndIndex(key)
+        for keyexpr, title in itertools.zip_longest(self.props['devices'],
+                                                    self.props['names']):
+            if title is None:
+                title = keyexpr
+            key, expr, _ = parseKeyExpression(keyexpr)
             keyid = self._source.register(self, key)
-            if (keyid, index) not in self.series:
-                self.keyindices.setdefault(keyid, []).append(index)
-                self.addcurve(keyid, index, name, scale, offset)
+            if (keyid, expr) not in self.series:
+                self.keyexprs.setdefault(keyid, []).append(expr)
+                self.addcurve(keyid, expr, title)

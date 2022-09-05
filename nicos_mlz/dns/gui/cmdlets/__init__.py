@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Thomas Mueller <t.mueller@fz-juelich.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -34,8 +34,8 @@ class DNSScan(Cmdlet):
     category = ''
     uiName = ''
 
-    def __init__(self, parent, client):
-        Cmdlet.__init__(self, parent, client, self.uiName)
+    def __init__(self, parent, client, options):
+        Cmdlet.__init__(self, parent, client, options, self.uiName)
         for spin in [self.bankpositions, self.lowest_2theta, self.MonpMin,
                      self.SF, self.NSF]:
             spin.valueChanged.connect(self.changed)
@@ -221,12 +221,8 @@ class DNSScan(Cmdlet):
         # if only SF or only NSF or empty list, use t= instead of both
         sf_state = '_sf' in fieldstring
         nsf_state = '_nsf' in fieldstring
-        timestring = '{}sf={}{}, {}nsf={}{}'.format(values['norm'],
-                                                    values['SF'],
-                                                    mpm_string,
-                                                    values['norm'],
-                                                    values['NSF'],
-                                                    mpm_string)
+        timestring = '{norm}sf={SF}{mpm}, {norm}nsf={NSF}{mpm}'.format(
+            **values, mpm=mpm_string)
         if ("'off'" in active_fields or
                 not active_fields or
                 (nsf_state and not sf_state)):
@@ -243,8 +239,8 @@ class PowderScan(DNSScan):
     category = 'DNS'
     uiName = findResource('nicos_mlz/dns/gui/cmdlets/powder_scan.ui')
 
-    def __init__(self, parent, client):
-        DNSScan.__init__(self, parent, client)
+    def __init__(self, parent, client, options):
+        DNSScan.__init__(self, parent, client, options)
         self.omega_start.valueChanged.connect(self.changed)
 
     def isValid(self):
@@ -270,14 +266,10 @@ class PowderScan(DNSScan):
         command, values, increment, fieldstring, timestring = \
             self.pregenerate(mode)
         command += ('scan([det_rot, sample_rot], '
-                    '[{}, {}], [{}, {}], {}, {}{})').format(
-                        values['lowest_2theta'],
-                        values['omega_start'],
-                        increment,
-                        increment,
-                        values['bankpositions'],
-                        fieldstring,
-                        timestring)
+                    '[{lowest_2theta}, {omega_start}], '
+                    '[{increment}, {increment}], {bankpositions}, {fs}{ts})'
+                    ).format(**values, fs=fieldstring, ts=timestring,
+                             increment=increment)
         if values['close_after']:
             command += "\nmaw(expshutter, 'closed')"
         return command
@@ -288,8 +280,8 @@ class SingleCrystalScan(DNSScan):
     category = 'DNS'
     uiName = findResource('nicos_mlz/dns/gui/cmdlets/sc_scan.ui')
 
-    def __init__(self, parent, client):
-        DNSScan. __init__(self, parent, client)
+    def __init__(self, parent, client, options):
+        DNSScan. __init__(self, parent, client, options)
         self.update_omega_end()
         self.omega_step.valueChanged.connect(self.update_omega_end)
         self.omega_start.valueChanged.connect(self.update_omega_end)
@@ -357,8 +349,8 @@ class Shutter(Cmdlet):
     name = 'Shutter'
     category = 'DNS'
 
-    def __init__(self, parent, client):
-        Cmdlet.__init__(self, parent, client,
+    def __init__(self, parent, client, options):
+        Cmdlet.__init__(self, parent, client, options,
                         findResource('nicos_mlz/dns/gui/cmdlets/shutter.ui'))
         self.shutter.currentIndexChanged.connect(self.changed)
 
@@ -375,8 +367,8 @@ class SetTemperature(Cmdlet):
     name = 'Set Temperature'
     category = 'DNS'
 
-    def __init__(self, parent, client):
-        Cmdlet.__init__(self, parent, client,
+    def __init__(self, parent, client, options):
+        Cmdlet.__init__(self, parent, client, options,
                         findResource('nicos_mlz/dns/gui/cmdlets/temperature.ui'))
         self.temperature.valueChanged.connect(self.changed)
         self.waitfor.toggled.connect(self.changed)
@@ -403,8 +395,8 @@ class SlitScan(Cmdlet):
     category = 'DNS'
     slits = ['y_lower', 'y_upper', 'x_left', 'x_right']
 
-    def __init__(self, parent, client):
-        Cmdlet.__init__(self, parent, client,
+    def __init__(self, parent, client, options):
+        Cmdlet.__init__(self, parent, client, options,
                         findResource('nicos_mlz/dns/gui/cmdlets/slit_scan.ui'))
         for box in self.slits + ['open_at_begin']:
             getattr(self, 'cB_' + box).stateChanged.connect(self.changed)

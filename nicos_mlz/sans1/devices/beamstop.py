@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,18 +28,19 @@ import numpy as np
 
 from nicos import session
 from nicos.core import ADMIN, SIMULATION, SLAVE, Attach, Moveable, Override, \
-    Param, PositionError, UsageError, dictof, floatrange, limits, oneof, \
-    requires, status, tupleof
+    Param, PositionError, UsageError, dictof, floatrange, intrange, limits, \
+    oneof, requires, status, tupleof
+from nicos.devices.entangle import Sensor
 from nicos.devices.generic import Axis
 from nicos.devices.generic.sequence import SeqCall, SeqDev as NicosSeqDev, \
     SequencerMixin
-from nicos.devices.tango import Sensor
 
 
 class FunnySensor(Sensor):
     """Sensor which sometimes returns senseless values"""
     parameters = {
-        'limits': Param('range of sensible values', type=limits, settable=True),
+        'limits': Param('range of sensible values',
+                        type=limits, settable=True),
     }
 
     def doRead(self, maxage=0):
@@ -50,8 +51,8 @@ class FunnySensor(Sensor):
             if self.limits[0] <= value <= self.limits[1]:
                 return value
             # at least warn (every retry!)
-            self.log.warning('Sensor value %s outside sensible range [%s..%s]' %
-                             (value, self.limits[0], self.limits[1]))
+            self.log.warning('Sensor value %s outside sensible range [%s..%s]',
+                             value, self.limits[0], self.limits[1])
         # 10 times no good value -> error
         raise PositionError('Sensor value %s outside sensible range [%s..%s]' %
                             (value, self.limits[0], self.limits[1]))
@@ -63,16 +64,16 @@ class BeamStopAxis(Axis):
     parameter_overrides = {
         'fixed': Override(type=oneof(''), default=''),
         'offset': Override(type=oneof(0.0), default=0.0),
-        'lowlevel': Override(default=True),
-        'maxtries': Override(default=1000, settable=False),
+        'visibility': Override(default=()),
+        'maxtries': Override(default=1000, settable=False,
+                             type=intrange(1, 1000)),
     }
 
     def doInit(self, mode):
         Axis.doInit(self, mode)
-        if self.maxtries < 1000:
-            self._setROParam('maxtries', 1000)
-        self._setROParam('userlimits', self.abslimits)
-        if mode not in (SIMULATION, SLAVE) and self._attached_motor.status()[0] != status.BUSY:
+        self.userlimits = self.abslimits
+        if mode not in (SIMULATION, SLAVE) and \
+           self._attached_motor.status()[0] != status.BUSY:
             self._attached_motor.doSetPosition(self._attached_coder.read())
             self._attached_motor.userlimits = self._attached_motor.abslimits
 
@@ -89,7 +90,8 @@ class BeamStopAxis(Axis):
 class SeqDev(NicosSeqDev):
     """Improved SeqDev.
 
-    Improved handling for buggy hardware, where the status is not so reliable *sigh*.
+    Improved handling for buggy hardware, where the status is not so reliable
+    *sigh*.
     """
 
     def run(self):
@@ -113,12 +115,11 @@ class SeqDev(NicosSeqDev):
                     NicosSeqDev.run(self)
                     break
 
-
     def isCompleted(self):
         if NicosSeqDev.isCompleted(self):
             session.delay(0.5)  # catch too early IDLE
             return NicosSeqDev.isCompleted(self) and \
-                   self.dev.status(0)[0] != status.BUSY
+                self.dev.status(0)[0] != status.BUSY
 
 
 class BeamStop(SequencerMixin, Moveable):
@@ -178,6 +179,11 @@ class BeamStop(SequencerMixin, Moveable):
         'xaxis': Attach('Axis for the X-movement', BeamStopAxis),
         'yaxis': Attach('Axis for the Y-movement', BeamStopAxis),
     }
+
+    parameter_overrides = {
+        'fmtstr': Override(default='%.3f, %.3f'),
+    }
+
     valuetype = tupleof(float, float)
     _honor_stop = True
 
@@ -200,7 +206,8 @@ class BeamStop(SequencerMixin, Moveable):
         xprec = self._attached_xaxis.precision
         yprec = self._attached_yaxis.precision
         if ypos < min(ylimits):
-            if abs(ypos - self.ypassage) < abs(min(self._attached_yaxis.abslimits) - self.ypassage):
+            if abs(ypos - self.ypassage) < abs(
+               min(self._attached_yaxis.abslimits) - self.ypassage):
                 if abs(target[1] - ypos) <= yprec:
                     return True, 'pure horizontal movement allowed'
             else:
@@ -238,12 +245,9 @@ class BeamStop(SequencerMixin, Moveable):
     def doWriteShape(self, target):
         if self._seq_is_running():
             raise UsageError('can not change shape while busy')
-        if not self.shape in self.slots:
+        if self.shape not in self.slots:
             raise UsageError('currently used shape unknown, '
                              '(Call instrument scientist!)')
-        if not target in self.slots:
-            raise UsageError('unknown shape, use one of %s' %
-                             ', '.join([repr(s) for s in self.slots]))
         self._startSequence(self._generateSequence(target))
         # important!
         # shape will be changed by the sequence, so we force the old value here

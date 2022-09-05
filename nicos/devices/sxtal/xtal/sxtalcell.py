@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -271,18 +271,12 @@ class SXTalCell:
         mink = -maxk
         minl = -maxl
         # Apply user limits.
-        if minh < uhmin:
-            minh = uhmin
-        if mink < ukmin:
-            mink = ukmin
-        if minl < ulmin:
-            minl = ulmin
-        if maxh > uhmax:
-            maxh = uhmax
-        if maxk > ukmax:
-            maxk = ukmax
-        if maxl > ulmax:
-            maxl = ulmax
+        minh = max(minh, uhmin)
+        mink = max(mink, ukmin)
+        minl = max(minl, ulmin)
+        maxh = min(maxh, uhmax)
+        maxk = min(maxk, ukmax)
+        maxl = min(maxl, ulmax)
         result = None
 
         # Perform pre-loop calculations

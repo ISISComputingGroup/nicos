@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -206,7 +206,7 @@ class SampleDialog(DlgUtils, QDialog):
 
     @pyqtSlot()
     def on_upBtn_clicked(self):
-        ix = map(self.selList.row, self.selList.selectedItems())
+        ix = [self.selList.row(i) for i in self.selList.selectedItems()]
         if not ix or ix[0] == 0:
             return
         self.selList.insertItem(ix[0] - 1, self.selList.takeItem(ix[0]))
@@ -214,7 +214,7 @@ class SampleDialog(DlgUtils, QDialog):
 
     @pyqtSlot()
     def on_downBtn_clicked(self):
-        ix = map(self.selList.row, self.selList.selectedItems())
+        ix = [self.selList.row(i) for i in self.selList.selectedItems()]
         if not ix or ix[0] == self.selList.count() - 1:
             return
         self.selList.insertItem(ix[0] + 1, self.selList.takeItem(ix[0]))
@@ -261,7 +261,8 @@ class DetsetDialog(QDialog):
         self.table.setHorizontalHeaderLabels(headers)
         self.table.resizeColumnsToContents()
         for i in range(len(measdef.getElements())):
-            self.table.setColumnWidth(i, max(50, 1.5 * self.table.columnWidth(i)))
+            self.table.setColumnWidth(
+                i, round(max(50, 1.5 * self.table.columnWidth(i))))
         self.table.resizeRowsToContents()
 
     def keyPressEvent(self, event):

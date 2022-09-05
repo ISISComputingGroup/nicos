@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,9 +18,11 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
+
+import logging
 
 import pytest
 
@@ -115,6 +117,27 @@ def test_htmlhelp(client):
             # default help page is the index page
             assert data[1].startswith('<html>')
             break
+    client._signals = []
+    client.tell('exec', 'help("nicos_demo")')
+    for name, data, _exc in client.iter_signals(0, timeout=10.0):
+        if name == 'showhelp':
+            assert data[0] == 'nicos_demo'
+            assert 'This entry examples' in data[1]
+            break
+    client._signals = []
+    client.tell('exec', 'help("topic:nicos_demo")')
+    for name, data, _exc in client.iter_signals(0, timeout=10.0):
+        if name == 'showhelp':
+            assert data[0] == 'topic:nicos_demo'
+            assert 'This entry examples' in data[1]
+            break
+    client._signals = []
+    client.tell('exec', 'help("RST")')
+    for name, data, _exc in client.iter_signals(0, timeout=10.0):
+        if name == 'showhelp':
+            assert data[0] == 'RST'
+            assert '<li>List entry <strong>1</strong>.</li>' in data[1]
+            break
 
 
 def test_simulation(client):
@@ -200,3 +223,25 @@ def test_abort(client):
         if name == 'message':
             if 'Script stopped by abort()' in data[3]:
                 return
+
+
+def test_run(client):
+    idx = len(client._signals)
+    script, filename = 'print(42)', 'file.py'
+    client.run_and_wait(script, filename)
+    reqid = None
+    for name, data, _exc in client.iter_signals(idx, timeout=10.0):
+        if name == 'request':
+            reqid = data['reqid']
+            assert data['script'] == script
+            assert data['name'] == filename
+            assert data['user'] == 'user'
+        elif name == 'processing':
+            assert data['reqid'] == reqid
+        elif name == 'message':
+            if data[2] == logging.INFO:
+                assert data[3].strip() == '42'
+        elif name == 'done':
+            assert data['reqid'] == reqid
+            assert data['success'] is True
+            break

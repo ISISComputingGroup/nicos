@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -295,7 +295,6 @@ class NexusFileWriterSink(ProducesKafkaMessages, FileSink):
     * Dataset value should be a instance of class NXDataset.
     * Attribute value can either be numerical or instance of class NXattribute
     * Detector event streams are marked using the class EventStream
-    * Device values that are to be streamed are marked with DeviceStream
 
     Example template:
     template = {

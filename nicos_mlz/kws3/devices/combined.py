@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -57,10 +57,10 @@ class Mirror(Moveable):
                 return False, name + ': ' + why
         return True, ''
 
-    def doStart(self, pos):
-        self._attached_x.start(pos[0])
-        self._attached_y.start(pos[1])
-        self._attached_tilt.start(pos[2])
+    def doStart(self, target):
+        self._attached_x.start(target[0])
+        self._attached_y.start(target[1])
+        self._attached_tilt.start(target[2])
 
 
 class Detector(Moveable):
@@ -93,7 +93,7 @@ class Detector(Moveable):
                 return False, name + ': ' + why
         return True, ''
 
-    def doStart(self, pos):
-        self._attached_x.start(pos[0])
-        self._attached_y.start(pos[1])
-        self._attached_z.start(pos[2])
+    def doStart(self, target):
+        self._attached_x.start(target[0])
+        self._attached_y.start(target[1])
+        self._attached_z.start(target[2])

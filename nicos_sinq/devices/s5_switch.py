@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,16 +23,15 @@
 #
 # *****************************************************************************
 
-from time import time as currenttime
+from time import monotonic
 
 from nicos.core import Override, Param, pvname, status
-from nicos.core.errors import ConfigurationError
-from nicos.devices.abstract import MappedMoveable
+from nicos.core.errors import ConfigurationError, PositionError
+from nicos.devices.abstract import MappedMoveable, MappedReadable
+from nicos.devices.epics import EpicsDevice, EpicsReadable
 
-from nicos_ess.devices.epics.base import EpicsDeviceEss, EpicsReadable
 
-
-class S5Switch(EpicsDeviceEss, MappedMoveable):
+class S5Switch(EpicsDevice, MappedMoveable):
     """AMOR has a Siemens programmable logic unit for controlling the shutter
     and a switch for the alignment laser and the spin flipper. This is SPS
     which is connected to the world as such via a custom RS232 interface and a
@@ -58,7 +57,9 @@ class S5Switch(EpicsDeviceEss, MappedMoveable):
         'lasttoggle': Param('Store the time when last toggled', type=int,
                             settable=True, internal=True, default=0),
         'lasttarget': Param('Store the last raw target of move', type=bool,
-                            settable=True, internal=True, default=None)
+                            settable=True, internal=True, default=None),
+        'sps_timeout': Param('How long to wait for the SPS to do its job',
+                             type=float, default='10'),
     }
 
     parameter_overrides = {
@@ -72,7 +73,6 @@ class S5Switch(EpicsDeviceEss, MappedMoveable):
     }
 
     def doInit(self, mode):
-        EpicsDeviceEss.doInit(self, mode)
         MappedMoveable.doInit(self, mode)
         raw = self._pvs['readpv'].get(timeout=self.epicstimeout,
                                       count=self.byte+1)
@@ -83,15 +83,15 @@ class S5Switch(EpicsDeviceEss, MappedMoveable):
         return {'readpv', 'commandpv'}
 
     def doStatus(self, maxage=0):
-        epics_status = EpicsDeviceEss.doStatus(self, maxage)
+        epics_status = EpicsDevice.doStatus(self, maxage)
         if epics_status[0] != status.OK:
             return epics_status
 
-        now = currenttime()
+        now = monotonic()
         if self.lasttarget is not None and \
                 self.lasttarget != self._readRaw(maxage):
-            if now > self.lasttoggle+10:
-                return (status.WARN, '%s not reached!'
+            if now > self.lasttoggle + self.sps_timeout:
+                return (status.ERROR, '%s not reached! Timeout waiting for SPS'
                         % self._inverse_mapping[self.lasttarget])
             return status.BUSY, ''
         return status.OK, ''
@@ -104,6 +104,7 @@ class S5Switch(EpicsDeviceEss, MappedMoveable):
         raw = self._pvs['readpv'].get(timeout=self.epicstimeout,
                                       count=self.byte+1)
         powered = 1 << bit
+        self.log.debug('S5 byte = %d', raw[byte])
         return raw[byte] & powered == powered
 
     def _readRaw(self, maxage=0):
@@ -111,7 +112,7 @@ class S5Switch(EpicsDeviceEss, MappedMoveable):
 
     def _startRaw(self, target):
         if self._readRaw() != target:
-            self.lasttoggle = currenttime()
+            self.lasttoggle = monotonic()
             self.lasttarget = target
             self._put_pv('commandpv', self.commandstr)
 
@@ -189,3 +190,48 @@ class S5Bit(EpicsReadable):
 
         powered = 1 << self.bit
         return raw[self.byte] & powered == powered
+
+
+class SpsReadable(EpicsDevice, MappedReadable):
+    """SINQ has a Siemens programmable logic unit for controlling the shutter
+    and a switch for the alignment laser and the spin flipper. This is SPS
+    which is connected to the world as such via a custom RS232 interface and a
+    terminal server. *readpv* returns a waveform record with 16 bytes giving
+    the state of the SPS digital inputs. *commandpv* sends the commands to
+    toggle SPS buttons.
+    """
+
+    parameters = {
+        'byte': Param('Byte number representing the state of this unit',
+                      type=int, mandatory=True, userparam=False,
+                      settable=False),
+        'bit': Param('Bit number from the byte representing the state',
+                     type=int, mandatory=True, userparam=False,
+                     settable=False),
+        'readpv': Param('PV to read the digital input waveform', type=pvname,
+                        mandatory=True, settable=False, userparam=False),
+    }
+
+    parameter_overrides = {
+        'mapping': Override(userparam=False, settable=False),
+        'fallback': Override(userparam=False),
+        'unit': Override(mandatory=False, userparam=False, settable=False),
+        'fmtstr': Override(userparam=False),
+        'maxage': Override(userparam=False),
+        'pollinterval': Override(userparam=False),
+        'warnlimits': Override(userparam=False)
+    }
+
+    def _get_pv_parameters(self):
+        return {'readpv'}
+
+    def _readBit(self, byte, bit):
+        raw = self._pvs['readpv'].get(16)
+        if byte > len(raw):
+            raise PositionError('Byte specified is out of bounds')
+
+        powered = 1 << bit
+        return raw[byte] & powered == powered
+
+    def _readRaw(self, maxage=0):
+        return self._readBit(self.byte, self.bit)

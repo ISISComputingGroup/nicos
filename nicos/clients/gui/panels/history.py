@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,16 +18,14 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
 
 """NICOS GUI history log window."""
 
-import functools
 import json
-import operator
 import os
 import pickle
 import sys
@@ -36,15 +34,15 @@ from time import localtime, mktime, time as currenttime
 
 from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.utils import DlgUtils, dialogFromUi, \
-    enumerateWithProgress, loadUi
+    enumerateWithProgress, loadUi, split_query
 from nicos.clients.gui.widgets.plotting import ArbitraryFitter, CosineFitter, \
     ExponentialFitter, GaussFitter, LinearFitter, LorentzFitter, \
     PearsonVIIFitter, PseudoVoigtFitter, SigmoidFitter, TcFitter, ViewPlot
 from nicos.core import Param, listof
 from nicos.devices.cacheclient import CacheClient
 from nicos.guisupport.qt import QAction, QActionGroup, QApplication, QBrush, \
-    QByteArray, QCheckBox, QColor, QComboBox, QCompleter, QDateTime, QDialog, \
-    QFont, QFrame, QHBoxLayout, QListWidgetItem, QMainWindow, QMenu, \
+    QByteArray, QCheckBox, QColor, QComboBox, QCompleter, QCursor, QDateTime, \
+    QDialog, QFont, QFrame, QHBoxLayout, QListWidgetItem, QMainWindow, QMenu, \
     QMessageBox, QObject, QSettings, QSizePolicy, QStatusBar, \
     QStyledItemDelegate, Qt, QTimer, QToolBar, QWidgetAction, pyqtSignal, \
     pyqtSlot
@@ -52,7 +50,7 @@ from nicos.guisupport.timeseries import TimeSeries
 from nicos.guisupport.trees import BaseDeviceParamTree
 from nicos.guisupport.utils import scaledFont
 from nicos.protocols.cache import cache_load
-from nicos.utils import extractKeyAndIndex, number_types, parseDuration, \
+from nicos.utils import parseKeyExpression, number_types, parseDuration, \
     safeName
 
 
@@ -86,8 +84,8 @@ def get_time_and_interval(intv):
 class View(QObject):
     timeSeriesUpdate = pyqtSignal(object)
 
-    def __init__(self, widget, name, keys_indices, interval, fromtime, totime,
-                 yfrom, yto, window, meta, dlginfo, query_func):
+    def __init__(self, widget, name, keys, exprs, descs, interval, fromtime,
+                 totime, yfrom, yto, window, meta, dlginfo, query_func):
         QObject.__init__(self)
         self.name = name
         self.dlginfo = dlginfo
@@ -98,7 +96,7 @@ class View(QObject):
         self.yto = yto
         self.window = window
 
-        self._key_indices = {}
+        self._key_exprs = {}
         self.uniq_keys = set()
         self.series = OrderedDict()
         self.timer = None
@@ -107,14 +105,17 @@ class View(QObject):
         hist_totime = self.totime or currenttime() + 60
         hist_cache = {}
 
-        iterator = enumerate(keys_indices)
         if fromtime is not None:
-            iterator = enumerateWithProgress(keys_indices,
+            iterator = enumerateWithProgress(zip(keys, exprs, descs),
                                              'Querying history...',
-                                             force_display=True)
+                                             force_display=True,
+                                             total=len(keys))
+        else:
+            iterator = enumerate(zip(keys, exprs, descs))
 
-        for _, (key, index, scale, offset) in iterator:
-            real_indices = [index]
+        for _, (key, expr, desc) in iterator:
+            real_exprs = [expr]
+            added_index = False
             history = None
             self.uniq_keys.add(key)
 
@@ -124,7 +125,8 @@ class View(QObject):
                     if not history:
                         from nicos.clients.gui.main import log
                         if log is None:
-                            from __main__ import log  # pylint: disable=no-name-in-module
+                            from __main__ import \
+                                log  # pylint: disable=no-name-in-module
                         log.error('Error getting history for %s.', key)
                         QMessageBox.warning(widget, 'Error',
                                             'Could not get history for %s, '
@@ -138,20 +140,22 @@ class View(QObject):
                 # specified, add a plot for each item
                 if history:
                     first_value = history[0][1]
-                    if not index and isinstance(first_value, (list, tuple)):
-                        real_indices = tuple((i,) for i in
-                                             range(len(first_value)))
-            for index in real_indices:
-                name = '%s[%s]' % (key, ','.join(map(str, index))) if index else key
-                series = TimeSeries(name, interval, scale, offset, window,
+                    if not expr and isinstance(first_value, (list, tuple)):
+                        _, real_exprs, _ = parseKeyExpression(
+                            ', '.join('x[%d]' % i for i in range(len(first_value))),
+                            multiple=True)
+                        added_index = True
+            for (i, expr) in enumerate(real_exprs):
+                name = f'{desc}[{i}]' if added_index else desc
+                series = TimeSeries(name, interval, expr, window,
                                     self, meta[0].get(key), meta[1].get(key))
-                self.series[key, index] = series
+                self.series[key, expr] = series
                 if history:
-                    series.init_from_history(history, fromtime,
-                                             totime or currenttime(), index)
+                    series.initFromHistory(history, fromtime,
+                                           totime or currenttime())
                 else:
-                    series.init_empty()
-            self._key_indices.setdefault(key, []).extend(real_indices)
+                    series.initEmpty()
+            self._key_exprs.setdefault(key, []).extend(real_exprs)
 
         self.listitem = None
         self.plot = None
@@ -174,7 +178,7 @@ class View(QObject):
 
     def on_timer_timeout(self):
         for series in self.series.values():
-            series.synthesize_value()
+            series.synthesizeValue()
 
     def on_timeSeriesUpdate(self, series):
         if self.plot:
@@ -183,16 +187,9 @@ class View(QObject):
     def newValue(self, vtime, key, op, value):
         if op != '=':
             return
-        for index in self._key_indices[key]:
-            series = self.series[key, index]
-            if index:
-                try:
-                    v = functools.reduce(operator.getitem, index, value)
-                    series.add_value(vtime, v)
-                except (TypeError, IndexError):
-                    continue
-            else:
-                series.add_value(vtime, value)
+        for expr in self._key_exprs[key]:
+            series = self.series[key, expr]
+            series.addValue(vtime, value)
 
 
 class NewViewDialog(DlgUtils, QDialog):
@@ -240,8 +237,10 @@ class NewViewDialog(DlgUtils, QDialog):
             self.extTime.setChecked(not info['simpleTime'])
             self.frombox.setChecked(info['frombox'])
             self.tobox.setChecked(info['tobox'])
-            self.fromdate.setDateTime(QDateTime.fromTime_t(info['fromdate']))
-            self.todate.setDateTime(QDateTime.fromTime_t(info['todate']))
+            self.fromdate.setDateTime(QDateTime
+                                      .fromSecsSinceEpoch(info['fromdate']))
+            self.todate.setDateTime(QDateTime
+                                    .fromSecsSinceEpoch(info['todate']))
             self.interval.setText(info['interval'])
             self.customY.setChecked(info['customY'])
             self.customYFrom.setText(info['customYFrom'])
@@ -257,7 +256,7 @@ class NewViewDialog(DlgUtils, QDialog):
         self.devicesExpandBtn.hide()
         self._createDeviceTree()
 
-    blacklist = {'maxage', 'pollinterval', 'lowlevel', 'classes', 'value'}
+    blacklist = {'maxage', 'pollinterval', 'visibility', 'classes', 'value'}
 
     def _createDeviceTree(self):
         def param_predicate(name, value, info):
@@ -284,7 +283,7 @@ class NewViewDialog(DlgUtils, QDialog):
         tree.setColumnWidth(2, tree.columnWidth(2) // 2)
         tree.setColumnWidth(3, tree.columnWidth(3) // 2)
         tree.resizeColumnToContents(0)
-        tree.setColumnWidth(0, tree.columnWidth(0) * 1.5)
+        tree.setColumnWidth(0, round(tree.columnWidth(0) * 1.5))
         # disallow editing for name column
         tree.setItemDelegateForColumn(0, NoEditDelegate())
         tree.itemChanged.connect(self.on_deviceTree_itemChanged)
@@ -301,9 +300,8 @@ class NewViewDialog(DlgUtils, QDialog):
 
         tree = self.deviceTree
         tree.itemChanged.disconnect(self.on_deviceTree_itemChanged)
-        keys_indices = [extractKeyAndIndex(d.strip())
-                        for d in self.devices.text().split(',')]
-        for key, indices, scale, offset in keys_indices:
+        keys = parseKeyExpression(self.devices.text(), multiple=True)[0]
+        for key in keys:
             dev, _, param = key.partition('/')
             for i in range(tree.topLevelItemCount()):
                 if tree.topLevelItem(i).text(0).lower() == dev:
@@ -325,16 +323,11 @@ class NewViewDialog(DlgUtils, QDialog):
                 else:
                     continue
                 newkey = devitem.text(0) + '.' + item.text(0)
-            suffix = ''.join('[%s]' % i for i in indices)
-            if scale != 1:
-                suffix += '*%.4g' % scale
-            if offset != 0:
-                suffix += '%+.4g' % offset
             item.setCheckState(0, Qt.Checked)
-            item.setText(1, ','.join(map(str, indices)))
-            item.setText(2, '%.4g' % scale)
-            item.setText(3, '%.4g' % offset)
-            self.deviceTreeSel[newkey] = suffix
+            item.setText(1, '')
+            item.setText(2, '')
+            item.setText(3, '')
+            self.deviceTreeSel[newkey] = ''
         tree.itemChanged.connect(self.on_deviceTree_itemChanged)
 
     def on_deviceTree_itemChanged(self, item, col):
@@ -375,12 +368,13 @@ class NewViewDialog(DlgUtils, QDialog):
             'parameters (as "device.parameter").  Example:\n\n'
             'T, T.setpoint\n\nshows the value of device T, and the '
             'value of the T.setpoint parameter.\n\n'
-            'More options:\n'
+            'More complex expressions using these are supported:\n'
             '- use [i] to select subitems by index, e.g. motor.status[0]\n'
-            '- use *x to scale the values by a constant, e.g. '
+            '- use *x or /x to scale the values by a constant, e.g. '
             'T*100, T.heaterpower\n'
             '- use +x or -x to add an offset to the values, e.g. '
-            'T+5 or combined T*100+5\n')
+            'T+5 or combined (T+5)*100\n'
+            '- you can also use functions like sqrt()')
 
     def toggleCustomY(self, on):
         self.customYFrom.setEnabled(on)
@@ -434,8 +428,8 @@ class NewViewDialog(DlgUtils, QDialog):
             slidingWindow = self.slidingWindow.isChecked(),
             frombox = self.frombox.isChecked(),
             tobox = self.tobox.isChecked(),
-            fromdate = self.fromdate.dateTime().toTime_t(),
-            todate = self.todate.dateTime().toTime_t(),
+            fromdate = self.fromdate.dateTime().toSecsSinceEpoch(),
+            todate = self.todate.dateTime().toSecsSinceEpoch(),
             interval = self.interval.text(),
             customY = self.customY.isChecked(),
             customYFrom = self.customYFrom.text(),
@@ -444,12 +438,12 @@ class NewViewDialog(DlgUtils, QDialog):
 
 
 class BaseHistoryWindow:
-
+    ui = os.path.join('panels', 'history.ui')
     client = None
     presetdict = None
 
     def __init__(self):
-        loadUi(self, 'panels/history.ui')
+        loadUi(self, self.ui)
 
         self.user_color = Qt.white
         self.user_font = QFont('Monospace')
@@ -472,6 +466,9 @@ class BaseHistoryWindow:
             item = QListWidgetItem(name, self.viewList)
             item.setForeground(QBrush(QColor('#aaaaaa')))
             item.setData(Qt.UserRole, view)
+
+        self.viewList.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.viewList.customContextMenuRequested['QPoint'].connect(self.showContextMenu)
 
         self.menus = None
         self.bar = None
@@ -659,6 +656,7 @@ class BaseHistoryWindow:
             settings.setValue(key, json.dumps(info))
         settings.endGroup()
         settings.beginGroup('views_new')
+        settings.remove('')  # empty the existing entries before add new
         for view in self.views:
             settings.setValue(view.name, json.dumps(view.dlginfo))
         settings.endGroup()
@@ -749,6 +747,12 @@ class BaseHistoryWindow:
         ]:
             action.setEnabled(on)
 
+    def showContextMenu(self, point):
+        popMenu = QMenu(self)
+        popMenu.addAction(self.actionEditView)
+        popMenu.addAction(self.actionDeleteView)
+        popMenu.exec(QCursor.pos())
+
     def enableAutoScaleActions(self, on):
         for action in [self.actionAutoScale, self.actionScaleX,
                        self.actionScaleY]:
@@ -795,10 +799,9 @@ class BaseHistoryWindow:
     def _createViewFromDialog(self, info, row=None):
         if not info['devices'].strip():
             return
-        keys_indices = [extractKeyAndIndex(d.strip())
-                        for d in info['devices'].split(',')]
+        keys, exprs, descs = parseKeyExpression(info['devices'], multiple=True)
         if self.client is not None:
-            meta = self._getMetainfo(keys_indices)
+            meta = self._getMetainfo(keys)
         else:
             meta = ({}, {})
         name = info['name']
@@ -840,7 +843,7 @@ class BaseHistoryWindow:
                 return
         else:
             yfrom = yto = None
-        view = View(self, name, keys_indices, interval, fromtime, totime,
+        view = View(self, name, keys, exprs, descs, interval, fromtime, totime,
                     yfrom, yto, window, meta, info, self.gethistory_callback)
         self.views.append(view)
         view.listitem = QListWidgetItem(view.name)
@@ -854,14 +857,14 @@ class BaseHistoryWindow:
                 self.keyviews.setdefault(key, []).append(view)
         return view
 
-    def _getMetainfo(self, keys_indices):
+    def _getMetainfo(self, keys):
         """Collect unit and string<->integer mapping for each key that
         refers to a device main value.
         """
         units = {}
         mappings = {}
         seen = set()
-        for key, _, _, _ in keys_indices:
+        for key in keys:
             if key in seen or not key.endswith('/value'):
                 continue
             seen.add(key)
@@ -887,7 +890,7 @@ class BaseHistoryWindow:
     def showNewDialog(self, devices=''):
         newdlg = NewViewDialog(self, client=self.client)
         newdlg.devices.setText(devices)
-        ret = newdlg.exec_()
+        ret = newdlg.exec()
         if ret != QDialog.Accepted:
             return
         info = newdlg.infoDict()
@@ -953,7 +956,7 @@ class BaseHistoryWindow:
         view = self.viewStack[-1]
         newdlg = NewViewDialog(self, view.dlginfo, client=self.client)
         newdlg.setWindowTitle('Edit history view')
-        ret = newdlg.exec_()
+        ret = newdlg.exec()
         if ret != QDialog.Accepted:
             return
         info = newdlg.infoDict()
@@ -1137,14 +1140,14 @@ class HistoryPanel(BaseHistoryWindow, Panel):
         # Always succeeds, but break up circular references so that the panel
         # object can be deleted properly.
         for v in self.views:
-            v.plot = None
-        self.currentPlot = None
+            v.cleanup()
         self.client.cache.disconnect(self.newvalue_callback)
         return True
 
     def gethistory_callback(self, key, fromtime, totime):
-        return self.client.ask('gethistory', key, str(fromtime), str(totime),
-                               default=[])
+        return split_query(fromtime, totime, lambda fr, to:
+                           self.client.ask('gethistory', key, str(fr), str(to),
+                                           default=[]))
 
     def on_client_disconnected(self):
         self._disconnected_since = currenttime()
@@ -1168,7 +1171,7 @@ class HistoryPanel(BaseHistoryWindow, Panel):
         suffix = self.currentPlot.SAVE_EXT
         newdlg.filename.setText(
             safeName('history_%s' % self.currentPlot.view.name + suffix))
-        ret = newdlg.exec_()
+        ret = newdlg.exec()
         if ret != QDialog.Accepted:
             return
         descr = newdlg.description.text()
@@ -1216,7 +1219,8 @@ class StandaloneHistoryWindow(DlgUtils, BaseHistoryWindow, QMainWindow):
         self.setStatusBar(self.statusBar)
 
     def gethistory_callback(self, key, fromtime, totime):
-        return self.app.history(None, key, fromtime, totime)
+        return split_query(fromtime, totime, lambda fr, to:
+                           self.app.history(None, key, fr, to))
 
     def closeEvent(self, event):
         self.saveSettings(self.settings)
@@ -1238,7 +1242,7 @@ class StandaloneHistoryApp(CacheClient):
         # if no cache was given on the command line...
         if not self._config['cache']:
             dlg = SettingsDialog(self._window)
-            dlg.exec_()
+            dlg.exec()
             self._setROParam('cache', dlg.cacheBox.currentText())
             self._setROParam('prefix', dlg.prefixEdit.text())
         CacheClient.doInit(self, mode)
@@ -1268,13 +1272,13 @@ class StandaloneHistoryApp(CacheClient):
         self._window.openViews(self.views)
         self._window.show()
         try:
-            self._qtapp.exec_()
+            self._qtapp.exec()
         except KeyboardInterrupt:
             pass
         self._stoprequest = True
 
-    def _propagate(self, data):
-        self._window.newValue.emit(data)
+    def _propagate(self, args):
+        self._window.newValue.emit(args)
 
 
 class SettingsDialog(QDialog):

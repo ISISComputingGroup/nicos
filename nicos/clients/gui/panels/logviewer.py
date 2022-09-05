@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -35,7 +35,7 @@ from nicos.guisupport.qt import QDateTime, pyqtSlot
 
 class LogViewerPanel(Panel):
     """Provides a possibility to view various NICOS log files."""
-
+    ui = os.path.join('panels', 'logviewer.ui')
     panelName = 'Log viewer'
 
     def __init__(self, parent, client, options):
@@ -43,7 +43,7 @@ class LogViewerPanel(Panel):
 
         self._logPath = 'log'
 
-        loadUi(self, 'panels/logviewer.ui')
+        loadUi(self, self.ui)
 
         # initialize date/time range to display logs from yesterday
         # (same time) to now

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,26 +26,33 @@ import time
 
 import kafka
 import numpy as np
-from streaming_data_types.histogram_hs00 import deserialise_hs00
+from streaming_data_types import deserialise_hs00, deserialise_hs01
+from streaming_data_types.utils import get_schema
 
-from nicos.core import ArrayDesc, Override, Param, Value, floatrange, host, \
-    listof, multiStatus, oneof, status, tupleof
-from nicos.core.constants import LIVE
+from nicos.core import ArrayDesc, InvalidValueError, Override, Param, Value, \
+    floatrange, listof, multiStatus, oneof, status, tupleof
+from nicos.core.constants import LIVE, MASTER, SIMULATION
 from nicos.devices.generic import Detector, ImageChannelMixin, PassiveChannel
 from nicos.utils import createThread
 
 from nicos_ess.devices.kafka.consumer import KafkaSubscriber
+from nicos_ess.devices.kafka.status_handler import DISCONNECTED_STATE, \
+    KafkaStatusHandler
 
 
 class Hist1dTof:
     name = 'hist1d'
 
     @classmethod
-    def get_array_description(cls, num_bins, **ignored):
-        return ArrayDesc('data', shape=(num_bins,), dtype=np.float64)
+    def get_array_description(cls, name, num_bins, **ignored):
+        return ArrayDesc(name, shape=(num_bins,), dtype=np.float64)
 
     @classmethod
-    def transform_data(cls, data):
+    def get_zeroes(cls, num_bins, **ignored):
+        return cls.transform_data(np.zeros(shape=(num_bins,), dtype=np.float64))
+
+    @classmethod
+    def transform_data(cls, data, rotation=None):
         return data
 
     @classmethod
@@ -57,13 +64,20 @@ class Hist2dTof:
     name = 'hist2d'
 
     @classmethod
-    def get_array_description(cls, num_bins, **ignored):
-        return ArrayDesc('data', shape=(num_bins, num_bins), dtype=np.float64)
+    def get_array_description(cls, name, num_bins, **ignored):
+        return ArrayDesc(name, shape=(num_bins, num_bins), dtype=np.float64)
 
     @classmethod
-    def transform_data(cls, data):
+    def get_zeroes(cls, num_bins, **ignored):
+        return cls.transform_data(np.zeros(shape=(num_bins, num_bins),
+                                           dtype=np.float64))
+
+    @classmethod
+    def transform_data(cls, data, rotation=None):
         # For the ESS detector orientation, pixel 0 is at top-left
-        return np.rot90(data)
+        if rotation:
+            return np.rot90(data, k=rotation//90)
+        return data
 
     @classmethod
     def get_info(cls, name, num_bins, **ignored):
@@ -75,14 +89,21 @@ class Hist2dDet:
     name = 'dethist'
 
     @classmethod
-    def get_array_description(cls, det_width, det_height, **ignored):
-        return ArrayDesc('data', shape=(det_width, det_height),
+    def get_array_description(cls, name, det_width, det_height, **ignored):
+        return ArrayDesc(name, shape=(det_width, det_height),
                          dtype=np.float64)
 
     @classmethod
-    def transform_data(cls, data):
+    def get_zeroes(cls, det_width, det_height, **ignored):
+        return cls.transform_data(np.zeros(shape=(det_width, det_height),
+                                           dtype=np.float64))
+
+    @classmethod
+    def transform_data(cls, data, rotation=None):
         # For the ESS detector orientation, pixel 0 is at top-left
-        return np.rot90(data)
+        if rotation:
+            return np.rot90(data, k=rotation//90)
+        return data
 
     @classmethod
     def get_info(cls, name, det_width, det_height, **ignored):
@@ -94,14 +115,21 @@ class Hist2dRoi:
     name = 'roihist'
 
     @classmethod
-    def get_array_description(cls, det_width, det_height, **ignored):
-        return ArrayDesc('data', shape=(det_width, det_height),
+    def get_array_description(cls, name, det_width, left_edges, **ignored):
+        return ArrayDesc(name, shape=(det_width, left_edges),
                          dtype=np.float64)
 
     @classmethod
-    def transform_data(cls, data):
+    def get_zeroes(cls, det_width, left_edges, **ignored):
+        return cls.transform_data(np.zeros(shape=(det_width, left_edges),
+                                           dtype=np.float64))
+
+    @classmethod
+    def transform_data(cls, data, rotation=None):
         # For the ESS detector orientation, pixel 0 is at top-left
-        return np.rot90(data)
+        if rotation:
+            return np.rot90(data, k=rotation//90)
+        return data
 
     @classmethod
     def get_info(cls, name, det_width, left_edges, **ignored):
@@ -115,6 +143,12 @@ hist_type_by_name = {
     '2-D TOF': Hist2dTof,
     '2-D DET': Hist2dDet,
     '2-D ROI': Hist2dRoi,
+}
+
+
+deserialiser_by_schema = {
+    'hs00': deserialise_hs00,
+    'hs01': deserialise_hs01,
 }
 
 
@@ -152,10 +186,14 @@ class JustBinItImage(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
         'left_edges': Param('The left edges for a ROI histogram',
                             type=listof(int), default=[],
                             userparam=True, settable=True,
-                           ),
-        'source': Param('The number of bins to histogram into', type=str,
+                            ),
+        'source': Param('Identifier source on multiplexed topics', type=str,
                         default='', userparam=True, settable=True,
                         ),
+        'rotation': Param('Rotation angle to apply to the image',
+                          type=oneof(0, 90, 180, 270),
+                          default=90, userparam=True, settable=True,
+                          ),
     }
 
     parameter_overrides = {
@@ -164,56 +202,73 @@ class JustBinItImage(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
         'pollinterval': Override(default=None, userparam=False, settable=False),
     }
 
-    _unique_id = None
-    _current_status = (status.OK, '')
-    _hist_data = np.array([])
-
     def doPreinit(self, mode):
-        self._current_status = (status.OK, '')
+        _unique_id = None
+        _current_status = (status.OK, '')
+        if mode == SIMULATION:
+            return
+        self._update_status(status.OK, '')
         # Set up the data consumer
         KafkaSubscriber.doPreinit(self, None)
 
+    def doInit(self, mode):
+        self._hist_sum = 0
+        self._zero_data()
+
+    def _zero_data(self):
+        self._hist_data = hist_type_by_name[self.hist_type].get_zeroes(
+            **self._params)
+
     def arrayInfo(self):
         return hist_type_by_name[self.hist_type].get_array_description(
-            **self._get_all_parameters())
+            **self._params)
 
     def doPrepare(self):
-        self._current_status = status.BUSY, 'Preparing'
-        self._hist_data = np.array([])
+        self._update_status(status.BUSY, 'Preparing')
+        self._zero_data()
         self._hist_edges = np.array([])
+        self._hist_sum = 0
         try:
             self.subscribe(self.hist_topic)
         except Exception as error:
-            self._current_status = status.ERROR, str(error)
+            self._update_status(status.ERROR, str(error))
             raise
-        self._current_status = status.OK, ''
+        self._update_status(status.OK, '')
 
     def new_messages_callback(self, messages):
         for _, message in messages:
-            hist = deserialise_hs00(message)
+            deserialiser = deserialiser_by_schema.get(get_schema(message))
+            if not deserialiser:
+                continue
+            hist = deserialiser(message)
             info = json.loads(hist['info'])
             self.log.debug('received unique id = {}'.format(info['id']))
             if info['id'] != self._unique_id:
                 continue
             if info['state'] in ['COUNTING', 'INITIALISED']:
-                self._current_status = status.BUSY, 'Counting'
+                self._update_status(status.BUSY, 'Counting')
             elif info['state'] == 'ERROR':
                 error_msg = info[
                     'error_message'] if 'error_message' in info else 'unknown error'
-                self._current_status = status.ERROR, error_msg
+                self._update_status(status.ERROR, error_msg)
             elif info['state'] == 'FINISHED':
                 self._halt_consumer_thread()
                 self._consumer.unsubscribe()
-                self._current_status = status.OK, ''
+                self._update_status(status.OK, '')
                 break
 
-            self._hist_data = \
-                hist_type_by_name[self.hist_type].transform_data(hist['data'])
-
+            self._hist_data = hist_type_by_name[self.hist_type].transform_data(
+                    hist['data'], rotation=self.rotation
+            )
+            self._hist_sum = self._hist_data.sum()
             self._hist_edges = hist['dim_metadata'][0]['bin_boundaries']
 
+    def _update_status(self, new_status, message):
+        self._current_status = new_status, message
+        self._cache.put(self._name, 'status', self._current_status, time.time())
+
     def doRead(self, maxage=0):
-        return [self._hist_data.sum()]
+        return [self._hist_sum]
 
     def doReadArray(self, quality):
         return self._hist_data
@@ -222,10 +277,10 @@ class JustBinItImage(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
         return (Value(self.name, fmtstr='%d'),)
 
     def doStart(self):
-        self._current_status = status.BUSY, 'Waiting to start...'
+        self._update_status(status.BUSY, 'Waiting to start...')
 
     def doStop(self):
-        self._current_status = status.OK, ''
+        self._update_status(status.OK, '')
 
     def doStatus(self, maxage=0):
         return self._current_status
@@ -259,23 +314,16 @@ class JustBinItImage(KafkaSubscriber, ImageChannelMixin, PassiveChannel):
         result = [(f'{self.name} histogram type', self.hist_type,
                    self.hist_type, '', 'general')]
         result.extend(hist_type_by_name[self.hist_type].get_info(
-            **self._get_all_parameters()))
+            **self._params))
         return result
 
-    def _get_all_parameters(self):
-        return {k: getattr(self, k) for k in self.parameters}
 
-
-class JustBinItDetector(Detector):
+class JustBinItDetector(Detector, KafkaStatusHandler):
     """ A "detector" that reads image data from just-bin-it.
 
     Note: it only uses image channels.
     """
     parameters = {
-        'brokers': Param('List of kafka hosts to be connected',
-                         type=listof(host(defaultport=9092)),
-                         mandatory=True, preinit=True, userparam=False
-                         ),
         'command_topic': Param('The topic to send just-bin-it commands to',
                                type=str, userparam=False, settable=False,
                                mandatory=True,
@@ -288,6 +336,9 @@ class JustBinItDetector(Detector):
                              type=int, default=5, unit='s',
                              userparam=False, settable=False,
                              ),
+        'hist_schema': Param('Which schema to use for histograms',
+                             type=oneof(*deserialiser_by_schema.keys()),
+                             default='hs00', userparam=False, settable=True,),
     }
 
     parameter_overrides = {
@@ -295,14 +346,28 @@ class JustBinItDetector(Detector):
         'fmtstr': Override(default='%d'),
         'liveinterval': Override(type=floatrange(0.5), default=1),
         'pollinterval': Override(default=None, userparam=False, settable=False),
+        'statustopic': Override(default='', mandatory=False),
     }
     _last_live = 0
     _presets = {}
     _presetkeys = {'t'}
     _ack_thread = None
+    _conditions_thread = None
     _exit_thread = False
+    _conditions = {}
+    hardware_access = True
 
     def doPreinit(self, mode):
+        presetkeys = {'t'}
+        for image_channel in self._attached_images:
+            presetkeys.add(image_channel.name)
+        self._presetkeys = presetkeys
+        if mode == SIMULATION:
+            return
+
+        if self.statustopic:
+            # Enable heartbeat monitoring
+            KafkaStatusHandler.doPreinit(self, mode)
         self._command_sender = kafka.KafkaProducer(
             bootstrap_servers=self.brokers)
         # Set up the response message consumer
@@ -318,25 +383,34 @@ class JustBinItDetector(Detector):
         pass
 
     def doPrepare(self):
+        self._exit_thread = False
+        self._conditions_thread = None
         for image_channel in self._attached_images:
             image_channel.doPrepare()
 
-    def doStart(self):
+    def doStart(self, **preset):
         self._last_live = -(self.liveinterval or 0)
 
         # Generate a unique-ish id
         unique_id = 'nicos-{}-{}'.format(self.name, int(time.time()))
         self.log.debug('set unique id = %s', unique_id)
 
+        self._conditions = {}
+
+        for image_channel in self._attached_images:
+            val = self._presets.get(image_channel.name, 0)
+            if val:
+                self._conditions[image_channel] = val
+
         count_interval = self._presets.get('t', None)
         config = self._create_config(count_interval, unique_id)
 
         if count_interval:
-            self.log.info(
+            self.log.debug(
                 'Requesting just-bin-it to start counting for %s seconds',
                 count_interval)
         else:
-            self.log.info('Requesting just-bin-it to start counting')
+            self.log.debug('Requesting just-bin-it to start counting')
 
         self._send_command(self.command_topic, json.dumps(config).encode())
 
@@ -345,8 +419,7 @@ class JustBinItDetector(Detector):
             image_channel.doStart()
 
         # Check for acknowledgement of the command being received
-        self._exit_thread = False
-        self._ack_thread = createThread("jbi-ack", self._check_for_ack,
+        self._ack_thread = createThread('jbi-ack', self._check_for_ack,
                                         (unique_id, self.ack_timeout))
 
     def _check_for_ack(self, identifier, timeout_duration):
@@ -372,10 +445,24 @@ class JustBinItDetector(Detector):
             self._stop_histogramming()
             for image_channel in self._attached_images:
                 image_channel.doStop()
+            return
+
+        if self._conditions:
+            self._conditions_thread = createThread('jbi-conditions',
+                                                   self._check_conditions,
+                                                   (self._conditions.copy(),))
+
+    def _check_conditions(self, conditions):
+        while not self._exit_thread:
+            if conditions and all(ch.read()[0] >= val
+                                  for ch, val in conditions.items()):
+                self._stop_histogramming()
+                break
+            time.sleep(0.1)
 
     def _handle_message(self, msg):
         if 'response' in msg and msg['response'] == 'ACK':
-            self.log.info(
+            self.log.debug(
                 'Counting request acknowledged by just-bin-it')
             return True
         elif 'response' in msg and msg['response'] == 'ERR':
@@ -398,6 +485,7 @@ class JustBinItDetector(Detector):
         config_base = {
             'cmd': 'config',
             'msg_id': identifier,
+            'output_schema': self.hist_schema,
             'histograms': histograms
         }
 
@@ -419,31 +507,62 @@ class JustBinItDetector(Detector):
     def doReadArrays(self, quality):
         return [image.doReadArray(quality) for image in self._attached_images]
 
-    def doFinish(self):
-        self._stop_ack_thread()
-        self._stop_histogramming()
-
     def _stop_histogramming(self):
         self._send_command(self.command_topic, b'{"cmd": "stop"}')
 
     def doShutdown(self):
         self._response_consumer.close()
 
-    def doSetPreset(self, **presets):
-        self._presets = presets
+    def doSetPreset(self, **preset):
+        if not preset:
+            # keep old settings
+            return
+        for i in preset:
+            if i not in self._presetkeys:
+                valid_keys = ', '.join(self._presetkeys)
+                raise InvalidValueError(self, f'unrecognised preset {i}, should'
+                                              f' one of {valid_keys}')
+        if 't' in preset and \
+                len(self._presetkeys.intersection(preset.keys())) > 1:
+            raise InvalidValueError(self, 'Cannot set number of detector counts'
+                                          ' and a time interval together')
+        self._presets = preset.copy()
 
     def doStop(self):
-        self._stop_ack_thread()
+        self._do_stop()
+
+    def doFinish(self):
+        self._do_stop()
+
+    def _do_stop(self):
+        self._stop_job_threads()
         self._stop_histogramming()
 
-    def _stop_ack_thread(self):
-        if self._ack_thread and self._ack_thread.is_alive():
-            self._exit_thread = True
-            self._ack_thread.join()
-            self._ack_thread = None
+    def _stop_job_threads(self):
+        self._exit_thread = True
+        self._stop_thread(self._ack_thread)
+        self._stop_thread(self._conditions_thread)
+
+    def _stop_thread(self, thread):
+        if thread and thread.is_alive():
+            thread.join()
 
     def doStatus(self, maxage=0):
+        curstatus = self._cache.get(self, 'status')
+        if curstatus and curstatus[0] == status.ERROR:
+            return curstatus
         return multiStatus(self._attached_images, maxage)
+
+    def _status_update_callback(self, messages):
+        # Called on heartbeat received
+        if self._mode == MASTER:
+            if self._cache.get(self, 'status') == DISCONNECTED_STATE:
+                self._cache.put(self, 'status', (status.OK, ''), time.time())
+
+    def no_messages_callback(self):
+        if self._mode == MASTER and not self.is_process_running():
+            # No heartbeat
+            self._cache.put(self, 'status', DISCONNECTED_STATE, time.time())
 
     def doReset(self):
         pass
@@ -453,10 +572,17 @@ class JustBinItDetector(Detector):
                      for data in channel.doInfo()]
 
     def duringMeasureHook(self, elapsed):
-        if elapsed > self._last_live + self.liveinterval:
-            self._last_live = elapsed
-            return LIVE
+        if self.liveinterval is not None:
+            if elapsed > self._last_live + self.liveinterval:
+                self._last_live = elapsed
+                return LIVE
         return None
 
     def arrayInfo(self):
         return tuple(image.arrayInfo() for image in self._attached_images)
+
+    def doTime(self, preset):
+        return 0
+
+    def presetInfo(self):
+        return tuple(self._presetkeys)

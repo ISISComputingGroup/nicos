@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,9 +28,9 @@ import struct
 
 from nicos import session
 from nicos.core import ADMIN, SIMULATION, Attach, AutoDevice, \
-    CommunicationError, Moveable, MoveError, NicosTimeoutError, Override, \
-    Param, Readable, UsageError, dictwith, floatrange, limits, requires, \
-    status
+    CommunicationError, HasAutoDevices, Moveable, MoveError, \
+    NicosTimeoutError, Override, Param, Readable, UsageError, dictwith, \
+    floatrange, limits, requires, status
 from nicos.core.params import oneof, tupleof
 from nicos.devices.abstract import CanReference, Motor
 from nicos.devices.generic.sequence import BaseSequencer, SeqMethod, SeqSleep
@@ -278,7 +278,7 @@ class BeckhoffBase(PyTangoDevice):
             return (status.OK, 'simulation')
         return self._HW_status()
 
-    def doSetPosition(self, target):
+    def doSetPosition(self, pos):
         pass
 
 
@@ -950,7 +950,7 @@ class SingleSideRead(Readable):
         return self._attached_device.status(maxage)
 
 
-class DoubleMotorBeckhoffNOK(DoubleMotorBeckhoff):
+class DoubleMotorBeckhoffNOK(HasAutoDevices, DoubleMotorBeckhoff):
     """NOK using two axes.
     """
 
@@ -984,11 +984,12 @@ class DoubleMotorBeckhoffNOK(DoubleMotorBeckhoff):
     def doInit(self, mode):
         for name, idx in [('reactor', 0),
                           ('sample', 1)]:
-            self.__dict__[name] = SingleMotorOfADoubleMotorNOK(
-                '%s.%s' % (self.name, name),
+            self.add_autodevice(
+                name,
+                SingleMotorOfADoubleMotorNOK,
                 unit=self.unit,
                 both=self,
-                lowlevel=True,
+                visibility=(),
                 index=idx)
 
     def doWriteMode(self, mode):

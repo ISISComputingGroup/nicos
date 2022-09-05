@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -53,7 +53,7 @@ class IsegNHQChannel(EpicsAnalogMoveableEss):
     }
 
     parameter_overrides = {
-        # This device uses its own PVs internally, see _get_record_fields().
+        # This device uses its own PVs internally, see _record_fields.
         'readpv': Override(mandatory=False, userparam=False, settable=False),
         'writepv': Override(mandatory=False, userparam=False, settable=False),
         'targetpv': Override(mandatory=False, userparam=False, settable=False),
@@ -67,26 +67,24 @@ class IsegNHQChannel(EpicsAnalogMoveableEss):
     }
 
     # PVs used, channel is substituted in based on given parameter value.
-    def _get_record_fields(self):
-        pv_map = {
-            'readpv': 'Volt{}_rbv',
-            'writepv': 'SetVolt{}',
-            'targetpv': 'SetVolt{}_rbv',
-            'startpv': 'StartVolt{}',
+    _record_fields = {
+        'readpv': 'Volt{}_rbv',
+        'writepv': 'SetVolt{}',
+        'targetpv': 'SetVolt{}_rbv',
+        'startpv': 'StartVolt{}',
 
-            'vmax': 'VMax',
-            'error': 'Error',
+        'vmax': 'VMax',
+        'error': 'Error',
 
-            'setramp': 'RampSpeed{}',
-            'getramp': 'RampSpeed{}_rbv',
-            'getcurr': 'Curr{}_rbv',
-            'settrip': 'CurrTrip{}',
-            'gettrip': 'CurrTrip{}_rbv',
+        'setramp': 'RampSpeed{}',
+        'getramp': 'RampSpeed{}_rbv',
+        'getcurr': 'Curr{}_rbv',
+        'settrip': 'CurrTrip{}',
+        'gettrip': 'CurrTrip{}_rbv',
 
-            'status': 'Status{}_rbv',
-            'modstat': 'ModStatus{}_rbv'
-        }
-        return pv_map
+        'status': 'Status{}_rbv',
+        'modstat': 'ModStatus{}_rbv'
+    }
 
     def _get_pv_parameters(self):
         return set(self._record_fields)
@@ -135,11 +133,11 @@ class IsegNHQChannel(EpicsAnalogMoveableEss):
     def doRead(self, maxage=0):
         return self._get_pv('readpv')
 
-    def doStart(self, pos):
+    def doStart(self, target):
         # We want these to happen in order.  If the first times out, an
         # exception is thrown and prevents the startpv from being triggered.
         self._started = True
-        self._put_pv_blocking('writepv', pos)
+        self._put_pv_blocking('writepv', target)
         self._put_pv('startpv', 1)  # Value doesn't actually matter
 
     def doReadTarget(self):

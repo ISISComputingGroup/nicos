@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -139,7 +139,7 @@ class SetupWidget(QWidget):
     @pyqtSlot()
     def on_pushButtonAddInclude_clicked(self):
         dlg = AddIncludeDialog(self._get_unused_setups())
-        if dlg.exec_():
+        if dlg.exec():
             newIncludes = dlg.getValue()
             if newIncludes:
                 for include in newIncludes:
@@ -149,7 +149,7 @@ class SetupWidget(QWidget):
     @pyqtSlot()
     def on_pushButtonAddExclude_clicked(self):
         dlg = AddExcludeDialog(self._get_unused_setups())
-        if dlg.exec_():
+        if dlg.exec():
             newExcludes = dlg.getValue()
             if newExcludes:
                 for exclude in newExcludes:
@@ -159,7 +159,7 @@ class SetupWidget(QWidget):
     @pyqtSlot()
     def on_pushButtonAddModule_clicked(self):
         dlg = AddModuleDialog()
-        if dlg.exec_():
+        if dlg.exec():
             newModule = dlg.getValue()
             if newModule:
                 self.listWidgetModules.addItem(newModule)
@@ -180,7 +180,7 @@ class SetupWidget(QWidget):
             if key not in topLevelItems:
                 dlg.comboBoxNewSysconfig.addItem(key)
 
-        if dlg.exec_():
+        if dlg.exec():
             key = dlg.comboBoxNewSysconfig.currentText()
             value = dlg.lineEditValue.text()
 

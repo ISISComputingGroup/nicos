@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -85,7 +85,7 @@ def LoadThetaArrays():
     Loads the theta values from focusmerge.dat into the arrays for use in
     NeXus file writing.
     """
-    with open('nicos_sinq/focus/focusmerge.dat') as fin:
+    with open('nicos_sinq/focus/focusmerge.dat', encoding='utf-8') as fin:
         fin.readline()  # skip first
         # First: the merged data theta
         length = int(fin.readline())
@@ -142,7 +142,8 @@ def LoadCoordinates():
     except ConfigurationError:
         session.log.error('2D detector not loaded, cannot load coordinates')
         return
-    with open('nicos_sinq/focus/set2D_coords.dat', 'r') as fin:
+    with open('nicos_sinq/focus/set2D_coords.dat', 'r', encoding='utf-8') \
+            as fin:
         line = fin.readline()
         data = line.split()
         coord.xdim = int(data[0])
@@ -177,7 +178,6 @@ def chosta():
     DCs = session.getDevice('ch2_speed')
     phase = session.getDevice('ch_phase')
     ratio = session.getDevice('ch_ratio')
-
     session.log.info('FC speed: %d, DC speed %d, phase = %.2f, ratio = %d',
                      FCs.read(), DCs.read(), phase.read(), ratio.read())
     if FCs.target-FCs.read() > FCs.window:

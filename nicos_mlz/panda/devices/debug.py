@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@ from time import sleep
 from nicos.core import status
 from nicos.core.device import Readable
 from nicos.core.params import Attach
-from nicos.devices.tango import Motor
+from nicos.devices.entangle import Motor
 
 from nicos_mlz.jcns.devices.motor import InvertableMotor
 

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -36,13 +36,12 @@ pytest.importorskip('graypy')
 pytest.importorskip('flatbuffers')
 
 from nicos_ess.devices.fbschemas.hs00 import Array, EventHistogram
-from nicos_ess.devices.kafka.area_detector import \
+from nicos_sinq.devices.kafka.area_detector import \
     HistogramFlatbuffersDeserializer
 
 from test.nicos_ess.test_devices.utils import create_hs00
 
-
-session_setup = "ess_area_detector"
+session_setup = "sinq_area_detector"
 
 
 class TestHistogramDeserializer:

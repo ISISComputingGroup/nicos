@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -27,9 +27,10 @@
 from math import atan, pi, radians, tan
 
 from nicos.core import Attach, Moveable, Param, Readable, status
+from nicos.core.mixins import HasPrecision
 
 
-class SelectorLambda(Moveable):
+class SelectorLambda(HasPrecision, Moveable):
     """
     Control selector wavelength directly, converting between speed and
     wavelength.
@@ -80,8 +81,10 @@ class SelectorLambda(Moveable):
             why = 'requested %d rpm, %s' % (speed, why)
         return allowed, why
 
-    def doStart(self, value):
-        speed = int(self._constant(self._get_tilt(0)) / value)
+    def doStart(self, target):
+        if self.isAtTarget(target=target):
+            return
+        speed = int(self._constant(self._get_tilt(0)) / target)
         self.log.debug('moving selector to %d rpm', speed)
         self._attached_seldev.start(speed)
 

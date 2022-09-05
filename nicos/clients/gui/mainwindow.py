@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -28,6 +28,8 @@
 import sys
 import traceback
 from time import strftime, time as currenttime
+
+import gr
 
 from nicos import nicos_version
 from nicos.clients.base import ConnectionData
@@ -52,7 +54,8 @@ from nicos.guisupport.qt import PYQT_VERSION_STR, QT_VERSION_STR, QAction, \
     QTimer, QWebView, pyqtSignal, pyqtSlot
 from nicos.protocols.daemon import BREAK_NOW, STATUS_IDLE, STATUS_IDLEEXC, \
     STATUS_INBREAK
-from nicos.utils import checkSetupSpec, importString
+from nicos.protocols.daemon.classic import DEFAULT_PORT
+from nicos.utils import checkSetupSpec, importString, parseConnectionString
 
 try:
     from sshtunnel import BaseSSHTunnelForwarderError, SSHTunnelForwarder
@@ -142,9 +145,8 @@ class MainWindow(DlgUtils, QMainWindow):
         self.allowoutputlinewrap = False
 
         # set-up the initial connection data
-        self.conndata = ConnectionData(host='localhost', port=1301,
-                                       user='guest', password=None,
-                                       viewonly=viewonly)
+        self.setConnData(ConnectionData('localhost', 1301, 'guest', None,
+                                        viewonly=viewonly))
 
         # state members
         self.current_status = None
@@ -366,15 +368,27 @@ class MainWindow(DlgUtils, QMainWindow):
         self.connpresets = {}
         # new setting key, with dictionary values
         for (k, v) in settings.value('connpresets_new', {}).items():
-            self.connpresets[k] = ConnectionData(**v)
+            self.connpresets[k] = ConnectionData(**v).copy()
         # if it was empty, try old setting key with list values
         if not self.connpresets:
             for (k, v) in settings.value('connpresets', {}).items():
                 self.connpresets[k] = ConnectionData(
                     host=v[0], port=int(v[1]), user=v[2], password=None)
+        # if there are presets defined in the gui config add them and override
+        # existing ones
+        for key, connection in self.gui_conf.options.get(
+            'connection_presets', {}).items():
+            parsed = parseConnectionString(connection, DEFAULT_PORT)
+            if parsed:
+                parsed['viewonly'] = True
+                if key not in self.connpresets:
+                    self.connpresets[key] = ConnectionData(**parsed)
+                else:  # reset only host if connection is already configured
+                    self.connpresets[key].host = parsed['host']
+
         self.lastpreset = settings.value('lastpreset', '')
         if self.lastpreset in self.connpresets:
-            self.conndata = self.connpresets[self.lastpreset].copy()
+            self.setConnData(self.connpresets[self.lastpreset])
 
         self.instrument = settings.value('instrument', self.gui_conf.name)
         self.confirmexit = settings.value('confirmexit', True, bool)
@@ -546,6 +560,7 @@ class MainWindow(DlgUtils, QMainWindow):
             self.client.user_level >= ADMIN)
 
         self.actionViewOnly.setChecked(self.client.viewonly)
+        self.actionExpert.setChecked(self.conndata.expertmode)
 
         # set focus to command input, if present
         for panel in self.panels:
@@ -566,6 +581,7 @@ class MainWindow(DlgUtils, QMainWindow):
     def on_client_disconnected(self):
         self.adminLabel.setVisible(False)
         self.setStatus('disconnected')
+        self.actionViewOnly.setChecked(True)
 
     def on_client_showhelp(self, data):
         if not HelpWindow:
@@ -636,11 +652,15 @@ class MainWindow(DlgUtils, QMainWindow):
 
     def on_actionExpert_toggled(self, on):
         self.expertmode = on
+        self.conndata.expertmode = on
         for panel in self.panels:
             panel.setExpertMode(on)
         for window in self.windows.values():
             for panel in window.panels:
                 panel.setExpertMode(on)
+
+    def on_actionViewOnly_triggered(self):
+        self.conndata.viewonly = self.actionViewOnly.isChecked()
 
     def on_actionViewOnly_toggled(self, on):
         # also triggered when the action is checked by on_client_connected
@@ -670,6 +690,7 @@ class MainWindow(DlgUtils, QMainWindow):
                            ' is not available on your system.')
             return
         from nicos.clients.gui.tools.website import WebsiteTool
+
         # XXX: change URL to current release version
         dlg = WebsiteTool(
             self, self.client,
@@ -694,9 +715,9 @@ class MainWindow(DlgUtils, QMainWindow):
             dinfo = {}
         dlg = dialogFromUi(self, 'dialogs/about.ui')
         dlg.clientVersion.setText(nicos_version)
-        dlg.pyVersion.setText('%s/%s/%s' % (sys.version.split()[0],
-                                            QT_VERSION_STR,
-                                            PYQT_VERSION_STR))
+        dlg.pyVersion.setText('%s/%s/%s/%s/%s' % (
+            sys.version.split()[0], QT_VERSION_STR, PYQT_VERSION_STR,
+            gr.runtime_version(), gr.__version__))
         dlg.serverHost.setText(dinfo.get('server_host', 'not connected'))
         dlg.nicosRoot.setText(dinfo.get('nicos_root', ''))
         dlg.serverVersion.setText(dinfo.get('daemon_version', ''))
@@ -704,7 +725,7 @@ class MainWindow(DlgUtils, QMainWindow):
         dlg.customVersion.setText(dinfo.get('custom_version', ''))
         dlg.contributors.setPlainText(nicos.authors.authors_list)
         dlg.adjustSize()
-        dlg.exec_()
+        dlg.exec()
 
     @pyqtSlot(bool)
     def on_actionConnect_triggered(self, on):
@@ -726,10 +747,10 @@ class MainWindow(DlgUtils, QMainWindow):
             return
         if save:
             self.lastpreset = save
-            self.connpresets[save] = new_data
+            self.connpresets[save] = new_data.copy()
         else:
             self.lastpreset = new_name
-        self.conndata = new_data
+        self.setConnData(new_data)
         if tunnel:
             try:
                 host, username, password = splitTunnelString(tunnel)
@@ -763,7 +784,7 @@ class MainWindow(DlgUtils, QMainWindow):
     @pyqtSlot()
     def on_actionPreferences_triggered(self):
         dlg = SettingsDialog(self)
-        ret = dlg.exec_()
+        ret = dlg.exec()
         if ret == QDialog.Accepted:
             dlg.saveSettings()
 

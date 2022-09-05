@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,16 +24,17 @@
 
 name = 'test_sans1 setup'
 
+BS1_X_OFS = -475.055  # from entangle
 
 devices = dict(
     dev1 = device('nicos.devices.generic.virtual.VirtualMotor',
                   abslimits = (0, 100),
                   unit = 'a.u',
                  ),
-    ieee1 = device('nicos_mlz.sans1.devices.bersans.IEEEDevice'),
-    ieee2 = device('nicos_mlz.sans1.devices.bersans.IEEEDevice',
+    ieee1 = device('nicos_mlz.sans1.devices.ieee.IEEEDevice'),
+    ieee2 = device('nicos_mlz.sans1.devices.ieee.IEEEDevice',
                    valuename = 'dev1'),
-    ieee3 = device('nicos_mlz.sans1.devices.bersans.IEEEDevice',
+    ieee3 = device('nicos_mlz.sans1.devices.ieee.IEEEDevice',
                    valuename = 'dev1.curvalue'),
     det1_z_ax = device('nicos.devices.generic.Axis',
         fmtstr = '%.0f',
@@ -84,5 +85,47 @@ devices = dict(
         fmtstr = '%.0f',
         maxage = 120,
         pollinterval = 15,
+    ),
+    bs_ax_motor = device('nicos.devices.generic.virtual.VirtualMotor',
+        fmtstr = '%.2f',
+        abslimits = (480, 868),
+        unit = 'mm',
+        curvalue = 500,
+    ),
+    bs_xax = device('nicos_mlz.sans1.devices.beamstop.BeamStopAxis',
+        motor = 'bs_ax_motor',
+        coder = 'bs_ax_motor',
+        precision = 0.1,
+        fmtstr = '%.2f',
+    ),
+    bs_ay_motor = device('nicos.devices.generic.virtual.VirtualMotor',
+        fmtstr = '%.1f',
+        abslimits = (-100, 590),
+        unit = 'mm',
+        curvalue = 300,
+    ),
+    bs_yax = device('nicos_mlz.sans1.devices.beamstop.BeamStopAxis',
+        motor = 'bs_ay_motor',
+        coder = 'bs_ay_motor',
+        precision = 0.1,
+        fmtstr = '%.2f',
+    ),
+    bs = device('nicos_mlz.sans1.devices.beamstop.BeamStop',
+        xaxis = 'bs_xax',
+        yaxis = 'bs_yax',
+        ypassage = -99,
+        unit = 'mm',
+        slots = {
+            '100x100' : (125.2 - BS1_X_OFS, (100, 100)),
+            'd35'     : (197.0 - BS1_X_OFS, (35, 35)),
+            '70x70'   : (253.4 - BS1_X_OFS, (70, 70)),
+            '55x55'   : (317.4 - BS1_X_OFS, (55, 55)),
+            'none'    : (348.0 - BS1_X_OFS, (0, 0)),  # no shapeholder!
+            '85x85'   : (390.4 - BS1_X_OFS, (85, 85)),
+        },
+        xlimits = (480, 868),
+        ylimits = (100, 590),
+        shape = 'none',
+        maxtries = 3,
     ),
 )

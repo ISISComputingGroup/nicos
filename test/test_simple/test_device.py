@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -82,8 +82,8 @@ class Dev2(HasLimits, HasOffset, CanDisable, Moveable):
         methods_called.add('doIsAllowed')
         return True, ''
 
-    def doStart(self, pos):
-        self._val = pos
+    def doStart(self, target):
+        self._val = target
         methods_called.add('doStart')
 
     def doStop(self):
@@ -139,11 +139,11 @@ class Dev3(HasLimits, HasOffset, Moveable):
     def doRead(self, maxage=0):
         return self._val - self.offsetsign * self.offset
 
-    def doStart(self, pos):
-        self._val = pos + self.offsetsign * self.offset
+    def doStart(self, target):
+        self._val = target + self.offsetsign * self.offset
 
-    def doAdjust(self, old, new):
-        self.offset += self.offsetsign * (old - new)
+    def doAdjust(self, oldvalue, newvalue):
+        self.offset += self.offsetsign * (oldvalue - newvalue)
 
 
 class Dev4(Device):

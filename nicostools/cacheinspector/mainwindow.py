@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -82,7 +82,7 @@ class MainWindow(QMainWindow):
         dlg.valueServerAddress.setText(self.ipAddress)
         dlg.valuePort.setText(str(self.port))
         dlg.valueServerAddress.setFocus()
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         self.ipAddress = dlg.valueServerAddress.text()
         self.port = int(dlg.valuePort.text())
@@ -104,7 +104,7 @@ class MainWindow(QMainWindow):
     def addNewKey(self):
         """Adds a key using the data given via the add key window."""
         dlg = EntryEditDialog(self)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         entry = dlg.getEntry()
         self.client.put(entry.key, entry)

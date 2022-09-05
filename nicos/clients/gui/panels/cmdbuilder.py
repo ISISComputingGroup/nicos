@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,13 +18,14 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
 
 """NICOS GUI single cmdlet command input."""
 
+from os import path
 from nicos.clients.gui.cmdlets import all_categories, all_cmdlets
 from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.utils import loadUi, modePrompt
@@ -44,16 +45,19 @@ class CommandPanel(Panel):
 
     * ``modules`` (default ``[]``) -- list of additional Python modules that
       contain cmdlets and should be loaded.
+    * ``add_presets`` (default ``[]``) -- list of tuples consisting of
+      additional preset keys and names (e.g. ``[('m', 'monitor counts')]``).
     """
 
     panelName = 'Command'
-    ui = 'panels/cmdbuilder.ui'
+    ui = path.join('panels', 'cmdbuilder.ui')
 
     def __init__(self, parent, client, options):
         Panel.__init__(self, parent, client, options)
         loadUi(self, self.ui)
 
         self.window = parent
+        self.options = options
         self.mapping = {}
         self.current_cmdlet = None
         self.expertmode = self.mainwindow.expertmode
@@ -152,7 +156,7 @@ class CommandPanel(Panel):
     def selectCmdlet(self, cmdlet):
         if self.current_cmdlet:
             self.clearCmdlet()
-        inst = cmdlet(self, self.client)
+        inst = cmdlet(self, self.client, self.options)
         inst.setValues(self.value_collection)
         inst.buttons.upBtn.setVisible(False)
         inst.buttons.downBtn.setVisible(False)

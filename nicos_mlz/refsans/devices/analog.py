@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,45 +25,8 @@
 Support code for any encoder with analog signal, like poti laser distance etc
 """
 
-from nicos.core import Readable, oneof, status
+from nicos.core import Readable, status
 from nicos.core.params import Attach, Param
-from nicos.devices.abstract import Coder
-
-
-class AnalogCalc(Coder):
-
-    attached_devices = {
-        'device1': Attach('first value for calculation', Readable),
-        'device2': Attach('second value for calculation', Readable),
-    }
-
-    parameters = {
-        'calc': Param('choose the calculation',
-                      type=oneof('mul', 'div', 'add', 'dif'), settable=False,
-                      mandatory=True, default='div'),
-    }
-
-    def doRead(self, maxage=0):
-        """Return a read analogue signal corrected by a polynom.
-
-        A correcting polynom of at least first order is used.
-        Result is then offset + mul * <previously calculated value>
-        """
-        value1 = self._attached_device1.read(maxage)
-        value2 = self._attached_device2.read(maxage)
-
-        self.log.info('value 1: %f 2: %f', value1, value2)
-        if self.calc == 'mul':
-            result = value1 * value2
-        elif self.calc == 'div':
-            result = value1 / value2
-        elif self.calc == 'add':
-            result = value1 + value2
-        elif self.calc == 'dif':
-            result = value1 - value2
-        self.log.debug('final result: %f', result)
-
-        return result
 
 
 class Accuracy(Readable):

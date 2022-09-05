@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -31,6 +31,7 @@ from nicos.core.data.sink import DataSink
 
 from nicos_sinq.devices.sinqasciisink import SINQAsciiSink, \
     SINQAsciiSinkHandler
+from nicos_sinq.sxtal.instrument import SXTalBase
 from nicos_sinq.sxtal.util import window_integrate
 
 
@@ -42,7 +43,7 @@ class SxtalScanSink(SINQAsciiSink):
 
     def createHandlers(self, dataset):
         if session.instrument.ccl_file:
-            return None
+            return []
         return DataSink.createHandlers(self, dataset)
 
 
@@ -75,20 +76,23 @@ class CCLSinkHandler(SINQAsciiSinkHandler):
 
     def begin(self):
         if not self._ccl_file:
-            self._ccl_file = open(self.dataset.filepaths[0], 'w')  # pylint: disable=consider-using-with
+            # pylint: disable=consider-using-with
+            self._ccl_file = open(self.dataset.filepaths[0], 'w',
+                                  encoding='utf-8')
             base = os.path.splitext(self.dataset.filepaths[0])[0]
             rflfile = base + '.rfl'
-            self._rfl_file = open(rflfile, 'w')  # pylint: disable=consider-using-with
+            self._rfl_file = open(rflfile, 'w', encoding='utf-8')
             self._rfl_file.write('%s\n' % rflfile)
 
-    def addSubset(self, point):
+    def addSubset(self, subset):
         # Prevent unwelcome things from happening in the base class
         pass
 
     def _write_profile(self):
         # Write first profile header line
-        hkl = session.instrument.read(0)
-        ang = session.instrument._readPos(0)
+        hkl = session.instrument.target
+        ang = session.instrument._extractPos(session.instrument._calcPos(
+            session.instrument.target))
         # Collect profile
         detinfo = self.dataset.detvalueinfo
         detID = 0
@@ -104,18 +108,18 @@ class CCLSinkHandler(SINQAsciiSinkHandler):
         if not ok:
             session.log.warning(' Failed integration of %f %f %f with %s',
                                 hkl[0], hkl[1], hkl[2], reason)
-        if len(ang) > 3:
+        if len(ang) == 3:
             self._ccl_file.write(
                 '%4d %7.3f %7.3f %7.3f %7.2f '
                 '%7.2f %7.2f %7.0f %7.2f\n' %
                 (self._count, hkl[0], hkl[1], hkl[2],
-                 ang[0], ang[1], ang[2], intensity, sigma))
+                 ang[0][1], ang[1][1], ang[2][1], intensity, sigma))
         else:
             self._ccl_file.write(
                 '%4d %7.3f %7.3f %7.3f %7.2f '
                 '%7.2f %7.2f %7.2f %7.0f %7.2f\n' %
                 (self._count, hkl[0], hkl[1], hkl[2],
-                 ang[0], ang[1], ang[2], ang[3], intensity, sigma))
+                 ang[0][1], ang[1][1], ang[2][1], ang[3][1], intensity, sigma))
         # Second profile header line
         np = len(self.dataset.subsets)
         keys = list(self.dataset.preset.keys())
@@ -131,17 +135,20 @@ class CCLSinkHandler(SINQAsciiSinkHandler):
         mf = 0
         idx = 0
         for ev in evlist:
-            if ev.name == 't' or ev.name == 'temp' or ev.name == 'temperature':
+            if ev.name in ['t', 'temp', 'Ts', 'temperature']:
                 temp = evvallist[idx]
-            if ev.name == 'mf':
+            if ev.name in ['mf', 'magfield', 'B']:
                 mf = evvallist[idx]
             idx += 1
-        self._ccl_file.write('%3d %7.4f %9.0f %7.3f %12f %s\n' %
-                             (np, step, preset, temp, mf, time_str))
+
+        modemap = {'omega': 'om', 't2t': 'o2t'}
+        self._ccl_file.write('%3d %7.4f %9.0f %7.3f %12f %s %s %7.4f\n' %
+                             (np, step, preset, temp, mf, time_str,
+                              modemap[session.instrument.scanmode], step))
         # Print profile
         printed = 0
         for c in counts:
-            self._ccl_file.write('%7d' % c)
+            self._ccl_file.write(' %7d' % c)
             printed += 1
             if printed >= 10:
                 self._ccl_file.write('\n')
@@ -152,12 +159,12 @@ class CCLSinkHandler(SINQAsciiSinkHandler):
         if len(ang) < 4:
             # Hack for NB where there are only 3 angles
             ll = list(ang)
-            ll.append(.0)
+            ll.append((0, .0))
             ang = tuple(ll)
         self._rfl_file.write('%5d %6.2f %6.2f %6.2f %7.2f %7.2f '
                              '%7.2f %7.2f %7.0f %7.2f\n'
                              % (self._count, hkl[0], hkl[1], hkl[2],
-                                ang[0], ang[1], ang[2], ang[3],
+                                ang[0][1], ang[1][1], ang[2][1], ang[3][1],
                                 intensity, sigma))
         self._rfl_file.flush()
         self._ccl_file.flush()
@@ -227,6 +234,8 @@ class CCLSink(SINQAsciiSink):
     _handlerObj = None
 
     def createHandlers(self, dataset):
+        if not isinstance(session.instrument, SXTalBase):
+            return []
         if not session.instrument.ccl_file:
             return []
         if self._handlerObj is None:

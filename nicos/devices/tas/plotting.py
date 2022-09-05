@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -75,11 +75,11 @@ class SpaceMap:
 
         self.taus = []
         self.hkls = []
-        for kwd in kwds:
-            if kwd.startswith('tau'):
-                self.taus.append(kwds[kwd])
-            elif kwd.startswith('hkl'):
-                self.hkls.append(kwds[kwd])
+        for key, value in kwds.items():
+            if key.startswith('tau'):
+                self.taus.append(value)
+            elif key.startswith('hkl'):
+                self.hkls.append(value)
 
         mode = self.tasinfo['scanmode']
         const = self.tasinfo['scanconstant']
@@ -107,7 +107,7 @@ class SpaceMap:
             return
         pylab.scatter([x], [y], **props)
         if label is not None:
-            pylab.text(x, y-0.1, label, size='x-small',
+            pylab.text(x, y - 0.1, label, size='x-small',
                        horizontalalignment='center', verticalalignment='top')
 
     def plot_hkls(self, hkls, labels=None, **props):
@@ -125,7 +125,7 @@ class SpaceMap:
         pylab.scatter(xs, ys, **props)
         if labels is not None:
             for i, x, y in zip(indices, xs, ys):
-                pylab.text(x, y-0.1, labels[i], size='x-small',
+                pylab.text(x, y - 0.1, labels[i], size='x-small',
                            horizontalalignment='center', verticalalignment='top')
 
     def check_hkls(self, hkls):
@@ -184,6 +184,7 @@ class SpaceMap:
 
     def plot_ellipsoid(self, hkl, x, y):
         import pylab
+
         # plot resolution ellipsoid in x-y plane
         self.resmat.sethklen(hkl[0], hkl[1], hkl[2], self.ny*THZ2MEV)
         xs1, ys1, xs2, ys2 = self.resmat.resellipse()[:4]
@@ -266,9 +267,6 @@ class SpaceMap:
         pylab.figure('Reciprocal space visualization', figsize=(7, 7), dpi=120,
                      facecolor='1.0')
         pylab.clf()
-        pylab.rc('text', usetex=True)
-        pylab.rc('text.latex',
-            preamble=r'\usepackage{amsmath}\usepackage{helvet}\usepackage{sfmath}')
 
         ax = pylab.subplot(111, aspect='equal')
         ax.set_axisbelow(True)  # draw grid lines below plotted points
@@ -286,10 +284,10 @@ class SpaceMap:
         # monkey-patch formatting coordinates in the status bar
         pylab.gca().format_coord = self.format_coord
 
-        pylab.title('Available reciprocal space for %s %.3f \\AA$^{-1}$, E = %.3f %s'
+        pylab.title('Available reciprocal space for %s %.3f $\\AA^{-1}$, E = %.3f %s'
                     % (self.mode, self.const, self.E, self.tasinfo['energytransferunit']))
-        pylab.xlabel('$Q_1$ (\\AA$^{-1}$) $\\rightarrow$ ( %d %d %d )' % tuple(dir1))
-        pylab.ylabel('$Q_2$ (\\AA$^{-1}$) $\\rightarrow$ ( %d %d %d )' % tuple(dir2))
+        pylab.xlabel('$Q_1$ ($\\AA^{-1}$) $\\rightarrow$ ( %d %d %d )' % tuple(dir1))
+        pylab.ylabel('$Q_2$ ($\\AA^{-1}$) $\\rightarrow$ ( %d %d %d )' % tuple(dir2))
         pylab.grid(color='0.5', zorder=-2)
         if hasattr(pylab, 'tight_layout'):
             pylab.tight_layout()
@@ -353,7 +351,7 @@ def plot_resatpoint(cfg, par, fignum='Resolution calculation', resmat=None):
     pylab.clf()
     pylab.rc('text', usetex=True)
     pylab.rc('text.latex',
-             preamble='\\usepackage{amsmath}\\usepackage{helvet}\\usepackage{sfmath}')
+             preamble='\\usepackage{amsmath}\\usepackage{helvet}')
     pylab.subplots_adjust(left=0.11, bottom=0.08, right=0.97, top=0.81,
                           wspace=0.25, hspace=0.27)
     # register event handler to pylab
@@ -451,9 +449,6 @@ def plot_resscan(cfg, par, hkles, fignum='Scan resolution', resmat=None):
     pylab.ion()
     pylab.figure(5, figsize=(8.5, 6), dpi=120, facecolor='1.0')
     pylab.clf()
-    pylab.rc('text', usetex=True)
-    pylab.rc('text.latex',
-             preamble='\\usepackage{amsmath}\\usepackage{helvet}\\usepackage{sfmath}')
     pylab.subplots_adjust(left=0.11, bottom=0.08, right=0.97, top=0.96,
                           wspace=0.25, hspace=0.39)
     # register event handler to pylab
@@ -477,7 +472,7 @@ def plot_resscan(cfg, par, hkles, fignum='Scan resolution', resmat=None):
     l = delete(l, errors)
     e = delete(e, errors)
 
-    if len(e) > 1 and e[0] == e[1]: # q-scans plot energies as y axis
+    if len(e) > 1 and e[0] == e[1]:  # q-scans plot energies as y axis
         q = 0.0
         if h[0] != h[1]:
             q = h
@@ -487,8 +482,8 @@ def plot_resscan(cfg, par, hkles, fignum='Scan resolution', resmat=None):
             q = l
 
         pylab.subplot(311)
-        pylab.xlabel(r'$Q_x$ (\AA$^{-1}$)')
-        pylab.ylabel(r'$Q_y$ (\AA$^{-1}$)')
+        pylab.xlabel(r'$Q_x$ ($\AA^{-1}$)')
+        pylab.ylabel(r'$Q_y$ ($\AA^{-1}$)')
         for i in range(len(elliplist)):
             x, y, xslice, yslice = elliplist[i][0:4]
             x += q[i]
@@ -498,7 +493,7 @@ def plot_resscan(cfg, par, hkles, fignum='Scan resolution', resmat=None):
             pylab.plot(xslice, yslice, 'g')
 
         pylab.subplot(312)
-        pylab.xlabel(r'$Q_y$ (\AA$^{-1}$)')
+        pylab.xlabel(r'$Q_y$ ($\AA^{-1}$)')
         pylab.ylabel(r'Energy (meV)')
         for i in range(len(elliplist)):
             xyq, yyq, xyqslice, yyqslice = elliplist[i][8:12]
@@ -509,7 +504,7 @@ def plot_resscan(cfg, par, hkles, fignum='Scan resolution', resmat=None):
             pylab.plot(xyqslice, yyqslice, 'g')
 
         pylab.subplot(313)
-        pylab.xlabel(r'$Q_x$ (\AA$^{-1}$)')
+        pylab.xlabel(r'$Q_x$ ($\AA^{-1}$)')
         pylab.ylabel('Energy (meV)')
         for i in range(len(elliplist)):
             xxq, yxq, xxqslice, yxqslice = elliplist[i][4:8]
@@ -518,36 +513,36 @@ def plot_resscan(cfg, par, hkles, fignum='Scan resolution', resmat=None):
             pylab.plot(xxq, yxq, 'b')
             pylab.plot(xxqslice, yxqslice, 'g')
 
-    else: # energy scans plot energies as x-axis
+    else:  # energy scans plot energies as x-axis
         pylab.subplot(311)
-        pylab.xlabel(r'$Q_x$ (\AA$^{-1}$)/Energy (meV)')
-        pylab.ylabel(r'$Q_y$ (\AA$^{-1}$)')
+        pylab.xlabel(r'$Q_x$ ($\AA^{-1}$)/Energy (meV)')
+        pylab.ylabel(r'$Q_y$ ($\AA^{-1}$)')
         for i in range(len(elliplist)):
             x, y, xslice, yslice = elliplist[i][0:4]
             x += e[i]
             xslice += e[i]
 
-            pylab.plot(x,y, 'b')
-            pylab.plot(xslice,yslice, 'g')
+            pylab.plot(x, y, 'b')
+            pylab.plot(xslice, yslice, 'g')
 
         pylab.subplot(312)
-        pylab.ylabel(r'$Q_y$ (\AA$^{-1}$)')
+        pylab.ylabel(r'$Q_y$ ($\AA^{-1}$)')
         pylab.xlabel(r'Energy (meV)')
         for i in range(len(elliplist)):
             xyq, yyq, xyqslice, yyqslice = elliplist[i][8:12]
             yyq += e[i]
             yyqslice += e[i]
 
-            pylab.plot(yyq,xyq, 'b')
-            pylab.plot(yyqslice,xyqslice, 'g')
+            pylab.plot(yyq, xyq, 'b')
+            pylab.plot(yyqslice, xyqslice, 'g')
 
         pylab.subplot(313)
-        pylab.ylabel(r'$Q_x$ (\AA$^{-1}$)')
+        pylab.ylabel(r'$Q_x$ ($\AA^{-1}$)')
         pylab.xlabel('Energy (meV)')
         for i in range(len(elliplist)):
             xxq, yxq, xxqslice, yxqslice = elliplist[i][4:8]
             yxq += e[i]
             yxqslice += e[i]
 
-            pylab.plot(yxq,xxq, 'b')
-            pylab.plot(yxqslice,xxqslice, 'g')
+            pylab.plot(yxq, xxq, 'b')
+            pylab.plot(yxqslice, xxqslice, 'g')

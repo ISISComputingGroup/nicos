@@ -38,6 +38,9 @@
       <layout class="QVBoxLayout" name="monitorLayout">
        <item>
         <widget class="QScrollArea" name="scroll">
+         <property name="verticalScrollBarPolicy">
+          <enum>Qt::ScrollBarAlwaysOn</enum>
+         </property>
          <property name="widgetResizable">
           <bool>true</bool>
          </property>
@@ -46,7 +49,7 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>774</width>
+            <width>758</width>
             <height>498</height>
            </rect>
           </property>
@@ -105,14 +108,6 @@
    </property>
    <property name="toolTip">
     <string>Select colormap</string>
-   </property>
-  </action>
-  <action name="actionROI">
-   <property name="text">
-    <string>&amp;Region Of Interest</string>
-   </property>
-   <property name="toolTip">
-    <string>Open region of interest in seperate window</string>
    </property>
   </action>
   <action name="actionMarkCenter">
@@ -185,9 +180,12 @@
     <string>Show symbols</string>
    </property>
   </action>
+  <action name="actionAttachElog">
+   <property name="text">
+    <string>Attach to electronic log</string>
+   </property>
+  </action>
  </widget>
- <resources>
-  <include location="../../../resources/nicos-gui-material.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

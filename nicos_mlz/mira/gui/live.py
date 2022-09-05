@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -30,8 +30,8 @@ from os import path
 from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.utils import loadUi
 from nicos.guisupport.qt import QByteArray, QDialog, QDoubleSpinBox, \
-    QFileDialog, QLabel, QListWidgetItem, QMenu, QPrintDialog, QPrinter, \
-    QSizePolicy, QStatusBar, Qt, QToolBar, pyqtSlot
+    QFileDialog, QLabel, QListWidgetItem, QMenu, QPageLayout, QPrintDialog, \
+    QPrinter, QSizePolicy, QStatusBar, Qt, QToolBar, pyqtSlot
 from nicos.utils import findResource
 
 try:
@@ -292,9 +292,9 @@ class LiveDataPanel(Panel):
     def on_actionPrint_triggered(self):
         printer = QPrinter(QPrinter.HighResolution)
         printer.setColorMode(QPrinter.Color)
-        printer.setOrientation(QPrinter.Landscape)
+        printer.setPageOrientation(QPageLayout.Landscape)
         printer.setOutputFileName('')
-        if QPrintDialog(printer, self).exec_() == QDialog.Accepted:
+        if QPrintDialog(printer, self).exec() == QDialog.Accepted:
             self.widget.GetPlot().print_(printer)
         self.statusBar.showMessage('Plot successfully printed to %s.' %
                                    str(printer.printerName()))

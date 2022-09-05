@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@
 
 import os.path
 
+from nicos.clients.flowui import uipath
 from nicos.clients.gui.panels.logviewer import \
     LogViewerPanel as DefaultLogViewerPanel
 from nicos.guisupport.qt import QDateTime
@@ -34,6 +35,7 @@ from nicos.guisupport.qt import QDateTime
 class LogViewerPanel(DefaultLogViewerPanel):
     """Provides a possibility to view various NICOS log files, but arranges
     logs in reverse order, i.e. latest on top """
+    ui = os.path.join(uipath, 'panels', 'ui_files', 'logviewer.ui')
 
     def _getFilteredLogs(self, filters):
         # local vars for readability

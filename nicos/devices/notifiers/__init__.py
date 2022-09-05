@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -29,7 +29,8 @@ from time import time as currenttime
 
 from nicos import session
 from nicos.core import ADMIN, AccessError, Device, Override, Param, \
-    floatrange, listof, mailaddress, oneof, tupleof, usermethod
+    floatrange, listof, mailaddress, oneof, tupleof, usermethod, none_or, \
+    nonemptystring
 from nicos.utils import createSubprocess, createThread
 from nicos.utils.emails import sendMail
 
@@ -65,7 +66,7 @@ class Notifier(Device):
     }
 
     parameter_overrides = {
-        'lowlevel': Override(default=True, mandatory=False),
+        'visibility': Override(default=()),
     }
 
     _lastsent = 0
@@ -119,6 +120,9 @@ class Mailer(Notifier):
     If a Mailer is configured as a notifier (the Mailer device is in the list
     of `notifiers` in the `sysconfig` entry), the receiver addresses (not
     copies) can be set by `.SetMailReceivers`.
+
+    If username is specified, password should be stored in the nicos keyring
+    (domain: nicos) using the *mailserver_password* as identifier.
     """
 
     parameters = {
@@ -126,6 +130,12 @@ class Mailer(Notifier):
                             settable=True),
         'sender':     Param('Mail sender address', type=mailaddress,
                             mandatory=True),
+        'security':   Param('Used encryption layer for smtp communication',
+                            type=oneof('none', 'tls', 'ssl'), default='none',
+                            settable=True),
+        'username':   Param('Username used to login to SMTP server',
+                            type=none_or(nonemptystring), default=None,
+                            settable=True),
     }
 
     parameter_overrides = {
@@ -145,7 +155,8 @@ class Mailer(Notifier):
             if not receivers:
                 return
             ret = sendMail(self.mailserver, receivers, self.sender,
-                           self.subject + ' -- ' + subject, body)
+                           self.subject + ' -- ' + subject, body,
+                           security=self.security, username=self.username)
             if not ret:  # on error, ret is a list of errors
                 self.log.info('%smail sent to %s',
                               what and what + ' ' or '', ', '.join(receivers))

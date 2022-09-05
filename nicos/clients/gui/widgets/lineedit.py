@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -28,8 +28,8 @@ import re
 
 from nicos.clients.gui.utils import ScriptExecQuestion
 from nicos.guisupport.qt import QApplication, QColor, QCompleter, QEvent, \
-    QKeyEvent, QLineEdit, QMessageBox, QPalette, QRegExp, QRegExpValidator, \
-    QStringListModel, Qt, pyqtSignal
+    QKeyEvent, QLineEdit, QMessageBox, QPalette, QRegularExpression, \
+    QRegularExpressionValidator, QStringListModel, Qt, pyqtSignal
 from nicos.guisupport.utils import setBackgroundColor, setForegroundColor
 
 wordsplit_re = re.compile(r'[ \t\n\"\\\'`@$><=;|&{(\[]')
@@ -183,7 +183,8 @@ class CommandLineEdit(HistoryLineEdit):
         HistoryLineEdit.__init__(self, parent, history)
         self.textChanged.connect(self.on_textChanged)
         self.returnPressed.connect(self.on_returnPressed)
-        self.setValidator(QRegExpValidator(QRegExp(r"^\S.*"), self))
+        self.setValidator(QRegularExpressionValidator(QRegularExpression(r"^\S.*"),
+                                                      self))
         self.current_status = None
         self.error_status = None
 
@@ -235,7 +236,7 @@ class CommandLineEdit(HistoryLineEdit):
         action = 'queue'
         if self.current_status != 'idle':
             qwindow = ScriptExecQuestion()
-            result = qwindow.exec_()
+            result = qwindow.exec()
             if result == QMessageBox.Cancel:
                 return
             elif result == QMessageBox.Apply:

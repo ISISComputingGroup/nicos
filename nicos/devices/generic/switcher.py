@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
 #
 # *****************************************************************************
@@ -66,8 +66,8 @@ class Switcher(MappedMoveable):
     }
 
     parameter_overrides = {
-        'fallback':  Override(userparam=False, type=none_or(str),
-                              mandatory=False),
+        'fallback': Override(userparam=False, type=none_or(str),
+                             mandatory=False),
     }
 
     hardware_access = False
@@ -82,12 +82,12 @@ class Switcher(MappedMoveable):
         """Return raw position value of the moveable."""
         return self._attached_moveable.read(maxage)
 
-    def _mapReadValue(self, pos):
+    def _mapReadValue(self, value):
         """Override default inverse mapping to allow a
         deviation <= precision.
         """
         prec = self.precision
-        for name, value in self.mapping.items():
+        for name, pos in self.mapping.items():
             if prec:
                 if abs(pos - value) <= prec:
                     return name
@@ -96,10 +96,10 @@ class Switcher(MappedMoveable):
         if self.fallback is not None:
             return self.fallback
         if self.relax_mapping:
-            return self._attached_moveable.format(pos, True)
+            return self._attached_moveable.format(value, True)
         raise PositionError(self, 'unknown position of %s: %s' %
                             (self._attached_moveable,
-                             self._attached_moveable.format(pos, True))
+                             self._attached_moveable.format(value, True))
                             )
 
     def doStatus(self, maxage=0):
@@ -142,8 +142,8 @@ class ReadonlySwitcher(MappedReadable):
     }
 
     parameter_overrides = {
-        'fallback':  Override(userparam=False, type=none_or(str),
-                              mandatory=False),
+        'fallback': Override(userparam=False, type=none_or(str),
+                             mandatory=False),
     }
 
     hardware_access = False
@@ -151,9 +151,9 @@ class ReadonlySwitcher(MappedReadable):
     def _readRaw(self, maxage=0):
         return self._attached_readable.read(maxage)
 
-    def _mapReadValue(self, pos):
+    def _mapReadValue(self, value):
         prec = self.precision
-        for name, value in self.mapping.items():
+        for name, pos in self.mapping.items():
             if prec:
                 if abs(pos - value) <= prec:
                     return name
@@ -222,11 +222,11 @@ class MultiSwitcher(MappedMoveable):
     }
 
     parameter_overrides = {
-        'mapping':   Override(description='Mapping of state names to N values '
-                              'to move the moveables to',
-                              type=dictof(anytype, listof(anytype))),
-        'fallback':  Override(userparam=False, type=none_or(anytype),
-                              mandatory=False),
+        'mapping': Override(description='Mapping of state names to N values '
+                            'to move the moveables to',
+                            type=dictof(anytype, listof(anytype))),
+        'fallback': Override(userparam=False, type=none_or(anytype),
+                             mandatory=False),
     }
 
     hardware_access = False
@@ -276,7 +276,7 @@ class MultiSwitcher(MappedMoveable):
                    tuple(self.mapping[self.target][len(self._attached_moveables):])
         return tuple(d.read(maxage) for d in self.devices)
 
-    def _mapReadValue(self, pos):
+    def _mapReadValue(self, value):
         """maps a tuple to one of the configured values"""
         hasprec = bool(self.precision)
         if hasprec:
@@ -285,7 +285,7 @@ class MultiSwitcher(MappedMoveable):
                 precisions = [precisions[0]] * len(self.devices)
         for name, values in self.mapping.items():
             if hasprec:
-                for p, v, prec in zip(pos, values, precisions):
+                for p, v, prec in zip(value, values, precisions):
                     if prec:
                         if abs(p - v) > prec:
                             break
@@ -294,17 +294,17 @@ class MultiSwitcher(MappedMoveable):
                 else:  # if there was no break we end here...
                     return name
             else:
-                if tuple(pos) == tuple(values):
+                if tuple(value) == tuple(values):
                     return name
         if self.fallback is not None:
             return self.fallback
         raise PositionError(self, 'unknown position of %s: %s' % (
             ', '.join(str(d) for d in self.devices),
-            ', '.join(d.format(p) for (p, d) in zip(pos, self.devices))))
+            ', '.join(d.format(p) for (p, d) in zip(value, self.devices))))
 
     def doStatus(self, maxage=0):
-        # if the underlying device is moving or in error state,
-        # reflect its status
+        # if the underlying devices are moving or in error state,
+        # reflect their status
         move_status = multiStatus(self.devices, maxage)
         if move_status[0] not in (status.OK, status.WARN):
             return move_status

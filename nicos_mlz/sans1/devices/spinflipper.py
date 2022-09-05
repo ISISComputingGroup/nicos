@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@
 import time
 
 from nicos.core import SIMULATION, HasTimeout, Param, status, tangodev
-from nicos.devices.tango import AnalogInput, AnalogOutput
+from nicos.devices.entangle import AnalogInput, AnalogOutput
 
 
 class SpinflipperPower(HasTimeout, AnalogOutput):
@@ -69,13 +69,13 @@ class SpinflipperPower(HasTimeout, AnalogOutput):
         if mode != SIMULATION:
             self._forwardDev = AnalogInput('%s._forwardDev' % self.name,
                                            tangodevice=self.forwardtangodevice,
-                                           lowlevel=True)
+                                           visibility=())
 
             self._reverseDev = AnalogInput('%s._reverseDev' % self.name,
                                            tangodevice=self.reversetangodevice,
-                                           lowlevel=True)
+                                           visibility=())
 
-    def doTime(self, move_from, move_to):
+    def doTime(self, old_value, target):
         return self.busytime
 
     def doInfo(self):

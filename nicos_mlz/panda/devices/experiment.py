@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Enrico Faulhaber <enrico.faulhaber@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -27,7 +27,8 @@
 
 from os import path
 
-from nicos.core import Override
+from nicos.core import Override, Param
+from nicos.core.params import host, none_or
 
 from nicos_mlz.devices.experiment import Experiment
 
@@ -36,6 +37,12 @@ class PandaExperiment(Experiment):
     parameter_overrides = {
         'templates':     Override(default='exp/template'),
         'servicescript': Override(default='start_service.py'),
+    }
+
+    parameters = {
+        'ariane_host': Param('Host for connection to ARIANE runtime',
+                             type=none_or(host(defaultport=11657)),
+                             default=None),
     }
 
     @property

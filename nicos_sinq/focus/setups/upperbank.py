@@ -24,9 +24,9 @@ devices = dict(
         images = [
             'upper_image',
         ],
-        lowlevel = True
+        visibility = ()
     ),
 )
 startupcode = """
-focusdet.find_slaves()
+focusdet.find_followers()
 """

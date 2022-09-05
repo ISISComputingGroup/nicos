@@ -1,6 +1,7 @@
 description = 'PANDA Heusler-analyzer'
 
 group = 'lowlevel'
+display_order = 60
 
 includes = ['monofoci', 'monoturm', 'panda_mtt']
 
@@ -40,7 +41,7 @@ devices = dict(
         startdelay = 0,
         stopdelay = 0,
         ramptype = 1,
-        lowlevel = True,
+        visibility = (),
     ),
     afh_heusler = device('nicos_mlz.panda.devices.rot_axis.RotAxis',
         description = 'horizontal focus of heusler ana',
@@ -50,7 +51,7 @@ devices = dict(
         precision = 1,
         fmtstr = '%.1f',
         autoref = None,  # disable autoref since there is no refswitch
-        lowlevel = True,
+        visibility = (),
     ),
 )
 

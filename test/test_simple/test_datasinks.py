@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -33,6 +33,8 @@ import pytest
 
 from nicos import config
 from nicos.commands.scan import scan
+from nicos.core import ScanDataset
+from nicos.devices.datasinks.scan import AsciiScanfileReader
 from nicos.utils import readFile, updateFileCounter
 
 from test.utils import raises
@@ -61,41 +63,38 @@ except ImportError:
     yaml = None
 
 
-
 year = time.strftime('%Y')
 
 session_setup = 'data'
 
 
-@pytest.fixture(scope='class', autouse=True)
-def setup_module(session):
-    """Setup dataroot and generate a dataset by scanning"""
-    exp = session.experiment
-    dataroot = path.join(config.nicos_root, 'testdata')
-    os.makedirs(dataroot)
-
-    counter = path.join(dataroot, exp.counterfile)
-    open(counter, 'w').close()
-    updateFileCounter(counter, 'scan', 42)
-    updateFileCounter(counter, 'point', 167)
-
-    exp._setROParam('dataroot', dataroot)
-    exp.new(1234, user='testuser', localcontact=exp.localcontact)
-    exp.sample.new({'name': 'mysample'})
-    assert path.abspath(exp.datapath) == \
-        path.abspath(path.join(config.nicos_root, 'testdata',
-                               year, 'p1234', 'data'))
-    m = session.getDevice('motor2')
-    det = session.getDevice('det')
-    tdev = session.getDevice('tdev')
-    session.experiment.setEnvironment([])
-
-    scan(m, 0, 1, 5, det, tdev, t=0.005)
-
-    yield
-
-
 class TestSinks:
+
+    @pytest.fixture(scope='class', autouse=True)
+    def root_setup(self, session):
+        """Setup dataroot and generate a dataset by scanning"""
+        exp = session.experiment
+        dataroot = path.join(config.nicos_root, 'testdata')
+        os.makedirs(dataroot)
+
+        counter = path.join(dataroot, exp.counterfile)
+        updateFileCounter(counter, 'scan', 42)
+        updateFileCounter(counter, 'point', 167)
+
+        exp._setROParam('dataroot', dataroot)
+        exp.new(1234, user='testuser', localcontact=exp.localcontact)
+        exp.sample.new({'name': 'mysample'})
+        assert path.abspath(exp.datapath) == \
+            path.abspath(path.join(config.nicos_root, 'testdata',
+                                   year, 'p1234', 'data'))
+        m = session.getDevice('motor2')
+        det = session.getDevice('det')
+        tdev = session.getDevice('tdev')
+        session.experiment.setEnvironment([])
+
+        scan(m, 0, 1, 5, det, tdev, t=0.005)
+
+        yield
 
     def test_sink_class(self, session):
         scansink = session.getDevice('testsink1')
@@ -152,6 +151,28 @@ class TestSinks:
         assert scan.samplecounter == 1
         assert session.experiment.lastscan == 43
         assert session.experiment.lastpoint == 172
+
+    def test_scan_file_reader(self, session):
+        scanfile = path.join(session.experiment.datapath, 'p1234_00000043.dat')
+        assert path.isfile(scanfile)
+        asfr = AsciiScanfileReader(scanfile)
+        ds = asfr.scandataset
+        assert ds.number == 0
+        assert ds.counter == '43 (p1234_00000043.dat)'
+        assert ds.devvaluelists == [['0.000', '0.000'],
+                                    ['1.000', '0.000'],
+                                    ['2.000', '0.000'],
+                                    ['3.000', '0.000'],
+                                    ['4.000', '0.000']]
+        assert ds.envvaluelists == [[], [], [], [], []]
+        assert len(ds.detvaluelists) == 5
+        assert len(ds.subsets) == 5
+        # We want to compare including type here.
+        # pylint: disable=use-implicit-booleaness-not-comparison
+        assert ds.devices == []
+        assert ds.environment == []
+        assert ds.detectors == []
+        assert ds.preset == {}
 
     def test_raw_sinks(self, session):
         # check contents of files written by the raw sink
@@ -248,7 +269,7 @@ class TestSinks:
     def test_yaml_sink_1(self, session):
         yamlfile = path.join(session.experiment.datapath, '00000168.yaml')
         assert path.isfile(yamlfile)
-        with open(yamlfile) as df:
+        with open(yamlfile, encoding='utf-8') as df:
             data = df.read()
             # note: whitespace is significant in the following lines!
             assert '''instrument:
@@ -265,9 +286,25 @@ class TestSinks:
     def test_yaml_sink_2(self, session):
         yamlfile = path.join(session.experiment.datapath, '00000168.yaml')
         assert path.isfile(yamlfile)
-        with open(yamlfile) as df:
+        with open(yamlfile, encoding='utf-8') as df:
             contents = yaml.safe_load(df)
         assert contents['instrument']['name'] == 'INSTR'
         assert contents['experiment']['proposal'] == 'p1234'
         assert contents['measurement']['sample']['description']['name'] == \
             'mysample'
+
+
+def test_sink_ordering(session):
+    sinks = session.datasinks
+    sinks = sorted(sinks, key=lambda sink: sink.__class__.__name__)
+
+    def _test(sinks):
+        for i, sink in enumerate(sinks):
+            sink.handlerclass.ordering = i
+
+        dataset = session.experiment.data._init(ScanDataset())
+        assert all(h1.ordering <= h2.ordering for (h1, h2) in
+                   zip(dataset.handlers, dataset.handlers[1:]))
+
+    _test(sinks)
+    _test(reversed(sinks))

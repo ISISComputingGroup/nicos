@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -246,8 +246,8 @@ class ValueDisplay(NicosWidget, QWidget):
             if value < 0:
                 self.reinitLayout()
             else:
-                onechar = QFontMetrics(self.valueFont).width('0')
-                self.valuelabel.setMinimumSize(QSize(onechar * (value + .5), 0))
+                onechar = QFontMetrics(self.valueFont).horizontalAdvance('0')
+                self.valuelabel.setMinimumSize(QSize(round(onechar * (value + .5)), 0))
         elif pname == 'istext':
             self.valuelabel.setFont(value and self.font() or self.valueFont)
             self.width = self.width
@@ -428,8 +428,8 @@ class PictureDisplay(NicosWidget, QWidget):
         pass
 
     def setPicture(self):
-        size = QSize(self.props['width'] * self._scale,
-                     self.props['height'] * self._scale)
+        size = QSize(round(self.props['width'] * self._scale),
+                     round(self.props['height'] * self._scale))
         if isfile(self._filePath):
             pixmap = QPixmap(self._filePath)
         else:

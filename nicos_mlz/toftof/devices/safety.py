@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Tobias Unruh <tobias.unruh@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -27,7 +27,7 @@
 
 from nicos import session
 from nicos.core import Attach, Moveable, Override, Readable, oneofdict, status
-from nicos.devices.tango import DigitalInput, DigitalOutput
+from nicos.devices.entangle import DigitalInput, DigitalOutput
 
 from nicos_mlz.toftof.devices.safety_desc import bit_description
 

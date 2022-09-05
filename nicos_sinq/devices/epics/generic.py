@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -49,16 +49,16 @@ class WindowMoveable(HasLimits, EpicsMoveable):
     valuetype = float
     _driveTarget = None
 
-    def doStart(self, value):
+    def doStart(self, target):
         # I have to use my private _driveTarget as the target
         # attribute is marked volatile in EpicsMoveable and is
         # not holding the real target.
-        self._driveTarget = value
-        EpicsMoveable.doStart(self, value)
+        self._driveTarget = target
+        EpicsMoveable.doStart(self, target)
 
     def doStatus(self, maxage=0):
         pos = self.doRead(0)
-        if self._driveTarget:
+        if self._driveTarget is not None:
             if abs(pos - self._driveTarget) < self.window:
                 self._driveTarget = None
                 return status.OK, 'Done'

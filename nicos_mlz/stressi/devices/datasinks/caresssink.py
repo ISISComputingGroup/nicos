@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -194,7 +194,7 @@ class CaressScanfileSinkHandler(DataSinkHandler):
         self._defcmd(data + '(%s)' % ' '.join(d.keys()))
         self._string(data)
         for k, v in d.items():
-            if isinstance(v, numbers.Number):
+            if isinstance(v, numbers.Real):
                 self._write_float(v)
             elif isinstance(v, str) and (v in self.sink.mapping):
                 self.log.debug('%s = %r -> %r', k, v, self.sink.mapping[v])
@@ -380,6 +380,7 @@ class CaressScanfileSinkHandler(DataSinkHandler):
                 elif device == 'slite':
                     d1['SLITM_E'] = value
                 elif device == 'transm':
+                    # XXX: should be fixable now?
                     # The position of the moveable is needed, which is normally
                     # lowlevel and therefore not added to the metadata
                     d1[device] = session.getDevice(device). \
@@ -636,8 +637,12 @@ class CaressScanfileSinkHandler(DataSinkHandler):
                 for v in addvalues:
                     buf += pack('<f', v)
                 if self._detvalues is not None:
-                    for i in np.nditer(self._detvalues.T):
-                        buf += pack('<i', i)
+                    if self.sink.flipimage:
+                        for i in np.nditer(np.flipud(self._detvalues.T)):
+                            buf += pack('<i', i)
+                    else:
+                        for i in np.nditer(self._detvalues.T):
+                            buf += pack('<i', i)
                 self._file_write(buf)
         if self._scan_type == 'SGEN2':
             chis = point.metainfo.get(('chis', 'value'), [None])[0]
@@ -657,10 +662,13 @@ class CaressScanfileSinkHandler(DataSinkHandler):
                 self._write_integer(val)
         if self._scan_type != 'SGEN2':
             for (info, val) in zip(point.envvalueinfo, point.envvaluelist):
-                if hasattr(info, 'name') and \
-                   info.name != 'etime' and \
-                   not info.name.endswith(':elapsedtime'):
-                    self._write_float(val)
+                if (hasattr(info, 'name') and info.name != 'etime' and not
+                        info.name.endswith(':elapsedtime')):
+                    if isinstance(val, numbers.Real):
+                        self._write_float(val)
+                    else:
+                        self.log.info("Ignoring environment device '%s' "
+                                      "returning non-number value", info.name)
         self._detvalues = None
 
     def putResults(self, quality, results):
@@ -697,6 +705,9 @@ class CaressScanfileSink(FileSink):
                                   'off': 0,
                                   'open': 1,
                                   'closed': 0}),
+        'flipimage': Param('Flipping image bottom-top before writing',
+                           type=bool, default=False, settable=False,
+                           userparam=False),
     }
 
     parameter_overrides = {

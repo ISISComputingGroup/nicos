@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,6 @@ instrument setups.
 
 import glob
 import os
-from configparser import ConfigParser
 from logging import ERROR, LogRecord
 from os import path
 from uuid import uuid1
@@ -36,6 +35,7 @@ from uuid import uuid1
 import pytest
 
 from nicos import session
+from nicos.configmod import readToml
 from nicos.core.sessions.simulation import SimulationSupervisor
 from nicos.core.utils import system_user
 
@@ -108,11 +108,10 @@ def find_scripts():
             nicosconf = path.join(custom_dir, instr, 'nicos.conf')
             full_instr = f'{facility}.{instr}'
             custom_subdirs[full_instr] = []
-            cp = ConfigParser()
-            cp.read(nicosconf)
-            if cp.has_option('nicos', 'setup_subdirs'):
-                sbd = cp.get('nicos', 'setup_subdirs').split(',')
-                custom_subdirs[full_instr] = sbd
+            cfg = readToml(nicosconf)
+            subdirs = cfg.get('nicos', {}).get('setup_subdirs')
+            if subdirs is not None:
+                custom_subdirs[full_instr] = subdirs
             for testscript in sorted(os.listdir(testdir)):
                 # For now, only the "basic" scripts are run.
                 if testscript.endswith('basic.py'):
@@ -134,7 +133,7 @@ def test_dryrun(session, facility, instr, script):
     fullpath = path.join(custom_dir, instr, 'testscripts', script)
     cachepath = path.join(custom_dir, instr, 'testscripts', 'cache')
 
-    with open(fullpath) as fp:
+    with open(fullpath, encoding='utf-8') as fp:
         for line in fp:
             if line.startswith('# test:'):
                 parts = line.split(None, 4)

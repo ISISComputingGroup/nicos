@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -353,13 +353,14 @@ class Scan:
     def _inner_run(self):
         dataman = session.experiment.data
         # move all devices to starting position before starting scan
-        try:
-            self.prepareScan(self._startpositions[0])
-            skip_first_point = False
-        except StopScan:
-            return
-        except SkipPoint:
-            skip_first_point = True
+        skip_first_point = False
+        if self._startpositions:
+            try:
+                self.prepareScan(self._startpositions[0])
+            except StopScan:
+                return
+            except SkipPoint:
+                skip_first_point = True
         # if the scan was already aborted, we haven't started writing
         self.beginScan()
         try:
@@ -804,6 +805,3 @@ class QScan(Scan):
                    self._startpositions[1][0][i]:
                     self._xindex = i
                     break
-
-    def beginScan(self):
-        Scan.beginScan(self)

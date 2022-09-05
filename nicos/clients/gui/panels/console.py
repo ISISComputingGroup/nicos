@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -33,7 +33,7 @@ from nicos.clients.gui.utils import enumerateWithProgress, loadUi, modePrompt
 from nicos.guisupport.qt import QAbstractPrintDialog, QDialog, QFileDialog, \
     QMenu, QMessageBox, QPrintDialog, QPrinter, Qt, QTextEdit, pyqtSlot
 from nicos.guisupport.utils import setBackgroundColor
-from nicos.utils import chunks, findResource
+from nicos.utils import LOCALE_ENCODING, chunks, findResource
 
 
 class ConsolePanel(Panel):
@@ -57,7 +57,7 @@ class ConsolePanel(Panel):
     """
 
     panelName = 'Console'
-    ui = 'panels/console.ui'
+    ui = path.join('panels', 'console.ui')
 
     def __init__(self, parent, client, options):
         Panel.__init__(self, parent, client, options)
@@ -203,7 +203,7 @@ class ConsolePanel(Panel):
         printer = QPrinter()
         printdlg = QPrintDialog(printer, self)
         printdlg.setOption(QAbstractPrintDialog.PrintSelection)
-        if printdlg.exec_() == QDialog.Accepted:
+        if printdlg.exec() == QDialog.Accepted:
             self.outView.print_(printer)
 
     @pyqtSlot()
@@ -213,7 +213,7 @@ class ConsolePanel(Panel):
             return
         try:
             fn = fn.encode(sys.getfilesystemencoding())
-            with open(fn, 'w') as f:
+            with open(fn, 'w', encoding=LOCALE_ENCODING) as f:
                 f.write(self.outView.getOutputString())
         except Exception as err:
             QMessageBox.warning(self, 'Error', 'Writing file failed: %s' % err)

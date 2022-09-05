@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -59,8 +59,6 @@ all_instrs = [(path.basename(facility_dir), instr_dir)
 @pytest.mark.parametrize('fac_instr', all_instrs, ids=str)
 def test_import_all(fac_instr):
     facility, instr = fac_instr
-    if instr == 'delab':
-        return
     instrlib = path.join(module_root, facility, instr, 'devices')
     if not path.isdir(instrlib):
         return

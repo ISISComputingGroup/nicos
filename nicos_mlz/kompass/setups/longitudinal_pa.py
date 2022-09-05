@@ -2,42 +2,38 @@ description = 'Kompass setup for longitudinal polarisation analysis mode'
 
 group = 'optional'
 
-includes = ['diff']
-excludes = ['kepco']
 tango_base = 'tango://kompasshw.kompass.frm2:10000/kompass/'
 
 devices = dict(
-    coil_1 = device('nicos_mlz.kompass.devices.guidefield.VectorCoil',
+    coil_1 = device('nicos_mlz.panda.devices.guidefield.VectorCoil',
         description = 'Powersupply for horizontal field 1 at sample',
         tangodevice = tango_base + 'kepco/current5',
         abslimits = (-20, 20),
         # orientation = (0.53, 0.53, 0),  # mT - calibrated 08/04/2021 at KOMPASS
-        orientation = (0.53, 0.53, 0),  # mT - calibrated 30/04/2021 at KOMPASS
+        orientation = (0.53, 0.53, 0),    # mT - calibrated 30/04/2021 at KOMPASS
         calibrationcurrent = 10,          # A
-        lowlevel = False,
     ),
-    coil_2 = device('nicos_mlz.kompass.devices.guidefield.VectorCoil',
+    coil_2 = device('nicos_mlz.panda.devices.guidefield.VectorCoil',
         description = 'Powersupply for horizontal field 2 at sample',
         tangodevice = tango_base + 'kepco/current6',
         abslimits = (-20, 20),
         # orientation = (0.53, -0.53, 0),  # mT - calibrated 08/04/2021 at KOMPASS
-        orientation = (0.53, -0.53, 0),  # mT - calibrated 30/04/2021 at KOMPASS
+        orientation = (0.53, -0.53, 0),    # mT - calibrated 30/04/2021 at KOMPASS
         calibrationcurrent = 10,           # A
-        lowlevel = False,
     ),
-    coil_3 = device('nicos_mlz.kompass.devices.guidefield.VectorCoil',
+    coil_3 = device('nicos_mlz.panda.devices.guidefield.VectorCoil',
         description = 'Powersupply for vertical field at sample',
         tangodevice = tango_base + 'kepco/current7',
         abslimits = (-20, 20),
-        # orientation = (0, 0, 2.33),     # mT - calibrated 08/04/2021 at KOMPASS
+        # orientation = (0, 0, 2.33),   # mT - calibrated 08/04/2021 at KOMPASS
         orientation = (0, 0, 2.33),     # mT - calibrated 30/04/2021 at KOMPASS
         calibrationcurrent = 2,         # A  only 2A at KOMPASS, at PANDA was 10 A
-        lowlevel = False,
     ),
-    gf = device('nicos_mlz.kompass.devices.guidefield.GuideField',
+    gf = device('nicos_mlz.panda.devices.guidefield.GuideField',
         description = 'Vector field at sample location',
         alpha = 'alphastorage',
         coils = ['coil_1', 'coil_2', 'coil_3'],
+        alphaoffset = 0,
         field = 0.8,    # mT   at KOMPASS, at PANDA was 1 mT
         mapping = {'off': None,
                    'par':   ( 1., 0., 0.),
@@ -70,38 +66,37 @@ devices = dict(
         # flipcurrent = [0.765, 0],
         # compcurrent = 2.4474,
     ),
-
-    kepco1_current = device('nicos.devices.tango.PowerSupply',
+    kepco1_current = device('nicos.devices.entangle.PowerSupply',
         description = "kepco power supply 1",
         tangodevice = tango_base + 'kepco/current1',
         fmtstr = '%.3f',
     ),
-    kepco2_current = device('nicos.devices.tango.PowerSupply',
+    kepco2_current = device('nicos.devices.entangle.PowerSupply',
         description = "kepco power supply 2",
         tangodevice = tango_base + 'kepco/current2',
         fmtstr = '%.3f',
     ),
-    kepco3_current = device('nicos.devices.tango.PowerSupply',
+    kepco3_current = device('nicos.devices.entangle.PowerSupply',
         description = "kepco power supply 3",
         tangodevice = tango_base + 'kepco/current3',
         fmtstr = '%.3f',
     ),
-    kepco4_current = device('nicos.devices.tango.PowerSupply',
+    kepco4_current = device('nicos.devices.entangle.PowerSupply',
         description = "kepco power supply 4",
         tangodevice = tango_base + 'kepco/current4',
         fmtstr = '%.3f',
     ),
-    kepco5_current = device('nicos.devices.tango.PowerSupply',
+    kepco5_current = device('nicos.devices.entangle.PowerSupply',
         description = "kepco power supply 5",
         tangodevice = tango_base + 'kepco/current5',
         fmtstr = '%.3f',
     ),
-    kepco6_current = device('nicos.devices.tango.PowerSupply',
+    kepco6_current = device('nicos.devices.entangle.PowerSupply',
         description = "kepco power supply 6",
         tangodevice = tango_base + 'kepco/current6',
         fmtstr = '%.3f',
     ),
-    kepco7_current = device('nicos.devices.tango.PowerSupply',
+    kepco7_current = device('nicos.devices.entangle.PowerSupply',
         description = "kepco power supply 7",
         tangodevice = tango_base + 'kepco/current7',
         fmtstr = '%.3f',

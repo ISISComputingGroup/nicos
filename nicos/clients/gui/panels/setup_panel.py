@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,11 +18,13 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
 """NICOS GUI experiment setup window."""
+
+from os import path
 
 from nicos.clients.gui.panels import Panel, PanelDialog
 from nicos.clients.gui.utils import dialogFromUi, loadUi
@@ -128,7 +130,7 @@ class ExpPanel(Panel):
     """
 
     panelName = 'Experiment setup'
-    ui = 'panels/setup_exp.ui'
+    ui = path.join('panels', 'setup_exp.ui')
 
     def __init__(self, parent, client, options):
         Panel.__init__(self, parent, client, options)
@@ -248,7 +250,7 @@ class ExpPanel(Panel):
         if self._finish_exp_panel:
             dlg = PanelDialog(self, self.client, self._finish_exp_panel,
                               'Finish experiment')
-            dlg.exec_()
+            dlg.exec()
         if self.client.run('FinishExperiment()', noqueue=True) is None:
             self.showError('Could not finish experiment, a script '
                            'is still running.')
@@ -310,7 +312,7 @@ class ExpPanel(Panel):
         for prop in proposals:
             item = QListWidgetItem('', dlg.list)
             item.setData(Qt.UserRole, prop)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         sel = dlg.list.currentRow()
         return proposals[sel]
@@ -363,7 +365,7 @@ class ExpPanel(Panel):
             if self._new_exp_panel:
                 dlg = PanelDialog(self, self.client, self._new_exp_panel,
                                   'New experiment')
-                dlg.exec_()
+                dlg.exec()
         else:
             if title != self._orig_propinfo.get('title'):
                 self.client.run('Exp.update(title=%r)' % title)
@@ -568,7 +570,7 @@ class SetupsPanel(Panel):
         info = self._setupinfo[str(setup)]
         devs = []
         for devname, devconfig in info['devices'].items():
-            if not devconfig[1].get('lowlevel'):
+            if 'devlist' in devconfig[1].get('visibility', ('devlist',)):
                 devs.append(devname)
         devs = ', '.join(sorted(devs))
         self.setupDescription.setText(
@@ -650,26 +652,40 @@ class SetupsPanel(Panel):
         self._alias_config = alias_config
 
     def applyChanges(self):
-        cmd = 'NewSetup'
         setups, new_basic = self._calculateSetups()
-
         to_add = setups - self._loaded
         to_remove = self._loaded - setups
-        # new setups only and no basic setup change?
-        if to_add and not to_remove and not new_basic:
-            cmd = 'AddSetup'
-            setups = to_add
+        if new_basic:
+            success = self._load_basic(setups)
+        elif to_add or to_remove:
+            success = True
+            if to_remove:
+                success = self._remove_setups(to_remove)
+            if to_add and success:
+                success = self._add_setups(to_add, noqueue=not to_remove)
         else:
-            cmd = 'NewSetup'
-        if setups:
-            if self.client.run('%s(%s)' % (cmd, ', '.join(map(repr, setups))),
-                               noqueue=True) is None:
-                self.showError('Could not load setups, a script is running.')
-                return
+            # No changes, so ignore
+            return
+        if not success:
+            self.showError('Could not load setups, a script is running.')
+            return
         for name, wid in self._aliasWidgets.items():
             self.client.run('%s.alias = %r' % (name, wid.getSelection()))
-        if setups or self._aliasWidgets:
+        if to_add or to_remove or self._aliasWidgets:
             self.showInfo('New setups loaded.')
+
+    def _load_basic(self, setups, noqueue=True):
+        return self._run_setup_command('NewSetup', setups, noqueue)
+
+    def _remove_setups(self, to_remove, noqueue=True):
+        return self._run_setup_command('RemoveSetup', to_remove, noqueue)
+
+    def _add_setups(self, to_add, noqueue=True):
+        return self._run_setup_command('AddSetup', to_add, noqueue)
+
+    def _run_setup_command(self, cmd, setups, noqueue):
+        cmd_str = f'{cmd}({", ".join(map(repr, setups))})'
+        return self.client.run(cmd_str, noqueue=noqueue) is not None
 
 
 class DetEnvPanel(Panel):

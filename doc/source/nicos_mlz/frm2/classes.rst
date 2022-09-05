@@ -18,11 +18,8 @@
 .. module:: nicos_mlz.devices.ccm5h
 .. autoclass:: AsymmetricMagnet()
 
-.. module:: nicos_mlz.devices.memograph
-.. autoclass:: MemographValue()
-
-.. module:: nicos_mlz.devices.ubahn
-.. autoclass:: UBahn()
+.. module:: nicos_mlz.devices.mvg
+.. autoclass:: MVG()
 
 .. module:: nicos_mlz.devices.camera
 .. autoclass:: CameraImage()
@@ -46,3 +43,6 @@
 
 .. module:: nicos_mlz.devices.barcodes
 .. autoclass:: BarcodeInterpreter()
+
+.. module:: nicos_mlz.devices.wmirfgen
+.. autoclass:: Frequency()

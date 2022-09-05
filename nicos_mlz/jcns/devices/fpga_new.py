@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,7 @@ the Entangle server with MLZ interface.
 from time import time as currenttime
 
 from nicos.core import MASTER, MoveError, Param, status
-from nicos.devices.tango import TimerChannel
+from nicos.devices.entangle import TimerChannel
 
 
 class FPGATimerChannel(TimerChannel):

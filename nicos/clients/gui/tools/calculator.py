@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -28,15 +28,17 @@ import math
 import re
 from os import path
 
+from scipy import constants
+
 from nicos.clients.gui.utils import DlgPresets, loadUi
 from nicos.guisupport.qt import QDialog, QPixmap, QTreeWidgetItem
 from nicos.guisupport.utils import DoubleValidator
 
-M_N = 1.6749274e-27
-H   = 6.6260696e-34
-K_B = 1.3806488e-23
-PI  = 3.1415926
-MEV = 1.6021766e-22
+M_N = constants.neutron_mass
+H   = constants.Planck
+K_B = constants.Boltzmann
+PI  = math.pi
+MEV = constants.electron_volt / 1000.
 
 
 def tofloat(ctl):
@@ -173,7 +175,7 @@ class CalculatorTool(QDialog):
                     given['2Theta'] = 2*math.asin(arg)
                 else:
                     given['Lambda'] = 2*given['D']*math.sin(given['2Theta']/2)/given['N']
-        except ZeroDivisionError as err:
+        except ZeroDivisionError:
             self.errorLabel.setText('Error: division by zero.')
         except ValueError as err:
             self.errorLabel.setText('Error: %s.' % err)

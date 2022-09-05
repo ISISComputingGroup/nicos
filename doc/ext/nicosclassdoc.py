@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Alexander Lenz <alexander.lenz@frm2.tum.de>
 #
 # *****************************************************************************
@@ -208,7 +208,7 @@ class NicosClassDocumenter(ClassDocumenter):
             'name': self.object.__name__,
             'module': self.env.ref_context.get('py:module',
                                                self.object.__module__),
-            'blurb': docstr.split('\n\n')[0],
+            'blurb': docstr.split('\n\n', maxsplit=1)[0],
         }
 
         mandatoryparaminfo = []

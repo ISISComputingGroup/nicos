@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,15 +18,13 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
 """Instrument monitor that generates an HTML page."""
 
-import functools
 import html
-import operator
 import os
 import tempfile
 import time
@@ -42,11 +40,12 @@ from nicos.core.constants import NOT_AVAILABLE
 from nicos.core.status import BUSY, DISABLED, ERROR, NOTREACHED, OK, WARN
 from nicos.services.monitor import Monitor as BaseMonitor
 from nicos.services.monitor.icon import nicos_icon
-from nicos.utils import checkSetupSpec, extractKeyAndIndex, safeWriteFile
+from nicos.utils import checkSetupSpec, parseKeyExpression, safeWriteFile, \
+    KEYEXPR_NS
 
 try:
-    from gr import pygr
     import gr
+    from gr import pygr
 
     # required for import order
     import nicos.clients.gui.widgets.plotting  # pylint: disable=unused-import
@@ -91,7 +90,7 @@ table { font-family: inherit; font-size: 100%%; }
 class Field:
     # what to display
     key = ''         # main key (displayed value)
-    item = -1        # item to display of value, -1 means whole value
+    expr = None      # expression to transform value to final form
     name = ''        # name of value
     statuskey = ''   # key for value status
     unitkey = ''     # key for value unit
@@ -131,10 +130,9 @@ class Field:
             dev = desc.pop('dev')
             if 'name' not in desc:
                 desc['name'] = dev
-            dev, indices, _scale, _offset = extractKeyAndIndex(
+            key, expr, _ = parseKeyExpression(
                 dev, False, normalize=lambda s: s.lower())
-            if indices:
-                desc['item'] = indices
+            desc['expr'] = expr
             desc['key'] = prefix + dev + '/value'
             desc['statuskey'] = prefix + dev + '/status'
             desc['fixedkey'] = prefix + dev + '/fixed'
@@ -143,9 +141,8 @@ class Field:
             if 'format' not in desc:
                 desc['formatkey'] = prefix + dev + '/fmtstr'
         elif 'key' in desc:
-            key, indices, _scale, _offset = extractKeyAndIndex(desc['key'], False)
-            if indices:
-                desc['item'] = indices
+            key, expr, _ = parseKeyExpression(desc['key'], False)
+            desc['expr'] = expr
             if 'name' not in desc:
                 desc['name'] = desc['key']
             desc['key'] = prefix + key
@@ -443,7 +440,7 @@ class Monitor(BaseMonitor):
                             html.escape(block._title))
                     blk += '\n    <table class="blocktable">'
                     for row in block:
-                        if row is None:
+                        if row in (None, '---'):
                             blk += '<tr></tr>'
                         else:
                             blk += '<tr><td class="center">'
@@ -476,18 +473,12 @@ class Monitor(BaseMonitor):
                                                      time, value)
             return
         if key == field.key:
-            # apply item selection
+            # apply transformation by expression
             field.value = value
             if value is not None:
-                if isinstance(field.item, tuple):
+                if field.expr:
                     try:
-                        fvalue = functools.reduce(operator.getitem,
-                                                  field.item, value)
-                    except Exception:
-                        fvalue = NOT_AVAILABLE
-                elif field.item >= 0:
-                    try:
-                        fvalue = value[field.item]
+                        fvalue = eval(field.expr, KEYEXPR_NS, {'x': value})
                     except Exception:
                         fvalue = NOT_AVAILABLE
                 else:

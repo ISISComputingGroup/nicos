@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -40,7 +40,8 @@ class RadMon(Readable):
 
     def doRead(self, maxage=0):
         img = self._op.open('http://miracam.mira.frm2/IMAGE.JPG').read()
-        open('/tmp/radmon.jpg', 'wb').write(img)
+        with open('/tmp/radmon.jpg', 'wb') as f:
+            f.write(img)
         p1 = createSubprocess('/usr/local/bin/ssocr -d 3 -i 1 -t 50 -l maximum '
                               'rotate 1 crop 300 157 57 30 '
                               'make_mono invert keep_pixels_filter 5 '

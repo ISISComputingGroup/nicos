@@ -9,12 +9,12 @@ excludes = ["det"]
 tango_base = "tango://phys.maria.frm2:10000/maria/"
 
 devices = dict(
-    detimg2 = device("nicos.devices.tango.ImageChannel",
+    detimg2 = device("nicos.devices.entangle.ImageChannel",
         description = "Secondary detector image",
         tangodevice = tango_base + "fastcomtec/detector2",
         fmtstr = "%d cts",
         unit = "",
-        lowlevel = True,
+        visibility = (),
     ),
     det2 = device("nicos_mlz.maria.devices.detector.MariaDetector",
         description = "Second Denex detector",

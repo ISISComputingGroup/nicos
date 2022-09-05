@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ import json
 from time import time as currenttime
 
 from streaming_data_types.status_x5f2 import deserialise_x5f2
+from streaming_data_types.utils import get_schema
 
 from nicos import session
 from nicos.core import MASTER, POLLER, Override, Param, Readable, status, \
@@ -33,6 +34,8 @@ from nicos.core import MASTER, POLLER, Override, Param, Readable, status, \
 from nicos.core.constants import SIMULATION
 
 from nicos_ess.devices.kafka.consumer import KafkaSubscriber
+
+DISCONNECTED_STATE = (status.ERROR, 'Disconnected')
 
 
 class KafkaStatusHandler(KafkaSubscriber, Readable):
@@ -84,22 +87,16 @@ class KafkaStatusHandler(KafkaSubscriber, Readable):
 
     def new_messages_callback(self, messages):
         json_messages = {}
-        for timestamp, msg in messages:
+        for timestamp, message in messages:
             try:
-                if isinstance(msg, str):
-                    # handle "old style" messages
-                    js = json.loads(msg)
-                    if 'next_message_eta_ms' in js:
-                        self._setROParam(
-                            'statusinterval', js['next_message_eta_ms'] // 1000
-                        )
-                else:
-                    message = deserialise_x5f2(msg)
-                    js = json.loads(message.status_json)
-                    js['update_interval'] = message.update_interval
-                    self._setROParam(
-                        'statusinterval', message.update_interval // 1000
-                    )
+                if get_schema(message) != 'x5f2':
+                    continue
+                msg = deserialise_x5f2(message)
+                js = json.loads(msg.status_json) if msg.status_json else {}
+                js['update_interval'] = msg.update_interval
+                self._setROParam(
+                    'statusinterval', msg.update_interval // 1000
+                )
                 json_messages[timestamp] = js
                 next_update = currenttime() + self.statusinterval
                 if next_update > self.nextupdate:
@@ -114,7 +111,7 @@ class KafkaStatusHandler(KafkaSubscriber, Readable):
     def no_messages_callback(self):
         # Check if the process is still running
         if self._mode == MASTER and not self.is_process_running():
-            self._setROParam('curstatus', (status.ERROR, 'Disconnected'))
+            self._setROParam('curstatus', DISCONNECTED_STATE)
 
     def is_process_running(self):
         # Allow some leeway in case of message lag.

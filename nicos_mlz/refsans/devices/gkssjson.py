@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,8 +26,8 @@
 
 import requests
 
-from nicos.core import Moveable, Override, Param, Readable, intrange, oneof, \
-    status, usermethod
+from nicos.core import HasPrecision, Moveable, Override, Param, Readable, \
+    intrange, oneof, status, usermethod
 from nicos.core.errors import CommunicationError, ConfigurationError, \
     NicosError
 from nicos.core.mixins import HasOffset
@@ -83,7 +83,7 @@ class CPTReadout(HasOffset, JsonBase):
 
     parameters = {
         'phasesign': Param('Phase sign',
-                           type=oneof('unsigned', 'signed'),
+                           type=oneof('unsigned', 'signed', 'millisecond'),
                            settable=False,
                            default='unsigned'),
         'channel': Param('Index of value',
@@ -96,19 +96,32 @@ class CPTReadout(HasOffset, JsonBase):
         self.log.debug('channel %d', channel)
         if channel == -1:
             self.log.debug('calc speed')
-            res = 3e9 / data['start_act']  # speed
-            res -= self.offset  # should be Zero
+            res = data['start_act']  # speed
+            if self.phasesign == 'millisecond':
+                res *= 0.00002
+                # 1 == 20ns == 0.00002 ms
+            else:
+                res = 3e9 / res  # speed
+                res -= self.offset  # Zero
         elif channel == 90:
             self.log.debug('calc phase in respect to Disk 1 of Disc 1')
             self.log.debug('offset %.2f', self.offset)
-            res = -360.0 * data[self.valuekey][6] / data['start_act']
-            res = self._kreis(res)
+            res = data[self.valuekey][6]
+            if self.phasesign == 'millisecond':
+                res *= 0.00002
+            else:
+                res = -360.0 * res / data['start_act']
+                res = self._kreis(res)
         else:
             self.log.debug('calc phase in respect to Disk 1')
             self.log.debug('offset %.2f', self.offset)
-            res = -360.0 * data[self.valuekey][channel] / data['start_act']
-            res -= self.offset
-            res = self._kreis(res)
+            res = data[self.valuekey][channel]
+            if self.phasesign == 'millisecond':
+                res *= 0.00002
+            else:
+                res = -360.0 * res / data['start_act']
+                res -= self.offset
+                res = self._kreis(res)
         return res
 
     def _kreis(self, phase, kreis=360.0):
@@ -131,7 +144,7 @@ class CPTReadout(HasOffset, JsonBase):
         return self._read_ctrl(self.channel)
 
 
-class CPTReadoutproof(CPTReadout):
+class CPTReadoutproof(HasPrecision, CPTReadout):
 
     attached_devices = {
         'chopper': Attach('to get status of controller', Moveable),
@@ -139,15 +152,17 @@ class CPTReadoutproof(CPTReadout):
     }
 
     def doStatus(self, maxage=0):
-        statChopper = self._attached_chopper.status()
+        statChopper = self._attached_chopper.status(maxage)
         if statChopper[0] != status.OK:
             return statChopper
-        speedChopper = self._attached_chopper.read()
-        speedSelf = self._attached_speed.read()
-        self.log.info('%d %d', speedChopper, speedSelf)
-        if abs(speedChopper - speedSelf) > .05:
+        if self.phasesign == 'millisecond':
+            return status.WARN, 'millisecond'
+        speedChopper = self._attached_chopper.read(maxage)
+        speedSelf = self._attached_speed.read(maxage)
+        self.log.debug('%.2f %.2f', speedChopper, speedSelf)
+        if abs(speedChopper - speedSelf) > self.precision:
             return status.BUSY, 'speed'
-        if abs(self._read_ctrl(self.channel) - 1) > .5:
+        if abs(self._read_ctrl(self.channel) - 1) > self.precision:
             return status.ERROR, 'window Error'
         return status.OK, ''
 

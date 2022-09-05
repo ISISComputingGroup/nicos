@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Klaudia Hradil <klaudia.hradil@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -73,8 +73,10 @@ class Monochromator(HasLimits, HasPrecision, BaseMonochromator):
 
     parameters = {
         'dvalue':   Param('d-value of the reflection used', unit='A',
-                          mandatory=True, settable=True, category='instrument'),
-        'mosaic':   Param('Mosaicity of the crystal', unit='deg', default=0.5,
+                          mandatory=True, settable=True,
+                          category='instrument'),
+        'mosaic':   Param('Mosaicity of the crystal',
+                          unit='deg', default=0.5,
                           settable=True, category='instrument'),
         'order':    Param('Order of reflection to use', type=int, default=1,
                           settable=True, category='instrument'),
@@ -95,7 +97,8 @@ class Monochromator(HasLimits, HasPrecision, BaseMonochromator):
         'vfocusflat': Param('Vertical focus value for flat mono',
                             type=float, default=0, settable=True),
         'scatteringsense': Param('Scattering sense', type=oneof(1, -1),
-                                 chatty=True, userparam=False, settable=True),
+                                 chatty=True, userparam=False,
+                                 settable=True, category='instrument'),
         'crystalside': Param('Scattering sense for which theta is two-theta/2 '
                              '(for the other sense it needs to be offset by '
                              '180 degrees to avoid scattering from the back '
@@ -137,15 +140,16 @@ class Monochromator(HasLimits, HasPrecision, BaseMonochromator):
             th -= tt
         return th, tt
 
-    def doStart(self, pos):
-        th, tt = self._calc_angles(to_k(pos, self.unit))
+    def doStart(self, target):
+        th, tt = self._calc_angles(to_k(target, self.unit))
         self._attached_twotheta.start(tt)
         self._attached_theta.start(th)
         self._movefoci(self.focmode, self.hfocuspars, self.vfocuspars)
-        self._sim_setValue(pos)
+        self._sim_setValue(target)
 
     def _movefoci(self, focmode, hfocuspars, vfocuspars):
-        lam = from_k(to_k(self.target, self.unit), 'A')  # get goalposition in A
+        # get goalposition in A
+        lam = from_k(to_k(self.target, self.unit), 'A')
         focusv, focush = self._attached_focusv, self._attached_focush
         if focmode == 'flat':
             if focusv:
@@ -217,8 +221,8 @@ class Monochromator(HasLimits, HasPrecision, BaseMonochromator):
             tt, th = self._get_angles(maxage)
             if abs(tt - 2.0*th) > self._axisprecision:
                 return status.NOTREACHED, \
-                    'two theta and 2*theta axis mismatch: %s <-> %s = 2 * %s' % \
-                    (tt, 2.0*th, th)
+                    'two theta and 2*theta axis mismatch: %s <-> %s = 2 * %s'\
+                    % (tt, 2.0*th, th)
         return const, text
 
     def doFinish(self):
@@ -285,7 +289,8 @@ class Monochromator(HasLimits, HasPrecision, BaseMonochromator):
             new_umin = max(new_umin, new_absmin)
             new_umax = min(new_umax, new_absmax)
             self.userlimits = (new_umin, new_umax)
-        if 'target' in self._params and self.target and self.target != 'unknown':
+        if 'target' in self._params and self.target and \
+                self.target != 'unknown':
             # this should be still within the limits
             self._setROParam(
                 'target', from_k(to_k(self.target, self.unit), value))

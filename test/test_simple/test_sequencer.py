@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,14 +18,14 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
 """NICOS sequence class test suite."""
 
 import os
-import time
+from time import monotonic, sleep
 
 from nicos.core import LimitError
 from nicos.devices.generic.sequence import SeqCall, SeqDev, SeqMethod, \
@@ -111,25 +111,25 @@ def test_seqsleep(session):
     # Sleeping??
     sw = SeqSleep(0.1)
     assert repr(sw).startswith('0.1')
-    a = time.time()
+    a = monotonic()
     sw.check()
     sw.run()
     while not sw.isCompleted():
         pass
-    b = time.time()
+    b = monotonic()
 
     assert 0.08 - DELTA <= b - a <= 0.15 + DELTA
 
 
 def test_seqcall():
     # Calling
-    sc = SeqCall(time.sleep, 0.1)
+    sc = SeqCall(sleep, 0.1)
     assert repr(sc) == 'sleep'
-    a = time.time()
+    a = monotonic()
     sc.check()
     sc.run()
     assert sc.isCompleted() is True
-    b = time.time()
+    b = monotonic()
     assert 0.08 - DELTA <= b - a <= 0.15 + DELTA
 
 

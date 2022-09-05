@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,16 +22,17 @@
 #
 # *****************************************************************************
 
-from time import time as currenttime
+from time import monotonic
 
 from nicos.core import Override, Param, pvname, status
 from nicos.core.errors import PositionError
 from nicos.devices.abstract import MappedMoveable
+from nicos.devices.epics import EpicsDevice
 
-from nicos_ess.devices.epics.base import EpicsDeviceEss, EpicsReadable
+from nicos_ess.devices.epics.base import EpicsReadable
 
 
-class SpsSwitch(EpicsDeviceEss, MappedMoveable):
+class SpsSwitch(EpicsDevice, MappedMoveable):
     """AMOR has a Siemens programmable logic unit for controlling the shutter
     and a switch for the alignment laser and the spin flipper. This is SPS
     which is connected to the world as such via a custom RS232 interface and a
@@ -74,11 +75,11 @@ class SpsSwitch(EpicsDeviceEss, MappedMoveable):
         return {'readpv', 'commandpv'}
 
     def doStatus(self, maxage=0):
-        epics_status = EpicsDeviceEss.doStatus(self, maxage)
+        epics_status = EpicsDevice.doStatus(self, maxage)
         if epics_status[0] != status.OK:
             return epics_status
 
-        now = currenttime()
+        now = monotonic()
         if self.lasttarget is not None and \
                 self.lasttarget != self._readRaw(maxage):
             if now > self.lasttoggle+10:
@@ -105,7 +106,7 @@ class SpsSwitch(EpicsDeviceEss, MappedMoveable):
 
     def _startRaw(self, target):
         if self._readRaw() != target:
-            self.lasttoggle = currenttime()
+            self.lasttoggle = monotonic()
             self.lasttarget = target
             self._put_pv('commandpv', self.commandstr)
 

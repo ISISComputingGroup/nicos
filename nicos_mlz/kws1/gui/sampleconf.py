@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -34,7 +34,8 @@ from nicos.clients.gui.utils import dialogFromUi, loadUi
 from nicos.guisupport import typedvalue
 from nicos.guisupport.qt import QDialog, QDialogButtonBox, QFileDialog, \
     QFrame, QLineEdit, QListWidgetItem, QMenu, QMessageBox, QRadioButton, \
-    QRegExp, QRegExpValidator, QTableWidgetItem, QVBoxLayout, pyqtSlot
+    QRegularExpression, QRegularExpressionValidator, QTableWidgetItem, \
+    QVBoxLayout, pyqtSlot
 from nicos.guisupport.utils import DoubleValidator
 from nicos.utils import findResource
 
@@ -96,7 +97,8 @@ class ConfigEditDialog(QDialog):
         self.frm.readDevsBtn.clicked.connect(self.on_readDevsBtn_clicked)
         self.frm.readApBtn.clicked.connect(self.on_readApBtn_clicked)
         self.frm.nameBox.setValidator(
-            QRegExpValidator(QRegExp(r'[A-Za-z0-9.,=+-]{1,20}'), self))
+            QRegularExpressionValidator(QRegularExpression(r'[A-Za-z0-9.,=+-]{1,20}'),
+                                        self))
         box = QDialogButtonBox(self)
         box.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         box.accepted.connect(self.maybeAccept)
@@ -173,7 +175,7 @@ class ConfigEditDialog(QDialog):
             dlg.valueFrame.layout().insertWidget(0, dlg.widget)
         dlg.devBox.currentIndexChanged.connect(callback)
         dlg.devBox.addItems(devlist)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         self._addRow(dlg.devBox.currentText(), str(dlg.widget.getValue()))
 
@@ -204,7 +206,7 @@ class ConfigEditDialog(QDialog):
             dlg.transBox.hide()
             dlg.hexaBox.hide()
             dlg.kws3Box.setChecked(True)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         if dlg.rotBox.isChecked():
             self._addRow('sam_rot', self._readDev('sam_rot'))
@@ -321,7 +323,7 @@ class KWSSamplePanel(Panel):
             if row == nrows:
                 row = 0
                 col += 1
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         rows, levels, ax1, dax1, ax2, dax2 = dlg._info
         sax1 = float(dlg.ax1Box.text()) if ax1 else 0
@@ -362,7 +364,7 @@ class KWSSamplePanel(Panel):
 
     @pyqtSlot()
     def on_retrieveBtn_clicked(self):
-        sampleconf = self.client.eval('Exp.sample.samples', [])
+        sampleconf = self.client.eval('Exp.sample.samples', {})
         sampleconf = sorted(sampleconf.items())
         self.configs = [dict(c[1]) for c in sampleconf if 'thickness' in c[1]]
         # convert readonlydict to normal dict
@@ -424,7 +426,7 @@ class KWSSamplePanel(Panel):
         else:
             if do_apply:
                 self.client.run(script, self.filename)
-                self.showInfo('Sample info has been transferred to the daemon.')
+                self.showInfo('Sample info has been activated.')
             self.closeWindow()
 
     def on_buttonBox_rejected(self):
@@ -464,7 +466,7 @@ class KWSSamplePanel(Panel):
     def on_newBtn_clicked(self):
         dlg = ConfigEditDialog(self, self.client, self.instrument,
                                self.configs)
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         self.dirty = True
         config = configFromFrame(dlg.frm)
@@ -483,7 +485,7 @@ class KWSSamplePanel(Panel):
                                [config for (i, config) in
                                 enumerate(self.configs) if i != index],
                                self.configs[index])
-        if not dlg.exec_():
+        if not dlg.exec():
             return
         self.dirty = True
         config = configFromFrame(dlg.frm)

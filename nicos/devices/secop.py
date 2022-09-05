@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -40,7 +40,9 @@ SecopMoveable, and the following parameters:
 - params_cfg (optional): a dict {<parameter name>: <cfg dict>}
   if given, only the parameters mentioned as keys are exported.
   The cfg dict may be empty for using the automatically generated attributes:
-  description, type, settable, unit and fmtstr.
+  description, datainfo, settable, unit and fmtstr.
+  The data type must be given as SECoP datainfo converted from json,
+  not as NICOS type!
   Attributes given in the cfg dict may overwrite above attributes.
 """
 
@@ -50,29 +52,22 @@ from collections import OrderedDict
 from math import floor, log10
 from threading import Event
 
+# pylint: disable=import-error,no-name-in-module
+from secop.client import SecopClient
+from secop.errors import CommunicationFailedError
+
 from nicos import session
-from nicos.core import POLLER, SIMULATION, Attach, DeviceAlias, NicosError, \
-    Override, Param, status, usermethod
+from nicos.core import POLLER, SIMULATION, Attach, DeviceAlias, \
+    HasOffset, HasLimits, NicosError, Override, Param, status, usermethod
 from nicos.core.device import Device, DeviceMeta, Moveable, Readable
 from nicos.core.errors import ConfigurationError
 from nicos.core.params import anytype, dictwith, floatrange, intrange, \
     listof, none_or, nonemptystring, oneofdict, string, tupleof
 from nicos.core.utils import formatStatus
 from nicos.utils import printTable, readonlydict
+from nicos.protocols.cache import cache_dump
 
-# pylint: disable=import-error,no-name-in-module
-import secop.modules
-from secop.client import SecopClient
-from secop.errors import CommunicationFailedError
-
-SecopStatus = secop.modules.Drivable.Status
-
-IFCLASSES = {
-    'Drivable': 'SecopMoveable',
-    'Writable': 'SecopWritable',
-    'Readable': 'SecopReadable',
-    'Module': 'SecopDevice',
-}
+SECOP_ERROR = 400
 
 
 class NicosSecopClient(SecopClient):
@@ -110,37 +105,14 @@ def clean_identifier(anystring):
     return str(re.sub(r'\W+|^(?=\d)', '_', anystring))
 
 
-# we extend the NICOS types which are not bare types or functions
-# and make them comparable for equality
-
-class ComparableType:
-    _compare_key = None
-
-    def __eq__(self, other):
-        if not isinstance(other, self.__class__):
-            return False
-        return self._compare_key == other._compare_key
-
-
-class SecopDouble(ComparableType, floatrange):
-    # pylint: disable=redefined-builtin
-    def __init__(self, min, max):
-        floatrange.__init__(self, "float('-inf')" if min is None else min, max)
-        self._compare_key = min, max
-
+# map SECoP types to NICOS types:
+# all types must either be vanilla NICOS types or inherit from them
 
 # pylint: disable=redefined-builtin
 def Secop_double(min=None, max=None, **kwds):
     if min is None and max is None:
         return float
-    return SecopDouble(min, max)
-
-
-class SecopInt(ComparableType, intrange):
-    # pylint: disable=redefined-builtin
-    def __init__(self, min, max):
-        intrange.__init__(self, min, max)
-        self._compare_key = min, max
+    return floatrange("float('-inf')" if min is None else min, max)
 
 
 # pylint: disable=redefined-builtin
@@ -152,7 +124,7 @@ def Secop_int(min=None, max=None, **kwds):
     # be tolerant with missing min / max here (future spec change?)
     if min <= -9999 and max >= 9999:
         return int
-    return SecopInt(min, max)
+    return intrange(min, max)
 
 
 def Secop_bool(**kwds):
@@ -160,7 +132,8 @@ def Secop_bool(**kwds):
 
 
 def Secop_string(minchars=0, **kwds):
-    # ignore maxchars and minchars > 1
+    # unfortunately, 'string' is not a class, so we can not inherit from it
+    # therefore ignore maxchars and minchars > 1
     return nonemptystring if minchars else string
 
 
@@ -169,7 +142,7 @@ def Secop_blob(minbytes=0, **kwds):
     return nonemptystring if minbytes else string
 
 
-class Secop_enum(ComparableType, oneofdict):
+class Secop_enum(oneofdict):
     def __init__(self, members, **kwds):
         # Do not use oneof here, as in general numbers are relevant for the
         # specs. Unfortunately, ComboBox will sort items by name, and not by
@@ -181,7 +154,6 @@ class Secop_enum(ComparableType, oneofdict):
             self, OrderedDict(sorted(((v, k) for k, v in members.items()))))
         self.__doc__ = 'one of ' + ', '.join('%s, %d' % kv
                                              for kv in members.items())
-        self._compare_key = self.vals
 
     def __call__(self, val=None):
         if val is None:
@@ -189,43 +161,33 @@ class Secop_enum(ComparableType, oneofdict):
         return oneofdict.__call__(self, val)
 
 
-class Secop_array(ComparableType, listof):
+class Secop_array(listof):
     def __init__(self, members, minlen=0, maxlen=None, **kwds):
-        conv = get_validator(members)
-        listof.__init__(self, conv)
-        self._compare_key = conv, minlen, maxlen
+        self.minlen = minlen
+        self.maxlen = maxlen
+        listof.__init__(self, get_validator(members))
 
     def __call__(self, val=None):
-        conv, minlen, maxlen = self._compare_key
         if val is None:
-            val = [conv()] * minlen
+            val = [self.conv()] * self.minlen
         result = listof.__call__(self, val)
-        if len(result) < minlen:
-            raise ValueError('value needs a length >= %d' % minlen)
-        if maxlen is not None and len(result) > maxlen:
-            raise ValueError('value needs a length <= %d' % maxlen)
+        if len(result) < self.minlen:
+            raise ValueError('value needs a length >= %d' % self.minlen)
+        if self.maxlen is not None and len(result) > self.maxlen:
+            raise ValueError('value needs a length <= %d' % self.maxlen)
         return result
 
 
-class Secop_tuple(ComparableType, tupleof):
-    def __init__(self, members, **kwds):
-        self._compare_key = tuple(get_validator(m) for m in members)
-        tupleof.__init__(self, *self._compare_key)
+def Secop_tuple(members, **kwds):
+    return tupleof(*tuple(get_validator(m) for m in members))
 
 
-class NoneOr(ComparableType, none_or):
-    def __init__(self, conv):
-        self._compare_key = conv
-        none_or.__init__(self, conv)
-
-
-class Secop_struct(ComparableType, dictwith):
+class Secop_struct(dictwith):
     def __init__(self, members, optional=(), **kwds):
         convs = {k: get_validator(m) for k, m in members.items()}
         for key in optional:
             # missing optional items are indicated with a None value
-            convs[key] = NoneOr(convs[key])
-        self._compare_key = optional, convs
+            convs[key] = none_or(convs[key])
         self.optional = optional
         self.mandatorykeys = set(convs) - set(optional)
         dictwith.__init__(self, **convs)
@@ -259,6 +221,8 @@ class Secop_struct(ComparableType, dictwith):
 
 
 def get_validator(datainfo):
+    if datainfo is None:
+        return anytype
     return globals()['Secop_%s' % datainfo['type']](**datainfo)
 
 
@@ -296,6 +260,24 @@ def get_attaching_devices(dev):
                 if getattr(sdev, '_attached_' + aname, None) == dev:
                     result.append((sdev, att.devclass))
     return result
+
+
+def class_from_interface(module_properties):
+    for ifclass in (module_properties.get('interface_classes', []) or
+                    module_properties.get('interface_class', [])):
+        try:
+            return IF_CLASSES[ifclass.title()]
+        except KeyError:
+            continue
+    return SecopDevice
+
+
+def secop_base_class(cls):
+    """find the first base class from IF_CLASSES in cls"""
+    for b in cls.__mro__:
+        if b in ALL_IF_CLASSES:
+            return b
+    raise TypeError('secop_base_class argument must inherit from SecopDevice')
 
 
 class SecNodeDevice(Readable):
@@ -523,27 +505,21 @@ class SecNodeDevice(Readable):
         if not self._secnode:
             self.log.error('secnode is not connected')
             return
-        modules = self._secnode.modules
         prefix = self._get_prefix()
         setup_info = {}
-        for module, mod_desc in modules.items():
+        for module, mod_desc in self._secnode.modules.items():
+            module_properties = mod_desc.get('properties', {})
+            kwds = {
+                'secop_properties': module_properties,
+            }
+            # convert parameters and command description to the needed items,
+            # especially avoid datatype or a nicos type here,
+            # as this would need pickle to put into the cache.
+            # datainfo is no problem
             params_cfg = {}
-            commands_cfg = {}
-            module_properties = mod_desc.get('properties', None)
-            for ifclass in (module_properties.get('interface_classes', []) or
-                            module_properties.get('interface_class', [])):
-                try:
-                    clsname = IFCLASSES[ifclass.title()]
-                    break
-                except KeyError:
-                    continue
-            else:
-                clsname = 'SecopDevice'
-            kwds = {}
             for pname, props in mod_desc['parameters'].items():
                 datainfo = props['datainfo']
-                typ = get_validator(datainfo)
-                pargs = dict(type=typ, description=props['description'])
+                pargs = dict(datainfo=datainfo, description=props['description'])
                 if not props.get('readonly', True) and pname != 'target':
                     pargs['settable'] = True
                 unit = datainfo.get('unit', '')
@@ -553,46 +529,45 @@ class SecNodeDevice(Readable):
                 elif datainfo['type'] == 'scaled':
                     fmtstr = datainfo.get(
                         'fmtstr', '%%.%df' %
-                                  max(0, -floor(log10(props['scale']))))
+                                  max(0, -floor(log10(datainfo['scale']))))
                 if unit:
                     pargs['unit'] = unit
                 if pname == 'target':
-                    kwds['valuetype'] = typ
-                    pargs['type'] = anytype
+                    kwds['target_datainfo'] = datainfo
+                    pargs['datainfo'] = None
                 elif pname == 'value':
                     kwds['unit'] = unit
                     if fmtstr is not None:
                         kwds['fmtstr'] = fmtstr
                     else:
                         kwds['fmtstr'] = '%r'
-                    kwds['maintype'] = typ
+                    kwds['value_datainfo'] = datainfo
                 if pname not in ('status', 'value'):
                     if fmtstr is not None and fmtstr != '%g':
                         pargs['fmtstr'] = fmtstr
                     params_cfg[pname] = pargs
-            for cname, props in mod_desc['commands'].items():
-                cmddict = {'description': props['description']}
-                datainfo = props['datainfo']
-                argdatainfo = datainfo.get('argument')
-                if argdatainfo:
-                    cmddict['argtype'] = get_validator(argdatainfo)
-                    if 'optional' in argdatainfo:
-                        cmddict['optional'] = argdatainfo['optional']
-                if 'result' in datainfo:
-                    cmddict['resulttype'] = datainfo['result']
-                commands_cfg[cname] = cmddict
-            if clsname != 'SecopDevice':
+            commands_cfg = {
+                cname: {'description': props.get('description', ''),
+                        'datainfo': props['datainfo']}
+                for cname, props in mod_desc['commands'].items()}
+            cls = class_from_interface(module_properties)
+            if isinstance(cls, SecopReadable):
                 kwds.setdefault('unit', '')  # unit is mandatory on Readables
+            if module_properties.get('visibility', 1) > self.visibility_level:
+                kwds['visibility'] = ()
             desc = dict(secnode=self.name,
                         description=mod_desc.get('properties', {}).get(
                             'description', ''),
                         secop_module=module,
                         params_cfg=params_cfg,
                         commands_cfg=commands_cfg,
-                        lowlevel=module_properties.get('visibility', 1) > self.visibility_level,
                         **kwds)
-            setup_info[prefix + module] = (
-                'nicos.devices.secop.%s' % clsname, desc)
+            # the following test may be removed later, when no bugs appear ...
+            if 'cache_unpickle("' in cache_dump(desc):
+                self.log.error('module %r skipped - setup info needs pickle', module)
+            else:
+                setup_info[prefix + module] = (
+                    'nicos.devices.secop.%s' % cls.__name__, desc)
         if not setup_info:
             self.log.info('creating devices for %s skipped', self.name)
             return
@@ -636,7 +611,7 @@ class SecNodeDevice(Readable):
                         dev._attached_secnode != self):
                     self.log.error('device %s already exists', devname)
                     continue
-                base = dev.__class__.__bases__[0]
+                base = secop_base_class(dev.__class__)
                 prevcfg = (base.__module__ + '.' + base.__name__,
                            dict(secnode=self.name, **dev._config))
             else:
@@ -701,6 +676,9 @@ class SecopDevice(Device):
     parameters = {
         'secop_module': Param('SECoP module', type=str, settable=False,
                               userparam=False),
+        'secop_properties': Param('SECoP module properties',
+                                  type=anytype, settable=False,
+                                  userparam=False),
     }
     STATUS_MAP = {
         0: status.DISABLED,
@@ -747,19 +725,21 @@ class SecopDevice(Device):
         parameters = {}
         # create parameters and methods
         attrs = dict(parameters=parameters, __module__=cls.__module__)
-        if 'valuetype' in config:
-            # this is in fact the target value type
-            attrs['valuetype'] = config.pop('valuetype')
-        if 'maintype' in config:
-            attrs['_maintype'] = staticmethod(config.pop('maintype'))
+        if 'target_datainfo' in config:
+            attrs['valuetype'] = get_validator(config.pop('target_datainfo'))
+        if 'value_datainfo' in config:
+            attrs['_maintype'] = staticmethod(get_validator(config.pop('value_datainfo')))
         for pname, kwargs in params_cfg.items():
-            typ = kwargs['type']
+            typ = get_validator(kwargs.pop('datainfo'))
             if 'fmtstr' not in kwargs and (typ is float or
                                            isinstance(typ, floatrange)):
                 # the fmtstr default differs in SECoP and NICOS
                 # copy kwargs as it may be read only
                 kwargs = dict(kwargs, fmtstr='%g')
-            parameters[pname] = Param(volatile=True, **kwargs)
+            parameters[pname] = Param(volatile=True, type=typ, **kwargs)
+
+            if pname == 'target':
+                continue  # special treatment of target in SecopWritable.doReadTarget
 
             def do_read(self, maxage=None, pname=pname, validator=typ):
                 return self._read(pname, maxage, validator)
@@ -777,33 +757,43 @@ class SecopDevice(Device):
 
         for cname, cmddict in commands_cfg.items():
 
-            def makecmd(cname, argtype=None, optional=(), **kwds):
-                if isinstance(argtype, tupleof):
+            def makecmd(cname, datainfo, description):
+                argument = datainfo.get('argument')
+                # we ignore the result type here (no need to check)
+                optional = datainfo.get('optional', ())
+
+                if argument is None:
+                    help_arglist = ''
+
+                    def cmd(self):
+                        return self._call(cname, None)
+
+                elif argument['type'] == 'tuple':
                     # treat tuple elements as separate arguments
-                    help_arglist = ', '.join('<%s>' % type_name(t)
-                                             for t in argtype.types)
+                    help_arglist = ', '.join('<%s>' % type_name(get_validator(t))
+                                             for t in argument['members'])
 
                     def cmd(self, *args):
                         return self._call(cname, args)
 
-                elif isinstance(argtype, dictwith):
+                elif argument['type'] == 'struct':
                     # treat SECoP struct as keyworded arguments
                     # varargs will be treated in the order from the dictwith
                     # original order is kept only in Py >= 3.6
                     # however, it will correspond to the order in help_arglist
-                    keys = list(argtype.convs.keys())
-                    # do not take argtype.keys here (set is not ordered)
-                    # optional keys must appear at the end
+                    keys = list(argument['members'])
+                    if optional is True:
+                        optional = keys
                     for key in optional:
                         keys.remove(key)
                     help_arglist = ', '.join(keys + ['%s=None' % k
                                                      for k in optional])
                     keys.extend(optional)
 
-                    def cmd(self, *args, **kwds):
-                        if len(args) > len(keys):
+                    def cmd(self, *args, keys_=tuple(keys), **kwds):
+                        if len(args) > len(keys_):
                             raise ValueError('too many arguments')
-                        for arg, key in zip(args, keys):
+                        for arg, key in zip(args, keys_):
                             if key in kwds:
                                 raise ValueError(
                                     'got multiple values for argument %r'
@@ -812,6 +802,7 @@ class SecopDevice(Device):
                         return self._call(cname, kwds)
 
                 else:
+                    argtype = get_validator(argument)
                     help_arglist = '<%s>' % type_name(argtype) if argtype \
                                    else ''
 
@@ -819,7 +810,7 @@ class SecopDevice(Device):
                         return self._call(cname, argument)
 
                 cmd.help_arglist = help_arglist
-                cmd.__doc__ = cmddict['description']
+                cmd.__doc__ = description
                 cmd.__name__ = cname
                 return cmd
 
@@ -829,12 +820,20 @@ class SecopDevice(Device):
             elif cname != 'stop':
                 # stop is handled separately, do not complain
                 session.log.warning(
-                    'skip command %s, as it would overwrite %r', cname, old)
+                    'skip command %s, as it would overwrite method of %r', cname, cls.__name__)
 
         classname = cls.__name__ + '_' + name
         # create a new class extending SecopDevice, apply DeviceMeta in order
         # to include the added parameters
-        newclass = DeviceMeta.__new__(DeviceMeta, classname, (cls,), attrs)
+        features = config['secop_properties'].get('features', [])
+        mixins = tuple(FEATURES[f] for f in features if f in FEATURES)
+        if mixins:
+            # create class to hold access methods
+            newclass = DeviceMeta.__new__(DeviceMeta, classname + '_base', (cls,), attrs)
+            # create class with mixins, with methods potentially overriding access methods
+            newclass = DeviceMeta.__new__(DeviceMeta, classname, mixins + (newclass,), {})
+        else:
+            newclass = DeviceMeta.__new__(DeviceMeta, classname, (cls,), attrs)
         newclass._modified_config = devcfg  # store temporarily for __init__
         return newclass
 
@@ -858,7 +857,7 @@ class SecopDevice(Device):
 
         happens when the structure for the device has changed
         """
-        cls = self.__class__.__bases__[0]
+        cls = class_from_interface(config['secop_properties'])
         newclass = cls.makeDevClass(self.name, **config)
         bad_attached = False
         for dev, cls in get_attaching_devices(self):
@@ -1013,7 +1012,7 @@ class SecopReadable(SecopDevice, Readable):
             return code, text
         value, _, readerror = cached
         if value is None:
-            code, text = SecopStatus.ERROR, str(readerror)
+            code, text = SECOP_ERROR, str(readerror)
         else:
             code, text = value
         if 390 <= code < 400:  # SECoP status finalizing
@@ -1054,15 +1053,21 @@ class SecopReadable(SecopDevice, Readable):
 
 class SecopWritable(SecopReadable, Moveable):
 
-    def doStart(self, value):
+    def doReadTarget(self, maxage=None):
+        try:
+            return self._read('target', maxage, anytype)
+        except NicosError:
+            # this might happen when the target is not initialized
+            # if we do not catch here, Moveable.start will raise
+            # when comparing with the previous value
+            return None
+
+    def doStart(self, target):
         try:
             self._attached_secnode._secnode.setParameter(
-                self.secop_module, 'target', value)
+                self.secop_module, 'target', target)
         except AttributeError:
             raise self._defunct_error() from None
-
-    def doStop(self):
-        self.log.info('stopping a Writable is a no-op')
 
 
 class SecopMoveable(SecopWritable):
@@ -1075,3 +1080,55 @@ class SecopMoveable(SecopWritable):
             except Exception as e:
                 self.log.error('error while stopping: %r', e)
                 self.updateStatus()
+
+
+class SecopHasOffset(HasOffset):
+    """modified HasOffset mixin
+
+    goal: make the class to be accepted by the adjust command
+    """
+
+    def doWriteOffset(self, value):
+        # remark: possible adjustments of limits, targets have to be done
+        # in the remote implementation
+        self._write('offset', value, float)
+
+
+class SecopHasLimits(HasLimits):
+    """modifed HasLimits mixin
+
+    match the proposed SECoP feature HasOffset, with a limits parameter
+    corresponding to userlimits and the abslimits module _property_
+    """
+    parameter_overrides = {
+        'abslimits': Override(default=(-9e99, 9e99), prefercache=False),
+        'userlimits': Override(default=(-9e99, 9e99), volatile=True),
+        'limits': Override(userparam=False),
+    }
+
+    def doPreinit(self, mode):
+        super().doPreinit(mode)
+        if mode != SIMULATION:
+            self._config['abslimits'] = self.secop_properties.get('abslimits', (-9e99, 9e99))
+
+    def doReadUserlimits(self):
+        return self.limits
+
+    def doWriteUserlimits(self, value):
+        self.limits = value
+        return self.limits
+
+
+IF_CLASSES = {
+    'Drivable': SecopMoveable,
+    'Writable': SecopWritable,
+    'Readable': SecopReadable,
+    'Module': SecopDevice,
+}
+
+ALL_IF_CLASSES = set(IF_CLASSES.values())
+
+FEATURES = {
+    'HasLimits': SecopHasLimits,
+    'HasOffset': SecopHasOffset,
+}

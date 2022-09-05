@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,11 +23,29 @@
 # *****************************************************************************
 import copy
 
+import h5py
+
 from nicos import session
 from nicos.nexus.elements import ConstDataset, DetectorDataset, \
-    DeviceAttribute, DeviceDataset, ImageDataset, NexusSampleEnv, \
-    NXAttribute, NXLink, NXScanLink, NXTime
+    DeviceAttribute, DeviceDataset, ImageDataset, NexusElementBase, \
+    NexusSampleEnv, NXAttribute, NXLink, NXScanLink, NXTime
 from nicos.nexus.nexussink import NexusTemplateProvider
+
+from nicos_sinq.nexus.specialelements import AbsoluteTime
+
+
+class CaminiFileList(NexusElementBase):
+
+    def create(self, name, h5parent, sinkhandler):
+        dt = h5py.special_dtype(vlen=str)
+        dset = h5parent.create_dataset(name, (100,), dtype=dt)
+        dset[0] = ''
+
+    def results(self, name, h5parent, sinkhandler, results):
+        dset = h5parent[name]
+        data = dset[0] + bytes(results['camera'][0][0], encoding='utf-8') +\
+            b'\n'
+        dset[0] = data
 
 
 class BOATemplateProvider(NexusTemplateProvider):
@@ -78,7 +96,8 @@ class BOATemplateProvider(NexusTemplateProvider):
                                                                  'string'))},
                                       }, }
     _tables = ['Table2', 'Table3', 'Table4', 'Table5', 'Table6']
-    _detectors = ['embl', 'andor', 'single_el737', 'ccdwww', 'andorccd']
+    _detectors = ['embl', 'andor', 'single_el737', 'ccdwww',
+                  'andorccd', 'camini']
     _excluded_devices = ['slit1', 'slit2', 'dslit', 'ccdwww_connector',
                          'ccd_cooler']
     _detector = None
@@ -96,7 +115,7 @@ class BOATemplateProvider(NexusTemplateProvider):
             self._detector = det
             table.removeSetup(det)
         devices = table.getTableDevices()
-        content = dict()
+        content = {}
         for d in devices:
             if d in self._excluded_devices:
                 continue
@@ -120,11 +139,12 @@ class BOATemplateProvider(NexusTemplateProvider):
         name = self._detector
         if 'single' in name:
             name = 'single'
-        content = dict()
+        content = {}
         if name == 'single':
             content['data'] = DetectorDataset('countval', 'int32',
                                               units=NXAttribute(
                                                   'counts', 'string'))
+            content['time_stamp'] = AbsoluteTime()
         elif name == 'andor':
             content['data'] = ImageDataset(0, 0,
                                            signal=NXAttribute(1, 'int32'))
@@ -134,13 +154,16 @@ class BOATemplateProvider(NexusTemplateProvider):
         elif name == 'andorccd':
             content['data'] = ImageDataset(0, 0,
                                            signal=NXAttribute(1, 'int32'))
+            content['time_stamp'] = AbsoluteTime()
         elif name == 'embl':
             content['data'] = ImageDataset(0, 0,
                                            signal=NXAttribute(1, 'int32'))
+        elif name == 'camini':
+            content['data'] = CaminiFileList()
         return name, content
 
     def makeData(self, name):
-        content = dict()
+        content = {}
         content['data'] = NXLink('/entry/%s/data' % (name))
         content['None'] = NXScanLink()
         return content
@@ -156,5 +179,5 @@ class BOATemplateProvider(NexusTemplateProvider):
             entry[name + ':NXdetector'] = content
             entry['data:Nxdata'] = self.makeData(name)
         else:
-            session.log.info('No  ! May be: check setup???')
+            session.log.info('No detector! May be: check setup???')
         return boa_template

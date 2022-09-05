@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,7 +23,7 @@
 # *****************************************************************************
 
 import numpy as np
-import PyTango
+from tango import DevState
 
 from nicos.core import MASTER, SIMULATION, Attach, ConfigurationError, \
     Measurable, Moveable, Override, Param, Readable, Value, intrange, listof, \
@@ -64,7 +64,7 @@ class KWSImageChannel(ImageChannelMixin, PyTangoDevice, ActiveChannel):
         else:
             self._resolution = (128, 128, 1)
         shape = (self._resolution[1], self._resolution[0])
-        self.arraydesc = ArrayDesc('data', shape, np.uint32)
+        self.arraydesc = ArrayDesc(self.name, shape, np.uint32)
 
     def _configure(self, tofsettings):
         value = self.mode
@@ -83,7 +83,7 @@ class KWSImageChannel(ImageChannelMixin, PyTangoDevice, ActiveChannel):
         self.slices = []
         shape = (self._resolution[1], self._resolution[0])
         # (y, x)
-        self.arraydesc = ArrayDesc('data', shape, np.uint32)
+        self.arraydesc = ArrayDesc(self.name, shape, np.uint32)
 
     def _setup_tof(self, ext_trigger, tofsettings):
         # set timing of TOF slices
@@ -99,7 +99,7 @@ class KWSImageChannel(ImageChannelMixin, PyTangoDevice, ActiveChannel):
         self.slices = times
         shape = (channels, self._resolution[1], self._resolution[0])
         # (t, y, x)
-        self.arraydesc = ArrayDesc('data', shape, np.uint32)
+        self.arraydesc = ArrayDesc(self.name, shape, np.uint32)
         if self._mode == SIMULATION:
             return
         if ext_trigger:
@@ -138,7 +138,7 @@ class KWSImageChannel(ImageChannelMixin, PyTangoDevice, ActiveChannel):
         self.doFinish()
 
     def doStatus(self, maxage=0):
-        if self._dev.State() == PyTango.DevState.MOVING:
+        if self._dev.State() == DevState.MOVING:
             return status.BUSY, 'counting'
         return status.OK, 'idle'
 
@@ -183,7 +183,7 @@ class VirtualKWSImageChannel(VirtualImage):
     def _configure(self, tofsettings):
         if self.mode == 'standard':
             self.slices = []
-            self.arraydesc = ArrayDesc('data', self.sizes[::-1], np.uint32)
+            self.arraydesc = ArrayDesc(self.name, self.sizes[::-1], np.uint32)
         else:
             # set timing of TOF slices
             channels, interval, q, custom = tofsettings
@@ -196,8 +196,8 @@ class VirtualKWSImageChannel(VirtualImage):
                 for i in range(channels):
                     times.append(times[-1] + int(interval * q**i))
             self.slices = times
-            self.arraydesc = ArrayDesc('data', (channels,) + self.sizes[::-1],
-                                       np.uint32)
+            self.arraydesc = ArrayDesc(
+                self.name, (channels,) + self.sizes[::-1], np.uint32)
 
     def doReadArray(self, quality):
         res = VirtualImage.doReadArray(self, quality)
@@ -310,9 +310,7 @@ class KWSDetector(Detector):
         Detector.doInit(self, session_mode)
         self._img = self._attached_images[0]
         if session_mode == MASTER:
-            if not self._attached_images or \
-               not isinstance(self._attached_images[0], (KWSImageChannel,
-                                                         VirtualKWSImageChannel)):
+            if not self._attached_images:
                 raise ConfigurationError(self, 'KWSDetector needs a KWSChannel '
                                          'as attached image')
             self.kwscounting = False

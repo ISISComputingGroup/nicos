@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,10 +27,11 @@ This module contains EPICS and detector integration.
 """
 
 from nicos.core import Override, Param, pvname
+from nicos.devices.epics import EpicsDevice
 from nicos.devices.generic.detector import ActiveChannel, \
     CounterChannelMixin, Detector, PassiveChannel, TimerChannelMixin
 
-from nicos_ess.devices.epics.base import EpicsDeviceEss, EpicsReadableEss
+from nicos_ess.devices.epics.base import EpicsReadableEss
 
 
 class EpicsPassiveChannel(EpicsReadableEss, PassiveChannel):
@@ -99,7 +100,7 @@ class EpicsTimerActiveChannel(TimerChannelMixin, EpicsActiveChannel):
     """
 
 
-class EpicsDetector(EpicsDeviceEss, Detector):
+class EpicsDetector(EpicsDevice, Detector):
     """
     Class to represent EPICS Detectors.
 
@@ -116,7 +117,7 @@ class EpicsDetector(EpicsDeviceEss, Detector):
     }
 
     def doPreinit(self, mode):
-        EpicsDeviceEss.doPreinit(self, mode)
+        EpicsDevice.doPreinit(self, mode)
         Detector.doPreinit(self, mode)
 
     def _get_pv_parameters(self):
@@ -170,4 +171,4 @@ class EpicsDetector(EpicsDeviceEss, Detector):
         Detector.doStop(self)
 
     def doStatus(self, maxage=0):
-        return EpicsDeviceEss.doStatus(self, maxage)
+        return EpicsDevice.doStatus(self, maxage)

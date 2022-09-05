@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@ name = 'test_puma setup'
 includes = ['stdsystem']
 
 devices = dict(
-    phi = device('nicos_mlz.puma.devices.comb_ax.CombAxis',
+    phi = device('nicos_mlz.puma.devices.CombAxis',
         motor = device('nicos.devices.generic.VirtualMotor',
             unit = 'deg',
             abslimits = (-5, 116.1),
@@ -43,10 +43,11 @@ devices = dict(
         ),
         iscomb = False,
     ),
-    afpg = device('nicos_mlz.puma.devices.focus.FocusAxis',
+    af = device('nicos_mlz.puma.devices.FocusAxis',
         motor = device('nicos.devices.generic.VirtualMotor',
             unit = 'deg',
             abslimits = (-55, 55),
+            curvalue = 4.92,
         ),
         obs = [],
         uplimit = 5,
@@ -60,7 +61,7 @@ devices = dict(
     polyswitch = device('nicos.devices.generic.ManualSwitch',
         states = [0, 1],
     ),
-    mtt = device('nicos_mlz.puma.devices.mtt.MttAxis',
+    mtt = device('nicos_mlz.puma.devices.MttAxis',
         motor = device('nicos.devices.generic.VirtualMotor',
             unit = 'deg',
             abslimits = (-110.1, 0),
@@ -80,7 +81,7 @@ devices = dict(
         abslimits = (0, 60),
         precision = 0.05,
     ),
-    cad = device('nicos_mlz.puma.devices.coupledaxis.PumaCoupledAxis',
+    cad = device('nicos_mlz.puma.devices.PumaCoupledAxis',
         tt = device('nicos.devices.generic.VirtualMotor',
             unit = 'deg',
             abslimits = (-117, 117),

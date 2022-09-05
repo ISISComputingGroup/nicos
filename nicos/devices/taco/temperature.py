@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,14 +18,14 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
 """NICOS temperature controller classes."""
 
-import TACOStates
-import Temperature
+import TACOStates  # pylint: disable=import-error
+import Temperature  # pylint: disable=import-error
 
 from nicos.core import HasLimits, HasWindowTimeout, Moveable, MoveError, \
     Override, Param, PositionError, Readable, oneof, status
@@ -89,9 +89,9 @@ class TemperatureController(TacoDevice, HasWindowTimeout, HasLimits, Moveable):
         self._taco_guard(self._dev.write, target)
         self._pollParam('setpoint', 100)
 
-    def doTime(self, oldvalue, newvalue):
+    def doTime(self, old_value, target):
         if self.ramp:
-            ramptime = 60 * abs(newvalue - oldvalue) / self.ramp
+            ramptime = 60 * abs(target - old_value) / self.ramp
         else:
             ramptime = 0
         return ramptime + self.window
@@ -215,12 +215,10 @@ class TemperatureController(TacoDevice, HasWindowTimeout, HasLimits, Moveable):
     def doWriteMaxheaterpower(self, value):
         self.__stop_and_set('maxpower', value)
 
-    def doWriteUserlimits(self, limits):
-        wlimits = HasLimits.doWriteUserlimits(self, limits)
-        if wlimits:
-            limits = wlimits
+    def doWriteUserlimits(self, value):
+        HasLimits.doWriteUserlimits(self, value)
         try:
-            self.__stop_and_set('usermax', limits[1])
+            self.__stop_and_set('usermax', value[1])
         except Exception as err:
             if str(err) != 'resource not supported':
                 self.log.warning('Error during update of usermax resource: %s',

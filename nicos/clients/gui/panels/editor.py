@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -44,7 +44,7 @@ from nicos.guisupport.qt import QAction, QActionGroup, QByteArray, QColor, \
     QsciScintilla, Qt, QTabWidget, QToolBar, QTreeWidgetItem, QWidget, \
     pyqtSlot
 from nicos.guisupport.utils import setBackgroundColor
-from nicos.utils import formatDuration, formatEndtime
+from nicos.utils import LOCALE_ENCODING, formatDuration, formatEndtime
 
 has_scintilla = QsciScintilla is not None
 
@@ -210,7 +210,7 @@ class EditorPanel(Panel):
         self.toolconfig = options.get('tools')
         self.sim_window = options.get('sim_window', 'inline')
         if self.sim_window not in ('single', 'multi', 'inline'):
-            self.log.warning('invalid sim_window option %r, using inline',
+            self.log.warning("invalid sim_window option %r, using 'inline'",
                              self.sim_window)
             self.sim_window = 'inline'
 
@@ -402,7 +402,7 @@ class EditorPanel(Panel):
         if self.currentEditor:
             self.currentEditor.beginUndoAction()
             if self.currentEditor.text():
-                res = OverwriteQuestion().exec_()
+                res = OverwriteQuestion().exec()
                 if res == QMessageBox.Apply:
                     self.currentEditor.clear()
                 elif res == QMessageBox.Cancel:
@@ -553,7 +553,7 @@ class EditorPanel(Panel):
             printer.setOutputFileName('')
             printer.setDocName(self.filenames[self.currentEditor])
             # printer.setFullPage(True)
-            if QPrintDialog(printer, self).exec_() == QDialog.Accepted:
+            if QPrintDialog(printer, self).exec() == QDialog.Accepted:
                 lexer = self.currentEditor.lexer()
                 bgcolor = lexer.paper(0)
                 # printer prints background color too, so set it to white
@@ -563,7 +563,7 @@ class EditorPanel(Panel):
         else:
             printer = QPrinter()
             printer.setOutputFileName('')
-            if QPrintDialog(printer, self).exec_() == QDialog.Accepted:
+            if QPrintDialog(printer, self).exec() == QDialog.Accepted:
                 getattr(self.currentEditor, 'print')(printer)
 
     def validateScript(self):
@@ -681,11 +681,13 @@ class EditorPanel(Panel):
         else:
             # reload without asking
             try:
-                with open(self.filenames[editor]) as f:
+                with open(self.filenames[editor],
+                          encoding=LOCALE_ENCODING) as f:
                     text = f.read()
             except Exception:
                 return
-            editor.setText(text)
+            if text != editor.text():
+                editor.setText(text)
             editor.setModified(False)
         # re-add the filename to the watcher if it was deleted
         # (happens for programs that do delete-write on save)
@@ -731,7 +733,7 @@ class EditorPanel(Panel):
         if not self.checkDirty(self.currentEditor):
             return
         try:
-            with open(fn, 'r') as f:
+            with open(fn, 'r', encoding=LOCALE_ENCODING) as f:
                 text = f.read()
         except Exception as err:
             return self.showError('Opening file failed: %s' % err)
@@ -743,7 +745,8 @@ class EditorPanel(Panel):
 
     def openFile(self, fn, quiet=False):
         try:
-            with open(fn.encode(sys.getfilesystemencoding())) as f:
+            with open(fn.encode(sys.getfilesystemencoding()),
+                      encoding=LOCALE_ENCODING) as f:
                 text = f.read()
         except Exception as err:
             if quiet:
@@ -803,16 +806,16 @@ class EditorPanel(Panel):
         if not self.filenames[editor]:
             return self.saveFileAs(editor)
 
+        self.saving = True
         try:
-            self.saving = True
-            try:
-                with open(self.filenames[editor], 'w') as f:
-                    f.write(editor.text())
-            finally:
-                self.saving = False
+            with open(self.filenames[editor], 'w',
+                      encoding=LOCALE_ENCODING) as f:
+                f.write(editor.text())
         except Exception as err:
             self.showError('Writing file failed: %s' % err)
             return False
+        finally:
+            self.saving = False
 
         self.watchers[editor].addPath(self.filenames[editor])
         editor.setModified(False)

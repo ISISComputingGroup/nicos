@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -46,8 +46,8 @@ class SelectorTilt(HasLimits, BaseSequencer):
     def _generateSequence(self, target):
         seq = []
         if self._attached_selector.read(0) > self.maxtiltspeed:
-            seq.insert(0, SeqDev(self._attached_selector, self.maxtiltspeed,
-                                 stoppable=True))
+            seq.append(SeqDev(self._attached_selector, self.maxtiltspeed,
+                              stoppable=True))
         seq.append(SeqMethod(self, '_check_speed'))
         seq.append(SeqMethod(self._attached_motor, 'release'))
         seq.append(SeqDev(self._attached_motor, target, stoppable=True))

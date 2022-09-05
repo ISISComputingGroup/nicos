@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -57,10 +57,7 @@ class Authenticator(LDAPAuthenticator):
     def _connect_to_server(self, username, password):
         error = None
         try:
-            server = ldap3.Server(self.uri, use_ssl=True)
-            if not server.check_availability():
-                raise AuthenticationError('LDAP server unavailable')
-            connection = ldap3.Connection(server, user=f'{username}@ESSS.SE',
+            connection = ldap3.Connection(self.uri, user=f'{username}@ESSS.SE',
                                           password=password, auto_bind=True,
                                           read_only=True)
         except ldap3.core.exceptions.LDAPException as err:

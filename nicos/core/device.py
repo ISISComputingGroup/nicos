@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -41,7 +41,7 @@ from nicos.core.mixins import DeviceMixinMeta, HasLimits, HasOffset, \
     HasPrecision, HasTimeout, IsController
 from nicos.core.params import INFO_CATEGORIES, Attach, Override, Param, \
     Value, anytype, dictof, floatrange, listof, nicosdev, none_or, oneof, \
-    tupleof
+    setof, tupleof
 from nicos.core.utils import formatStatus, multiStatus, multiStop, multiWait, \
     statusString, usermethod
 from nicos.protocols.cache import FLAG_NO_STORE
@@ -116,24 +116,16 @@ class DeviceMeta(DeviceMixinMeta):
                 seen_nonmixin = True
         newtype = DeviceMixinMeta.__new__(mcs, name, bases, attrs)
 
-        # hack around a class creation bug in Python 2
-        attrs['__constructed__'] = True
-
         # to debug MRO problems you could use this line
-        # print 'MRO:', newtype, newtype.mro()
+        # print('MRO:', newtype, newtype.mro())
         for adevname, entry in list(newtype.attached_devices.items()):
             # adev names are always lowercased
             if adevname != adevname.lower():
                 raise ProgrammingError('%r device: attached device name %r is '
                                        'not all-lowercase' % (name, adevname))
-            # backwards compatibility: convert all entries to Attach objects
             if not isinstance(entry, Attach):
-                session.log.warning("Please use 'Attach' to define an attached"
-                                    " device. The use of a tuple is deprecated!")
-                _multiple = isinstance(entry[0], list)
-                _devclass = entry[0][0] if _multiple else entry[0]
-                newtype.attached_devices[adevname] = \
-                    Attach(entry[1], _devclass, multiple=_multiple)
+                raise ProgrammingError("Please use 'Attach' to define an "
+                                       "attached device.")
 
         # create parameter properties
         for param, info in newtype.parameters.items():
@@ -295,9 +287,11 @@ class Device(metaclass=DeviceMeta):
                              type=listof(str), settable=False, userparam=False),
         'description': Param('A description of the device', type=str,
                              settable=True),
-        'lowlevel':    Param('Whether the device is not interesting to users',
-                             type=bool, default=False, userparam=False,
-                             prefercache=False),
+        'visibility':  Param('Selects in which context the device should be '
+                             'shown/included',
+                             type=setof('metadata', 'namespace', 'devlist'),
+                             default=['metadata', 'namespace', 'devlist'],
+                             settable=False),
         # Don't allow setting loglevel to > INFO, as it could be confusing.
         'loglevel':    Param('The logging level of the device',
                              type=oneof('debug', 'info'),
@@ -372,6 +366,7 @@ class Device(metaclass=DeviceMeta):
     attribute_whitelist = {
         'valuetype',  # for all devices
         'arraydesc',  # for image producers
+        'autodevices',  # for HasAutoDevices
     }
 
     def __setattr__(self, name, value):
@@ -2219,7 +2214,7 @@ class DeviceAlias(Device):
     }
 
     _ownattrs = ['_obj', '_mode', '_cache', 'alias']
-    _ownparams = {'alias', 'name', 'devclass', 'lowlevel'}
+    _ownparams = {'alias', 'name', 'devclass', 'visibility'}
     _initialized = False
 
     __display__ = True
@@ -2298,7 +2293,10 @@ class DeviceAlias(Device):
         for pname in self._obj.parameters:
             if pname in self._ownparams:
                 continue
-            self._cache.put(self, pname, getattr(self._obj, pname))
+            try:
+                self._cache.put(self, pname, getattr(self._obj, pname))
+            except NicosError:
+                pass  # silently ignore
 
     def _recoverMissingDevice(self, devname):
         """Recover from not having a valid target (it does not exist, cannot be

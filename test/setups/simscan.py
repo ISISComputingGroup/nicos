@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,12 +18,13 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
 from os import path
-from test.utils import cache_addr, runtime_root, module_root
+
+from test.utils import cache_addr, module_root, runtime_root
 
 name = 'simulation tests setup'
 
@@ -44,7 +45,6 @@ devices = dict(
         templates = path.join(module_root, 'test', 'script_templates'),
         zipdata = True,
         serviceexp = 'service',
-        lowlevel = False,
     ),
     motor = device('nicos.devices.generic.VirtualMotor',
         unit = 'deg',
@@ -52,10 +52,10 @@ devices = dict(
         abslimits = (0, 5),
     ),
     timer = device('nicos.devices.generic.VirtualTimer',
-        lowlevel = True,
+        visibility = (),
     ),
     ctr1 = device('nicos.devices.generic.VirtualCounter',
-        lowlevel = True,
+        visibility = (),
         type = 'counter',
         countrate = 2000.,
         fmtstr = '%d',

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -58,6 +58,7 @@ class HttpConnector(HasCommunication, Readable):
         403: 'Authentication did not work..',
         404: 'Somehow, address was not found!',
         500: 'Internal server error',
+        501: 'Internal server error',
     }
 
     def doInit(self, mode):
@@ -73,9 +74,11 @@ class HttpConnector(HasCommunication, Readable):
         # Check if the communication was successful
         response = result.status_code
         if response in self.status_code_msg:
-            raise CommunicationError(self.status_code_msg.get(response))
+            raise CommunicationError(self.status_code_msg.get(response)
+                                     + result.content)
         elif response != 200:
-            raise CommunicationError('Error while connecting to server!')
+            raise CommunicationError('Error while connecting to server! %s'
+                                     % result.content)
         self._setROParam('curstatus', (status.OK, ''))
         return result
 

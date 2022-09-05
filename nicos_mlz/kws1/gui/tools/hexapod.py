@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,7 @@
 
 """Direct manual control of KWS-1 Hexapod via Tango controller device."""
 
-import PyTango
+from tango import DeviceProxy
 
 from nicos.clients.gui.utils import DlgUtils, loadUi
 from nicos.guisupport.qt import QMainWindow, QTimer, pyqtSlot
@@ -56,7 +56,7 @@ class HexapodTool(DlgUtils, QMainWindow):
         self.axeslist = []
 
         try:
-            self._controller = PyTango.DeviceProxy(
+            self._controller = DeviceProxy(
                 TANGO_DEV_BASE + 'controller')
             # make sure the server is running and create remaining proxies
             try:
@@ -64,7 +64,7 @@ class HexapodTool(DlgUtils, QMainWindow):
             except AttributeError:
                 raise Exception('server appears to be not running') from None
             for axis in AXES:
-                self.axes[axis] = PyTango.DeviceProxy(TANGO_DEV_BASE + axis)
+                self.axes[axis] = DeviceProxy(TANGO_DEV_BASE + axis)
                 self.axeslist.append(self.axes[axis])
         except Exception as err:
             self.showError('could not connect to tango server: %s' % err)

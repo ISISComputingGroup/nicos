@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -27,6 +27,7 @@
 import logging
 import os
 import pickle
+import subprocess
 import sys
 import tempfile
 from os import path
@@ -52,6 +53,8 @@ SIM_MESSAGE = 0x01
 SIM_BLOCK_RES = 0x02
 # the duration for the whole code
 SIM_END_RES = 0x03
+# a "result" (simulation defined) to emit
+SIM_RESULT = 0x04
 
 
 def serialize(data):
@@ -79,6 +82,7 @@ class SimLogSender(logging.Handler):
     def begin_exec(self):
         from nicos.core import Readable
         from nicos.core.device import DeviceAlias
+
         # Collect information on timing and range of all devices
         self.starttime = self.session.clock.time
         for devname, dev in self.session.devices.items():
@@ -100,6 +104,9 @@ class SimLogSender(logging.Handler):
     def send_block_result(self, block, time):
         self.socket.send(serialize((SIM_BLOCK_RES,
                                     [block, time, self.simuuid])))
+
+    def add_result(self, obj):
+        self.socket.send(serialize((SIM_RESULT, obj)))
 
     def finish(self, exception=False):
         stoptime = -1 if exception else self.session.clock.time
@@ -251,6 +258,7 @@ class SimulationSupervisor(Thread):
 
     def __init__(self, sandbox, uuid, code, setups, user, emitter,
                  more_args=None, quiet=False):
+        self.results = []
         Thread.__init__(self, target=self._run,
                         name='SimulationSupervisor',
                         args=(sandbox, uuid, code, setups, user, emitter,
@@ -284,7 +292,10 @@ class SimulationSupervisor(Thread):
             args.append('--debug')
         proc = createSubprocess(prefixargs +
                                 [sys.executable, scriptname, sockname, uuid,
-                                 ','.join(setups), userstr, code] + args)
+                                 ','.join(setups), userstr] + args,
+                                stdin=subprocess.PIPE)
+        proc.stdin.write(code.encode())
+        proc.stdin.close()
         if sandbox:
             if not session.current_sysconfig.get('cache'):
                 raise NicosError('no cache is configured')
@@ -321,6 +332,8 @@ class SimulationSupervisor(Thread):
                     request = emitter.current_script()
                     if request.reqid == uuid:
                         request.updateRuntime(block, duration)
+            elif msgtype == SIM_RESULT:
+                self.results.append(msg)
             elif msgtype == SIM_END_RES:
                 if emitter:
                     if not quiet:

@@ -28,7 +28,7 @@ clean-demo: clean
 	-rm -rf data/cache/*
 	-rm -rf data/logbook data/20*
 	-rm -rf log/poller* log/cache log/daemon log/elog log/nicos log/watchdog
-	-rm data/current
+	-rm -f data/current
 
 install:
 	@echo "Installing to $(DESTDIR)$(PREFIX)..."
@@ -46,12 +46,12 @@ inplace-install:
 
 install-venv:
 	if [ -z "$(VENVNAME)" ]; then export VENVNAME=nicos-venv ; fi; \
-	if [ -z "$(USEPYTHON)" ]; then export USEPYTHON=`which python`; fi; \
+	if [ -z "$(USEPYTHON)" ]; then export USEPYTHON=`which python3`; fi; \
 	echo "Installing into venv: $(DESTDIR)$${VENVNAME}"; \
 	echo "using $${USEPYTHON}"; \
-	virtualenv --system-site-packages -p $${USEPYTHON} $(DESTDIR)$${VENVNAME}; \
+	$${USEPYTHON} -m venv --copies --system-site-packages $(DESTDIR)$${VENVNAME}; \
 	. $(DESTDIR)$${VENVNAME}/bin/activate; \
-	pip install "pip>=1.5" ; \
+	pip install -U pip ; \
 	pip install -r requirements.txt ; \
 	python setup.py install
 
@@ -59,7 +59,7 @@ install-requirements:
 	@echo "Trying to install up-to-date requirements using pip"
 	@echo "If something goes wrong, try updating by hand, maybe you need root privileges"
 	@echo "Updating pip..."
-	pip install "pip>=1.5"
+	pip install -U pip
 	@echo "Install requirements"
 	pip install -r requirements.txt
 
@@ -68,22 +68,19 @@ check:
 	$(PYTHON) tools/check-setups $(CHECK_DIRS)
 
 setupcheck:
-	$(PYTHON) tools/check-setups -s nicos_*/*/setups nicos_*/*/guiconfig.py
+	@$(PYTHON) tools/check-setups -s $(shell find . -mindepth 3 -type d -name setups) $(shell find . -name guiconfig.py)
 
 T = test
 
 test:
-	@if [ -z "`which py.test`" ]; then echo "py.test is required to run the test suite"; exit 1; fi
-	@$(PYTHON) `which py.test` -v $(T) --ignore test/test_stresstest $(O)
+	@$(PYTHON) -m pytest -v $(T) --ignore test/test_stresstest $(O)
 
 testall:
-	@if [ -z "`which py.test`" ]; then echo "py.test is required to run the test suite"; exit 1; fi
-	@$(PYTHON) `which py.test` -v $(T) $(O)
+	@$(PYTHON) -m pytest -v $(T) $(O)
 
 test-coverage:
-	@if [ -z "`which py.test`" ]; then echo "py.test is required to run the test suite"; exit 1; fi
 	@COVERAGE_PROCESS_START=.coveragerc \
-		$(PYTHON) `which py.test` -v $(T) --cov --cov-report=html --cov-report=term $(O)
+		$(PYTHON) -m pytest -v $(T) --cov --cov-report=html --cov-report=term $(O)
 
 lint:
 	@-PYTHONPATH=.:${PYTHONPATH} pylint --rcfile=./pylintrc nicos/ nicos_*/ nicostools/ tools/* bin/*

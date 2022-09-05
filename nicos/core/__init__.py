@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -36,8 +36,8 @@ from nicos.core.errors import AccessError, CacheError, CacheLockError, \
     InvalidValueError, LimitError, ModeError, MoveError, NicosError, \
     NicosTimeoutError, PositionError, ProgrammingError, SPMError, UsageError
 from nicos.core.mixins import AutoDevice, CanDisable, DeviceMixinBase, \
-    HasCommunication, HasLimits, HasMapping, HasOffset, HasPrecision, \
-    HasTimeout, HasWindowTimeout, IsController
+    HasAutoDevices, HasCommunication, HasLimits, HasMapping, HasOffset, \
+    HasPrecision, HasTimeout, HasWindowTimeout, IsController
 from nicos.core.params import INFO_CATEGORIES, ArrayDesc, Attach, Override, \
     Param, Value, absolute_path, anytype, dictof, dictwith, floatrange, host, \
     intrange, limits, listof, mailaddress, nicosdev, none_or, nonemptylistof, \

@@ -7,8 +7,9 @@ devices = dict(
         description = 'Reactor power',
         abslimits = (0, 20),
         pollinterval = 10,
-        maxage = 61,
+        maxage = 75,
         unit = 'MW',
         jitter = 0.1,
+        curvalue = 19.9,
     ),
 )

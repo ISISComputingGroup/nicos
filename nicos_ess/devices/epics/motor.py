@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,7 @@ from nicos.core.device import requires
 from nicos.core.errors import ConfigurationError
 from nicos.core.mixins import CanDisable, HasOffset
 from nicos.devices.abstract import CanReference, Motor
-from nicos.devices.epics import PVMonitor
+from nicos.devices.epics import SEVERITY_TO_STATUS, PVMonitor
 
 from nicos_ess.devices.epics.base import EpicsAnalogMoveableEss
 
@@ -62,10 +62,10 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
         'reseterrorpv': Param('Optional PV with error reset switch.',
                               type=pvname, mandatory=False, settable=False,
                               userparam=False),
-        'reference_direction': Param('Reference run direction',
+        'reference_direction': Param('Reference run direction.',
                                      type=oneof('forward', 'reverse'),
                                      default='forward', settable=False,
-                                     userparam=False, mandatory=False),
+                                     userparam=False, mandatory=False)
     }
 
     parameter_overrides = {
@@ -79,31 +79,34 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
         'abslimits': Override(volatile=True),
     }
 
+    _motor_status = (status.OK, '')
+    _start_time = None
+    _start_delay = .2
+
     # Fields of the motor record for which an interaction via Channel Access
     # is required.
-    def _get_record_fields(self):
-        return {
-            'readpv': 'RBV',
-            'writepv': 'VAL',
-            'stop': 'STOP',
-            'donemoving': 'DMOV',
-            'moving': 'MOVN',
-            'miss': 'MISS',
-            'homeforward': 'HOMF',
-            'homereverse': 'HOMR',
-            'speed': 'VELO',
-            'offset': 'OFF',
-            'highlimit': 'HLM',
-            'lowlimit': 'LLM',
-            'softlimit': 'LVIO',
-            'lowlimitswitch': 'LLS',
-            'highlimitswitch': 'HLS',
-            'enable': 'CNEN',
-            'set': 'SET',
-            'foff': 'FOFF',
-            'alarm_status': 'STAT',
-            'alarm_severity': 'SEVR',
-        }
+    _record_fields = {
+        'readpv': 'RBV',
+        'writepv': 'VAL',
+        'stop': 'STOP',
+        'donemoving': 'DMOV',
+        'moving': 'MOVN',
+        'miss': 'MISS',
+        'homeforward': 'HOMF',
+        'homereverse': 'HOMR',
+        'speed': 'VELO',
+        'offset': 'OFF',
+        'highlimit': 'HLM',
+        'lowlimit': 'LLM',
+        'softlimit': 'LVIO',
+        'lowlimitswitch': 'LLS',
+        'highlimitswitch': 'HLS',
+        'enable': 'CNEN',
+        'set': 'SET',
+        'foff': 'FOFF',
+        'alarm_status': 'STAT',
+        'alarm_severity': 'SEVR',
+    }
 
     def _get_pv_parameters(self):
         """
@@ -170,9 +173,11 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
             # Read the absolute limits from the device as they have changed.
             self.abslimits  # pylint: disable=pointless-statement
 
+            # Place new limits into the allowed range..
+            usmin = max(self.userlimits[0] + diff, self.abslimits[0])
+            usmax = min(self.userlimits[1] + diff, self.abslimits[1])
             # Adjust user limits
-            self.userlimits = (
-                self.userlimits[0] + diff, self.userlimits[1] + diff)
+            self.userlimits = (usmin, usmax)
 
             self.log.info('The new user limits are: ' + str(self.userlimits))
 
@@ -198,18 +203,31 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
     def doRead(self, maxage=0):
         return self._get_pv('readpv')
 
-    def doStart(self, value):
-        self._put_pv('writepv', value)
+    def doStart(self, target):
+        self._start_time = currenttime()
+        self._put_pv('writepv', target)
 
     def doReadTarget(self):
         return self._get_pv('writepv')
 
-    def doStatus(self, maxage=0):
-        general_epics_status, _ = self._get_mapped_epics_status()
-        message = self._get_status_message()
+    def _test_starting(self):
+        if self._start_time and currenttime() < \
+                self._start_time + self._start_delay:
+            done_moving = self._get_pv('donemoving')
+            if done_moving == 1:
+                return True
+        return False
 
-        if general_epics_status == status.ERROR:
-            return status.ERROR, message or 'Unknown problem in record'
+    def doStatus(self, maxage=0):
+        if self._test_starting():
+            return status.BUSY, 'starting'
+
+        stat, message = self._get_status_message()
+        self._motor_status = stat, message
+        if stat == status.ERROR:
+            return stat, message or 'Unknown problem in record'
+        elif stat == status.WARN:
+            return stat, message
 
         done_moving = self._get_pv('donemoving')
         moving = self._get_pv('moving')
@@ -239,12 +257,39 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsAnalogMoveableEss,
         """
         Get the status message from the motor if the PV exists.
 
-        :return: The status message if it exists, otherwise an empty string.
+        :return: tuple with status and message to display, empty string message
+        if status is OK.
         """
-        if not self.errormsgpv:
-            return ''
+        msg_txt, alarm_severity, alarm_status = self._read_epics_alarm_pvs()
+        if msg_txt:
+            if alarm_severity == status.UNKNOWN:
+                alarm_severity = status.ERROR
+            if self._motor_status != (alarm_severity, msg_txt):
+                self._log_epics_msg_info(msg_txt, alarm_severity, alarm_status)
+            return alarm_severity, msg_txt
+        else:
+            return status.OK, ''
 
-        return self._get_pv('errormsgpv', as_string=True)
+    def _read_epics_alarm_pvs(self):
+        """
+        :return: tuple containing alarm message, severity and status
+        """
+        if self.errormsgpv:
+            return (self._get_pv('errormsgpv', as_string=True),
+                    SEVERITY_TO_STATUS.get(self._get_pv('alarm_severity'),
+                                           status.UNKNOWN),
+                    self._get_pv('alarm_status', as_string=True))
+        else:
+            return '', status.OK, ''
+
+    def _log_epics_msg_info(self, msg_txt, stat, epics_status):
+        if stat == status.OK or stat == status.UNKNOWN:
+            return
+        msg_to_log = '%s (%s)'
+        if stat == status.WARN:
+            self.log.warning(msg_to_log, msg_txt, epics_status)
+        elif stat == status.ERROR:
+            self.log.error(msg_to_log, msg_txt, epics_status)
 
     def doStop(self):
         self._put_pv('stop', 1, False)
@@ -311,9 +356,9 @@ class AbsoluteEpicsMotor(EpicsMotor):
 
 
 class EpicsMonitorMotor(PVMonitor, EpicsMotor):
-    def doStart(self, value):
-        self._put_pv('writepv', value)
-        if value != self.doRead():
+    def doStart(self, target):
+        self._put_pv_blocking('writepv', target, timeout=5)
+        if target != self.doRead():
             self._wait_for_start()
 
     def _on_status_change_cb(self, pvparam, value=None, char_value='', **kws):
@@ -325,29 +370,3 @@ class EpicsMonitorMotor(PVMonitor, EpicsMotor):
         # the cache needs to be updated immediately.
         if pvparam in ['donemoving', 'moving']:
             self._cache.put(self._name, pvparam, value, currenttime())
-
-    def _get_status_parameters(self):
-        status_pars = {
-            'miss',
-            'donemoving',
-            'moving',
-            'lowlimitswitch',
-            'highlimitswitch',
-            'softlimit',
-        }
-
-        if self.errormsgpv:
-            status_pars.add('errormsgpv')
-            status_pars.add('alarm_status')
-            status_pars.add('alarm_severity')
-        return status_pars
-
-    def _get_status_message(self):
-        """
-        Get the status message from the motor if the PV exists.
-        :return: The status message if it exists, otherwise an empty string.
-        """
-        if not self.errormsgpv:
-            return ''
-        return self._pvs['errormsgpv'].get(timeout=self.epicstimeout,
-                                           as_string=True)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -49,7 +49,6 @@ def setup_module(session):
         os.makedirs(dataroot)
 
     counter = path.join(dataroot, exp.counterfile)
-    open(counter, 'w').close()
     updateFileCounter(counter, 'scan', 42)
     updateFileCounter(counter, 'point', 167)
 
@@ -83,7 +82,7 @@ def test_sinqascii(session):
     assert (contents[6] == 'ScriptTest = Oops')
     assert (contents[-10] == 'motor2 zero = 0.000')
     assert (contents[-9] == 'Scanning Variables: motor2, Steps: 1.0')
-    assert (contents[-8] == '5 Points, Mode: Timer,Preset 0.005000')
+    assert (contents[-8] == '5 Points, Mode: Timer, Preset 0.005000')
     assert (contents[-7] == 'NP  motor2   COUNTS     MONITOR1   TIME')
     # cannot test data content because they consist or random runmbers
     assert (contents[-1] == 'END-OF-DATA')

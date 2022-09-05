@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,67 +26,13 @@
 This module contains ESS specific Base classes for EPICS.
 """
 
-from kafka.errors import KafkaError
-
-from nicos import session
-from nicos.core import Override, Param
-from nicos.core.constants import SIMULATION
-from nicos.core.errors import ConfigurationError
-from nicos.devices.epics import EpicsAnalogMoveable, EpicsDevice, \
-    EpicsDigitalMoveable, EpicsMoveable, EpicsReadable, EpicsStringReadable, \
+from nicos.core import Override
+from nicos.devices.epics import EpicsAnalogMoveable, EpicsDigitalMoveable, \
+    EpicsMoveable, EpicsReadable, EpicsStringReadable, \
     EpicsWindowTimeoutDevice
 
 
-class EpicsDeviceEss(EpicsDevice):
-    """ Base class for EPICS Device to be used in the ESS instrument devices.
-    The ESS device has functionality to write and read PVs from Kafka topics.
-    """
-    parameters = {
-        'devicepvtopic': Param(
-            'Default topic for device where PVs are to be forwarded',
-            type=str, userparam=False),
-        'devicepvschema': Param('Default flatbuffers coding schema for device',
-                                type=str, userparam=False),
-        'pvdetails': Param(
-            'Dict of specific PV and tuple of (topic, schema) if is different',
-            type=dict, userparam=False),
-    }
-
-    def _get_record_fields(self):
-        return {}
-
-    def doPreinit(self, mode):
-        self._record_fields = self._get_record_fields()
-        EpicsDevice.doPreinit(self, mode)
-
-        pv_details = {}
-        # Get topics for each PV
-        for pvparam in self._get_pv_parameters():
-            topic = self.devicepvtopic if self.devicepvtopic else ''
-            schema = self.devicepvschema if self.devicepvschema else ''
-            pv = self._get_pv_name(pvparam)
-            if self.pvdetails and pv in self.pvdetails:
-                topic, schema = self.pvdetails[pv]
-            pv_details[pv] = (topic, schema)
-
-        # Configure the forwarder if the KafkaForwarder is available
-        # Get the forwarded topic and schema for the PV
-        try:
-            forwarder = session.getDevice('KafkaForwarder')
-        except ConfigurationError:
-            return
-        except KafkaError as ke:
-            session.log.error('KafkaForwarder badly configured: %s', ke)
-            return
-        if mode != SIMULATION:
-            try:
-                forwarder.add(pv_details)
-            except ConfigurationError as error:
-                session.log.error("Couldn't add device to KafkaForwarder: %s",
-                                  error)
-
-
-class EpicsReadableEss(EpicsDeviceEss, EpicsReadable):
+class EpicsReadableEss(EpicsReadable):
     parameter_overrides = {
         'fmtstr': Override(userparam=False),
         'maxage': Override(userparam=False),
@@ -94,23 +40,14 @@ class EpicsReadableEss(EpicsDeviceEss, EpicsReadable):
         'warnlimits': Override(userparam=False)
     }
 
-    def doPreinit(self, mode):
-        EpicsDeviceEss.doPreinit(self, mode)
-        EpicsReadable.doPreinit(self, mode)
 
-
-class EpicsStringReadableEss(EpicsDeviceEss, EpicsStringReadable):
-
+class EpicsStringReadableEss(EpicsStringReadable):
     parameter_overrides = {
         'readpv': Override(userparam=False)
     }
 
-    def doPreinit(self, mode):
-        EpicsDeviceEss.doPreinit(self, mode)
-        EpicsStringReadable.doPreinit(self, mode)
 
-
-class EpicsMoveableEss(EpicsDeviceEss, EpicsMoveable):
+class EpicsMoveableEss(EpicsMoveable):
     parameter_overrides = {
         'fmtstr': Override(userparam=False),
         'maxage': Override(userparam=False),
@@ -118,12 +55,8 @@ class EpicsMoveableEss(EpicsDeviceEss, EpicsMoveable):
         'warnlimits': Override(userparam=False)
     }
 
-    def doPreinit(self, mode):
-        EpicsDeviceEss.doPreinit(self, mode)
-        EpicsMoveable.doPreinit(self, mode)
 
-
-class EpicsAnalogMoveableEss(EpicsDeviceEss, EpicsAnalogMoveable):
+class EpicsAnalogMoveableEss(EpicsAnalogMoveable):
     parameter_overrides = {
         'fmtstr': Override(userparam=False),
         'maxage': Override(userparam=False),
@@ -131,12 +64,8 @@ class EpicsAnalogMoveableEss(EpicsDeviceEss, EpicsAnalogMoveable):
         'warnlimits': Override(userparam=False)
     }
 
-    def doPreinit(self, mode):
-        EpicsDeviceEss.doPreinit(self, mode)
-        EpicsAnalogMoveable.doPreinit(self, mode)
 
-
-class EpicsDigitalMoveableEss(EpicsDeviceEss, EpicsDigitalMoveable):
+class EpicsDigitalMoveableEss(EpicsDigitalMoveable):
     parameter_overrides = {
         'fmtstr': Override(userparam=False),
         'maxage': Override(userparam=False),
@@ -144,19 +73,11 @@ class EpicsDigitalMoveableEss(EpicsDeviceEss, EpicsDigitalMoveable):
         'warnlimits': Override(userparam=False)
     }
 
-    def doPreinit(self, mode):
-        EpicsDeviceEss.doPreinit(self, mode)
-        EpicsDigitalMoveable.doPreinit(self, mode)
 
-
-class EpicsWindowTimeoutDeviceEss(EpicsDeviceEss, EpicsWindowTimeoutDevice):
+class EpicsWindowTimeoutDeviceEss(EpicsWindowTimeoutDevice):
     parameter_overrides = {
         'fmtstr': Override(userparam=False),
         'maxage': Override(userparam=False),
         'pollinterval': Override(userparam=False),
         'warnlimits': Override(userparam=False)
     }
-
-    def doPreinit(self, mode):
-        EpicsDeviceEss.doPreinit(self, mode)
-        EpicsWindowTimeoutDevice.doPreinit(self, mode)

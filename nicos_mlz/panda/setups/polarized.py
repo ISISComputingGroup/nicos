@@ -10,7 +10,7 @@ devices = dict(
         # orientation = (6.1, 6.1, 0.0),  # mT
         orientation = (0.53, 0.53, 0.0),  # mT - calibrated 20/11/2013
         calibrationcurrent = 10,          # A
-        lowlevel = True,
+        visibility = (),
     ),
     coil_2 = device('nicos_mlz.panda.devices.guidefield.VectorCoil',
         description = 'Powersupply for horizontal field 2 at sample',
@@ -19,7 +19,7 @@ devices = dict(
         # orientation = (6.1, -6.1, 0.0),  # mT
         orientation = (0.53, -0.53, 0.0),  # mT - calibrated 20/11/2013
         calibrationcurrent = 10,           # A
-        lowlevel = True,
+        visibility = (),
     ),
     coil_3 = device('nicos_mlz.panda.devices.guidefield.VectorCoil',
         description = 'Powersupply for vertical field at sample',
@@ -28,7 +28,7 @@ devices = dict(
         # orientation = (0., 0., 55.5),  # mT
         orientation = (0, 0, 11.65),     # mT - calibrated 20/11/2013
         calibrationcurrent = 10,         # A
-        lowlevel = True,
+        visibility = (),
     ),
     gf = device('nicos_mlz.panda.devices.guidefield.GuideField',
         description = 'Vector field at sample location',
@@ -66,38 +66,38 @@ devices = dict(
         # flipcurrent = [0.765, 0],
         # compcurrent = 2.4474,
     ),
-    sf1_f = device('nicos.devices.tango.PowerSupply',
+    sf1_f = device('nicos.devices.entangle.PowerSupply',
         description = 'flipper 1 flipping current',
         tangodevice = 'tango://phys.panda.frm2:10000/panda/coilps/supply21',
         abslimits = (-4, 4),
         userlimits = (-3, 3),
         unit = 'A',
-        lowlevel = True,
+        visibility = (),
     ),
-    sf1_c = device('nicos.devices.tango.PowerSupply',
+    sf1_c = device('nicos.devices.entangle.PowerSupply',
         description = 'flipper 1 compensation current',
         tangodevice = 'tango://phys.panda.frm2:10000/panda/coilps/supply22',
         abslimits = (-4, 4),
         userlimits = (-3, 3),
         unit = 'A',
-        lowlevel = True,
+        visibility = (),
     ),
 
-    sf2_f = device('nicos.devices.tango.PowerSupply',
+    sf2_f = device('nicos.devices.entangle.PowerSupply',
         description = 'flipper 2 flipping current',
         tangodevice = 'tango://phys.panda.frm2:10000/panda/coilps/supply11',
         abslimits = (-4, 4),
         userlimits = (-3, 3),
         unit = 'A',
-        lowlevel = True,
+        visibility = (),
     ),
-    sf2_c = device('nicos.devices.tango.PowerSupply',
+    sf2_c = device('nicos.devices.entangle.PowerSupply',
         description = 'flipper 2 compensation current',
         tangodevice = 'tango://phys.panda.frm2:10000/panda/coilps/supply12',
         abslimits = (-4, 4),
         userlimits = (-3, 3),
         unit = 'A',
-        lowlevel = True,
+        visibility = (),
     ),
 )
 

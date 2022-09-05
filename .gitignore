@@ -1,7 +1,7 @@
 build/
 dist/
 
-*.pyc
+__pycache__/
 *.egg-info
 *.log
 *.log.gz
@@ -17,7 +17,7 @@ log/
 
 doc/build/
 doc/source/auto
-doc/source/nicos_*/*/setups
+doc/source/nicos_*/**/setups
 
 .coverage.*
 .cache/
@@ -54,5 +54,3 @@ mprofile_*.dat
 
 #PyCharm
 .idea/
-
-__pycache__

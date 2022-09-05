@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -84,6 +84,13 @@ class DataSinkHandler:
     ``self.dataset``, and the detector (or ``None``) as ``self.detector``.
     There is also a logger present as ``self.log``.
     """
+
+    ordering: int = 50
+    """Used when calling all handlers from a dataset. This is used to be able
+    to call certain handlers before/after others. A lower value means that the
+    handler comes sooner than handlers with higher numbers.
+    Conventional range: 1 - 100
+    Default: 50"""
 
     def __init__(self, sink, dataset, detector):
         """Prepare `DataSinkHandler` for writing this `dataset`."""
@@ -208,8 +215,8 @@ class NicosMetaWriterMixin:
                 stat = device.status()
                 # also map stat[0] to a string
                 if stat[1]:
-                    stat = ('%s_status' % devname, ('%s: %s' %
-                        (statuses[stat[0]].lower(), stat[1].strip())))
+                    stat = ('%s_status' % devname, ('%s: %s' % (
+                        statuses[stat[0]].lower(), stat[1].strip())))
                 else:
                     stat = ('%s_status' % devname, statuses[stat[0]].lower())
                 bycategory[category].append(stat)
@@ -281,7 +288,7 @@ class DataSink(Device):
     }
 
     parameter_overrides = {
-        'lowlevel': Override(default=True, mandatory=False),
+        'visibility': Override(default=()),
     }
 
     # Set to true in subclasses that are safe for simulation.

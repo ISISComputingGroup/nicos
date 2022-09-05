@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,11 +27,13 @@
 """
 This module contains ESS specific EPICS developments.
 """
-from nicos.core import CanDisable, ConfigurationError, Device, Param, \
-    anytype, dictwith, pvname, usermethod
+from nicos.core import Attach, CanDisable, ConfigurationError, Device, \
+    InvalidValueError, Override, Param, anytype, dictwith, pvname, \
+    usermethod
 from nicos.devices.abstract import MappedMoveable
+from nicos.devices.epics import EpicsDevice
 
-from nicos_ess.devices.epics.base import EpicsDeviceEss, \
+from nicos_ess.devices.epics.base import EpicsAnalogMoveableEss, \
     EpicsDigitalMoveableEss
 
 
@@ -70,10 +72,46 @@ class EpicsMappedMoveable(MappedMoveable, EpicsDigitalMoveableEss):
         if not self.ignore_stop:
             EpicsDigitalMoveableEss.doStop(self)
 
+    def doRead(self, maxage=0):
+        return MappedMoveable.doRead(self, maxage)
+
+    def doStart(self, target):
+        MappedMoveable.doStart(self, target)
+
 
 class EpicsMappedFloatMoveable(EpicsMappedMoveable):
     valuetype = float
     relax_mapping = True
+
+
+class EpicsAnalogMoveableWithUnitsSelector(EpicsAnalogMoveableEss):
+    """
+    A device where the units are the value of another PV.
+    """
+
+    parameter_overrides = {
+        'unit': Override(mandatory=False, userparam=False, volatile=True),
+    }
+
+    attached_devices = {
+        'units': Attach('Units', EpicsMappedMoveable),
+    }
+
+    def doPoll(self, n, maxage):
+        self._pollParam('unit')
+
+    def doReadUnit(self):
+        return str(self._attached_units.doRead())
+
+    def doWriteUnit(self, value):
+        try:
+            self._attached_units.doStart(value)
+        except InvalidValueError as error:
+            positions = ', '.join(repr(pos)
+                                  for pos in self._attached_units.mapping)
+            raise InvalidValueError(self, f'{value} is an invalid unit choice '
+                                          f'for this device; valid choices are '
+                                          f'{positions}') from error
 
 
 class HasDisablePv(CanDisable):
@@ -160,7 +198,7 @@ class HasDisablePv(CanDisable):
             self.log.info('Device is already disabled')
 
 
-class EpicsCommandReply(EpicsDeviceEss, Device):
+class EpicsCommandReply(EpicsDevice, Device):
     """
     Device to directly control devices connected to
     the asyn controller via EPICS.

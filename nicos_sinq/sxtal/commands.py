@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,7 @@ A set of commands special for single crystal diffraction
 """
 
 import os
-import os.path as path
+from os import path
 
 import numpy as np
 
@@ -34,16 +34,20 @@ from nicos import session
 from nicos.commands import helparglist, parallel_safe, usercommand
 from nicos.commands.analyze import COLHELP, _getData, findpeaks
 from nicos.commands.measure import _count
-from nicos.commands.scan import cscan, scan
-from nicos.core import FINAL, NicosError, Scan
-from nicos.core.errors import ConfigurationError
+from nicos.commands.scan import ADDSCANHELP2, _infostr, cscan, scan
+from nicos.core import FINAL, Measurable, Moveable, NicosError, Readable, Scan
+from nicos.core.errors import ConfigurationError, UsageError
+from nicos.core.spm import Bare, spmsyntax
 from nicos.core.utils import multiWait
 from nicos.devices.generic.detector import DummyDetector
 from nicos.devices.sxtal.xtal.sxtalcell import SXTalCell
+from nicos.utils import number_types
 
-from nicos_sinq.sxtal.instrument import SXTalBase
+from nicos_sinq.sxtal.cell import calculateBMatrix
+from nicos_sinq.sxtal.instrument import EulerSXTal, SXTalBase, TASSXTal
 from nicos_sinq.sxtal.sample import SXTalSample
 from nicos_sinq.sxtal.singlexlib import calcTheta
+from nicos_sinq.sxtal.tasublib import KToEnergy, makeAuxReflection
 from nicos_sinq.sxtal.util import window_integrate
 
 
@@ -84,6 +88,16 @@ def AddRef(hkl=None, angles=None, aux=None, reflist=None):
     instrument is stored in the reflection list. In any other case a
     reflection is entered with the missing information set to defaults.
     """
+    def add_current(inst, hkl, rfl, aux):
+        angles = inst._readPos()
+        rfl.append(hkl, angles, aux)
+
+    def add_current_tas(inst, hkl, rfl):
+        angles = inst._readPos()
+        aux = KToEnergy(angles[0]), KToEnergy(angles[1])
+        angles = angles[2:]
+        rfl.append(hkl, angles, aux)
+
     sample, inst = getSampleInst()
     if not sample:
         return
@@ -92,7 +106,16 @@ def AddRef(hkl=None, angles=None, aux=None, reflist=None):
         session.log.error('Reflection list %s not found', reflist)
         return
     if not hkl and not angles:
-        angles = inst.readPos()
+        hkl = inst.read(0)
+        if isinstance(inst, TASSXTal):
+            return add_current_tas(inst, hkl, rfl)
+        else:
+            return add_current(inst, hkl, rfl, aux)
+    if hkl and not angles:
+        if isinstance(inst, TASSXTal):
+            return add_current_tas(inst, hkl, rfl)
+        else:
+            return add_current(inst, hkl, rfl, aux)
     rfl.append(hkl, angles, aux)
 
 
@@ -133,23 +156,25 @@ def ListRef(reflist=None):
         aux = True
         for v in rfl.column_headers[2]:
             header += '%8s' % v
+    else:
+        aux = False
     session.log.info(header)
-    refiter = rfl.generate(0)
-    r = next(refiter)
-    count = 0
-    while r:
-        data = '%4d' % count
-        for q in r[0]:
-            data += '%8.4f' % q
-        data += ' '
-        for a in r[1]:
-            data += '%8.3f' % a
-        if aux:
-            for v in r[2]:
-                data += '%8.3f' % v
-        session.log.info(data)
-        count += 1
-        r = next(refiter)
+    try:
+        count = 0
+        for r in rfl.generate(0):
+            data = '%4d' % count
+            for q in r[0]:
+                data += '%8.4f' % q
+            data += ' '
+            for a in r[1]:
+                data += '%8.3f' % a
+            if aux:
+                for v in r[2]:
+                    data += '%8.3f' % v
+            session.log.info(data)
+            count += 1
+    except StopIteration:
+        pass
     session.log.info('--- The End ---')
 
 
@@ -174,6 +199,28 @@ def SetRef(idx, hkl=None, angles=None, aux=None, reflist=None):
 
 
 @usercommand
+@helparglist('index of reflection to modify, reflection list to operate upon')
+def SetRefAng(idx, reflist=None):
+    """
+    Replaces the angles stored for reflection idx, with the ones read from
+    the instruments current position.
+    :param idx: index of the eflection in the reflection list
+    :param reflist: optional reflection list parameter when not operating
+    on the deault list
+    :return:
+    """
+    sample, inst = getSampleInst()
+    if not sample:
+        return
+    rfl = sample.getRefList(reflist)
+    if rfl is None:
+        session.log.error('Reflection list %s not found', reflist)
+        return
+    angles = inst._readPos()
+    rfl.modify_reflection(idx, None, angles, None)
+
+
+@usercommand
 def ClearRef(reflist=None):
     """
     Clears a reflection list
@@ -186,6 +233,42 @@ def ClearRef(reflist=None):
         session.log.error('Reflection list %s not found', reflist)
         return
     rfl.clear()
+
+
+@usercommand
+@helparglist('A tuple of (h, k, l) for the auxiliary reflection and the '
+             'index of the reference reflection, Optionally the name of '
+             'the reflection list to work on')
+def AddAuxRef(hkl, idx, reflist=None):
+    """
+    Add an auxiliary reflection from energies and B matrix.
+    Works only for TAS. A3, SGU, SGL will be invalid
+    """
+    sample, inst = getSampleInst()
+    if not sample:
+        return
+    rfl = sample.getRefList(reflist)
+    if rfl is None:
+        session.log.error('Reflection list %s not found', reflist)
+        return
+    if not isinstance(inst, TASSXTal):
+        session.log.error('This command does only work for TAS')
+        return
+    r1 = rfl.get_reflection(idx)
+    calcr = inst._rfl_to_reflection(r1)
+    cell = sample.getCell()
+    B = calculateBMatrix(cell)
+    try:
+        r2 = makeAuxReflection(B, calcr, inst.scattering_sense, hkl)
+        angles = r2.angles.a3, r2.angles.sample_two_theta, 0, 0
+        aux = KToEnergy(r2.qe.ki), KToEnergy(r2.qe.kf)
+        en = aux[0] - aux[1]
+        hl = list(hkl)
+        hl.append(en)
+        rfl.append(tuple(hl), angles, aux)
+    except RuntimeError as e:
+        session.log.error(e)
+        return
 
 
 @usercommand
@@ -206,6 +289,9 @@ def CalcAng(hkl):
     header = ''
     for v in rfl.column_headers[1]:
         header += '%8s' % v
+    if len(rfl.column_headers[2]) > 0:
+        for v in rfl.column_headers[2]:
+            header += '%8s' % v
     session.log.info(header)
     data = ''
     for ang in poslist:
@@ -222,7 +308,7 @@ def CalcAng(hkl):
 @parallel_safe
 @helparglist('tuple of setting angles, when None, '
              'read current instrument position')
-def CalcPos(angles):
+def CalcPos(angles=None):
     """
     Calculate the reciprocal space coordinates for the angles given
     Example: CalcPos((13.668, 6.834, 18.9, 125.6))
@@ -230,6 +316,8 @@ def CalcPos(angles):
     sample, inst = getSampleInst()
     if not sample:
         return
+    if not angles:
+        angles = inst._readPos()
     hkl = inst._reverse_calpos(angles)
     session.log.info('       H       K       L')
     session.log.info('%8.3f%8.3f%8.3f', hkl[0], hkl[1], hkl[2])
@@ -410,14 +498,19 @@ def go_reflection(r, devs):
 
 def inner_center(r, **preset):
     inst = session.instrument
-    motors = inst.get_motors()
+    if inst.center_order:
+        motors = [session.getDevice(mot) for mot in inst.center_order]
+    else:
+        motors = inst.get_motors()
     steps = inst.center_steps
-    go_reflection(r, motors)
-    startang = [m.read(0) for m in motors]
+    go_reflection(r, inst.get_motors())
+    startang = [m.read(0) for m in inst.get_motors()]
     for dev, step in zip(motors, steps):
         if not Max(dev, step, **preset):
             return False, tuple(startang)
-    newang = [m.read(0) for m in motors]
+    # This needs to be in ther instrument specific motor order even
+    # if we centered in a different order
+    newang = [m.read(0) for m in inst.get_motors()]
     return True, tuple(newang)
 
 
@@ -442,30 +535,32 @@ def Center(idx, reflist=None, **preset):
 
 def process_list(reflist, function, **preset):
     """apply function to all reflections in reflist"""
-    refiter = reflist.generate(0)
-    r = next(refiter)
-    while r:
-        function(r, **preset)
-        r = next(refiter)
+    try:
+        for r in reflist.generate(0):
+            function(r, **preset)
+    except StopIteration:
+        pass
 
 
 def process_center(reflist, **preset):
-    refiter = reflist.generate(0)
-    idx = 0
-    r = next(refiter)
-    while r:
-        ok, newang = inner_center(r, **preset)
-        if ok:
-            reflist.modify_reflection(idx, None, newang, None)
-        else:
-            if len(r[1]) == 4:
-                session.log.error('Failed to center reflection at %f %f %f %f',
-                                  r[1][0], r[1][1], r[1][2], r[1][3])
+    try:
+        idx = 0
+        for r in reflist.generate(0):
+            ok, newang = inner_center(r, **preset)
+            if ok:
+                reflist.modify_reflection(idx, None, newang, None)
             else:
-                session.log.error('Failed to center reflection at %f %f %f',
-                                  r[1][0], r[1][1], r[1][2])
-        r = next(refiter)
-        idx += 1
+                if len(r[1]) == 4:
+                    session.log.error('Failed to center reflection at '
+                                      '%f %f %f %f',
+                                      r[1][0], r[1][1], r[1][2], r[1][3])
+                else:
+                    session.log.error('Failed to center reflection at '
+                                      '%f %f %f',
+                                      r[1][0], r[1][1], r[1][2])
+            idx += 1
+    except StopIteration:
+        pass
 
 
 @usercommand
@@ -536,7 +631,7 @@ def SaveRef(filename, reflist=None, fmt=None):
         session.log.error('Reflection list %s not found', reflist)
         return
     fname = _auxfilename(filename)
-    with open(fname, 'w') as out:
+    with open(fname, 'w', encoding='utf-8') as out:
         if fmt and fmt == 'rafin':
             write_rafin_header(out, sample, inst)
             process_list(rfl, write_rafin, **{'file': out})
@@ -563,12 +658,12 @@ def LoadRef(filename, reflist=None):
     fname = _auxfilename(filename)
     rfl.clear()
     count = 0
-    with open(fname, 'r') as fin:
+    with open(fname, 'r', encoding='utf-8') as fin:
         for line in fin:
             values = line.split()
             if len(values) < 3:
-                session.log.error('%s not in a recognized format', fname)
-                return
+                session.log.error('line "%s" not in a recognized format', line)
+                continue
             hkl = (float(values[0]), float(values[1]), float(values[2]))
             ang = []
             anglen = len(rfl.column_headers[1])
@@ -637,20 +732,20 @@ def GenerateSuper(targetlist, vector, srclist=None):
     if len(vector) != 3:
         session.log.error('Need a three component super structure vector')
         return
-    count = 0
-    srcit = src.generate(0)
     vec = np.array(vector)
-    r = next(srcit)
-    while r:
-        rm = np.array(r[0])
-        newr = rm + vec
-        count += 1
-        target.append(tuple(newr), (), ())
-        newr = rm - vec
-        if target.find_reflection(newr) < 0:
-            target.append(tuple(newr))
+    try:
+        count = 0
+        for r in src.generate(0):
+            rm = np.array(r[0])
+            newr = rm + vec
             count += 1
-        r = next(srcit)
+            target.append(tuple(newr), (), ())
+            newr = rm - vec
+            if target.find_reflection(newr) < 0:
+                target.append(tuple(newr))
+                count += 1
+    except StopIteration:
+        pass
     # Add super structure reflections for 0, 0, 0
     newr = (0, 0, 0) + vec
     target.append(tuple(newr), (), ())
@@ -688,14 +783,21 @@ class HKLScan(Scan):
                       preset, scaninfo, subscan)
         self.scanmode = scanmode
 
-    def endScan(self):
-        # This is here for debugging: see datasink.py:152ff
-        Scan.endScan(self)
-
     def acquire(self, point, preset):
+        if isinstance(session.instrument, EulerSXTal):
+            inst = session.instrument
+            poslist = inst._extractPos(inst._calcPos(point.target[0]))
+            if poslist[0][1] > inst.t2angle:
+                self.scanmode = 't2t'
+                inst.scanmode = 't2t'
+            else:
+                self.scanmode = 'omega'
+                inst.scanmode = 'omega'
         _scanfuncs[self.scanmode](point.target[0], subscan=True,
                                   **self._preset)
         subscan = self.dataset.subsets[-1].subsets[-1]
+        # If NICOS crashes on this line then the center_counter
+        # for the instrument is set to a non existing value.
         index = [i for (i, v) in enumerate(subscan.detvalueinfo)
                  if v.name == session.instrument.center_counter][0]
         vals = [x[index] for x in subscan.detvaluelists]
@@ -711,7 +813,7 @@ def ScanOmega(hkl, subscan=False, **preset):
     instr = session.instrument
     if not isinstance(instr, SXTalBase):
         raise NicosError('your instrument device is not a SXTAL device')
-    width = instr.getScanWidthFor(hkl)
+    width = instr.getScanWidthFor(hkl) * instr.scan_width_multiplier
     sps = instr.scansteps
     sw = width / sps
     op = instr._attached_omega.read(0)
@@ -725,7 +827,7 @@ def ScanT2T(hkl, subscan=False, **preset):
     instr = session.instrument
     if not isinstance(instr, SXTalBase):
         raise NicosError('your instrument device is not a SXTAL device')
-    width = instr.getScanWidthFor(hkl)
+    width = instr.getScanWidthFor(hkl) * instr.scan_width_multiplier
     sps = instr.scansteps
     sw = width / sps
     instr.maw(hkl)
@@ -751,16 +853,22 @@ def Measure(scanmode=None, skip=0, reflist=None, **preset):
     if rfl is None:
         session.log.error('Reflection list %s not found', reflist)
         return
-    rfliter = rfl.generate(skip)
-    r = next(rfliter)
-    pos = []
-    while r:
-        pos.append([r[0]])
-        r = next(rfliter)
+    if len(preset) == 0:
+        session.log.error('No preset specified')
+        return
+    try:
+        pos = []
+        for r in rfl.generate(skip):
+            pos.append([r[0]])
+    except StopIteration:
+        pass
     if scanmode is None:
         scanmode = inst.scanmode
     inst.ccl_file = True
-    HKLScan([inst], pos, scanmode=scanmode, **preset).run()
+    try:
+        HKLScan([inst], pos, scanmode=scanmode, **preset).run()
+    except Exception as e:
+        session.log.error('Exception %s thrown in HKLScan', str(e))
     inst.ccl_file = False
 
 
@@ -785,14 +893,14 @@ def IndexTH(idx, reflist=None, hkllim=10):
     result = []
     for h in range(-hkllim, hkllim):
         for k in range(-hkllim, hkllim):
-            for l in range(-hkllim, hkllim):
-                z1 = inst._calcPos((h, k, l))
+            for ql in range(-hkllim, hkllim):
+                z1 = inst._calcPos((h, k, ql))
                 d, theta = calcTheta(inst.wavelength, z1)
                 if d == 0:
                     continue
                 hkl_tth = 2. * np.rad2deg(np.arcsin(theta))
                 if rfl_tth - .2 < hkl_tth < rfl_tth + .2:
-                    result.append((h, k, l, hkl_tth))
+                    result.append((h, k, ql, hkl_tth))
     session.log.info('Suggested indices for reflection %d, two_theta= %8.4f',
                      idx, rfl_tth)
     for res in result:
@@ -836,6 +944,7 @@ def CalcUB(idx1, idx2, replace=False, reflist=None):
     session.log.info('New UB:\n %s', str(newub))
     if replace:
         sample.ubmatrix = list(newub.flatten())
+        inst.orienting_reflections = (idx1, idx2)
 
 
 @usercommand
@@ -882,12 +991,12 @@ def test_threshold(xcolumn, ycolumn, pos, threshold):
 def test_proximity(rfl, ang):
     """Test if this close in chi and phi to another
     reflection."""
-    rit = rfl.generate(0)
-    r = next(rit)
-    while r:
-        if abs(r[1][2] - ang[2]) < 15 and abs(r[1][3]-ang[3]) < 15:
-            return True
-        r = next(rit)
+    try:
+        for r in rfl.generate(0):
+            if abs(r[1][2] - ang[2]) < 15 and abs(r[1][3]-ang[3]) < 15:
+                return True
+    except StopIteration:
+        pass
     return False
 
 
@@ -943,3 +1052,167 @@ def PeakSearch(reflist=None, threshold=100, **preset):
                         rfl.append(None, tuple(maxang), None)
                     else:
                         session.log.warning('Failed centering at phi = %f', p)
+
+
+def _getQ(v, name):
+    try:
+        if len(v) == 4:
+            return list(v)
+        elif len(v) == 3:
+            return [v[0], v[1], v[2], 0]
+        else:
+            raise TypeError
+    except TypeError:
+        raise UsageError('%s must be a sequence of (h, k, l) or (h, k, l, E)'
+                         % name) from None
+
+
+def _handleQScanArgs(args, kwargs, Q, dQ, scaninfo):
+    preset, detlist, envlist, move, multistep = {}, None, None, [], []
+    for arg in args:
+        if isinstance(arg, str):
+            scaninfo = arg + ' - ' + scaninfo
+        elif isinstance(arg, number_types):
+            preset['t'] = arg
+        elif isinstance(arg, Measurable):
+            if detlist is None:
+                detlist = []
+            detlist.append(arg)
+        elif isinstance(arg, Readable):
+            if envlist is None:
+                envlist = []
+            envlist.append(arg)
+        else:
+            raise UsageError('unsupported qscan argument: %r' % arg)
+    for key, value in kwargs.items():
+        if key == 'h' or key == 'H':
+            Q[0] = value
+        elif key == 'k' or key == 'K':
+            Q[1] = value
+        elif key == 'l' or key == 'L':
+            Q[2] = value
+        elif key == 'E' or key == 'e':
+            Q[3] = value
+        elif key == 'dh' or key == 'dH':
+            dQ[0] = value
+        elif key == 'dk' or key == 'dK':
+            dQ[1] = value
+        elif key == 'dl' or key == 'dL':
+            dQ[2] = value
+        elif key == 'dE' or key == 'de':
+            dQ[3] = value
+        elif key in session.devices and \
+                isinstance(session.devices[key], Moveable):
+            if isinstance(value, list):
+                if multistep and len(value) != len(multistep[-1][1]):
+                    raise UsageError('all multi-step arguments must have the '
+                                     'same length')
+                multistep.append((session.devices[key], value))
+            else:
+                move.append((session.devices[key], value))
+        else:
+            preset[key] = value
+    return preset, scaninfo, detlist, envlist, move, multistep, Q, dQ
+
+
+class SinqQScan(Scan):
+    def __init__(self, positions, firstmoves=None, multistep=None,
+                 detlist=None, envlist=None, preset=None, scaninfo=None,
+                 subscan=False):
+        inst = session.instrument
+        if not isinstance(inst, SXTalBase):
+            raise NicosError('cannot do a Q scan, your instrument device '
+                             'is not a crystallographic device')
+        self._xindex = 0
+        Scan.__init__(self, [inst], positions, [],
+                      firstmoves, multistep, detlist, envlist, preset,
+                      scaninfo, subscan)
+        if inst in self._envlist:
+            self._envlist.remove(inst)
+
+    def shortDesc(self):
+        comps = []
+        if len(self._startpositions) > 1:
+            for i in range(len(self._startpositions[0][0])):
+                if self._startpositions[0][0][i] != \
+                   self._startpositions[1][0][i]:
+                    comps.append('HKLE'[i])
+        if self.dataset and self.dataset.counter > 0:
+            return 'Scan %s #%s' % (','.join(comps) or 'Q',
+                                    self.dataset.counter)
+        return 'Scan %s' % (','.join(comps) or 'Q')
+
+
+@usercommand
+@helparglist('Q, dQ, numpoints, ...')
+@spmsyntax(Bare, Bare, Bare)
+def qscan(Q, dQ, numpoints, *args, **kwargs):
+    """Perform a single-sided Q scan.
+
+    The *Q* and *dQ* arguments can be lists of 3 or 4 components, or a `Q`
+    object.
+
+    Example:
+
+    >>> qscan((1, 0, 0, 0), (0, 0, 0, 0.1), 11, kf=1.55, mon1=100000)
+
+    will perform an energy scan at (100) from 0 to 1 meV (or THz, depending on
+    the instrument setting) with the given constant kf and the given monitor
+    counts per point.
+
+    """
+    Q, dQ = _getQ(Q, 'Q'), _getQ(dQ, 'dQ')
+    scanstr = _infostr('qscan', (Q, dQ, numpoints) + args, kwargs)
+    preset, scaninfo, detlist, envlist, move, multistep, Q, dQ = \
+        _handleQScanArgs(args, kwargs, Q, dQ, scanstr)
+    if all(v == 0 for v in dQ) and numpoints > 1:
+        raise UsageError('scanning with zero step width')
+    if isinstance(session.instrument, TASSXTal):
+        values = [[(Q[0]+i*dQ[0], Q[1]+i*dQ[1], Q[2]+i*dQ[2], Q[3]+i*dQ[3])]
+                  for i in range(numpoints)]
+    else:
+        values = [[(Q[0]+i*dQ[0], Q[1]+i*dQ[1], Q[2]+i*dQ[2])]
+                  for i in range(numpoints)]
+
+    scan = SinqQScan(values, move, multistep, detlist, envlist, preset,
+                     scaninfo)
+    scan.run()
+
+
+@usercommand
+@helparglist('Q, dQ, numperside, ...')
+@spmsyntax(Bare, Bare, Bare)
+def qcscan(Q, dQ, numperside, *args, **kwargs):
+    """Perform a centered Q scan.
+
+    The *Q* and *dQ* arguments can be lists of 3 or 4 components, or a `Q`
+    object.
+
+    Example:
+
+    >>> qcscan((1, 0, 0, 1), (0.001, 0, 0, 0), 20, mon1=1000)
+
+    will perform a longitudinal scan around (100) with the given monitor counts
+    per point.
+
+    The special "plot" parameter can be given to plot the scan instead of
+    running it:
+
+    * plot='res'  -- plot resolution ellipsoid along scan
+    * plot='hkl'  -- plot position of scan points in scattering plane
+    """
+    Q, dQ = _getQ(Q, 'Q'), _getQ(dQ, 'dQ')
+    scanstr = _infostr('qcscan', (Q, dQ, numperside) + args, kwargs)
+    preset, scaninfo, detlist, envlist, move, multistep, Q, dQ = \
+        _handleQScanArgs(args, kwargs, Q, dQ, scanstr)
+    if all(v == 0 for v in dQ) and numperside > 0:
+        raise UsageError('scanning with zero step width')
+    values = [[(Q[0]+i*dQ[0], Q[1]+i*dQ[1], Q[2]+i*dQ[2], Q[3]+i*dQ[3])]
+              for i in range(-numperside, numperside+1)]
+    scan = SinqQScan(values, move, multistep, detlist, envlist, preset,
+                     scaninfo)
+    scan.run()
+
+
+qscan.__doc__ += ADDSCANHELP2.replace('scan(dev, ', 'qscan(Q, dQ, ')
+qcscan.__doc__ += ADDSCANHELP2.replace('scan(dev, ', 'qcscan(Q, dQ, ')

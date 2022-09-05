@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -27,28 +27,36 @@
 import sys
 from time import time as currenttime
 
-from nicos.core import CacheLockError, Override, Param, oneof
+from nicos.core import CacheLockError, Override, Param, oneof, listof
 from nicos.core.sessions.utils import sessionInfo
 from nicos.devices.cacheclient import BaseCacheClient
 from nicos.protocols.cache import OP_ASK, OP_SUBSCRIBE, OP_TELL, cache_load
-from nicos.services.elog.handler import Handler
-from nicos.utils import timedRetryOnExcept
+from nicos.utils import importString, timedRetryOnExcept
 
 
 class Logbook(BaseCacheClient):
 
     parameters = {
         'plotformat': Param('Format for scan plots', type=oneof('svg', 'png')),
+        'handlerclasses': Param('Classes to handle the incoming messages',
+                                type=listof(str),
+                                default=[
+                                    'nicos.services.elog.handler.html.Handler',
+                                    'nicos.services.elog.handler.text.Handler',
+                                ]),
     }
 
     parameter_overrides = {
-        'prefix':  Override(default='logbook/', mandatory=False),
+        'prefix': Override(default='logbook/', mandatory=False),
     }
 
     def doInit(self, mode):
         BaseCacheClient.doInit(self, mode)
         # this is run in the main thread
-        self._handler = Handler(self.log, self.plotformat)
+        self._handler = []
+        for handlerclass in self.handlerclasses:
+            class_ = importString(handlerclass)
+            self._handler.append(class_(self.log, self.plotformat))
         # the execution master lock needs to be refreshed every now and then
         self._islocked = False
         self._lock_expires = 0.
@@ -92,13 +100,14 @@ class Logbook(BaseCacheClient):
             return
         key = key[len(self._prefix):]
         time = time and float(time)
-        # self.log.info('got %s=%r', key, value)
-        if key in self._handler.handlers:
+        self.log.debug('got %s=%r', key, value)
+        value = cache_load(value)
+        for handler in self._handler:
             try:
-                value = cache_load(value)
-                self._handler.handlers[key](time, value)
+                handler.handle(key, time, value)
             except Exception:
-                self.log.exception('Error in handler for: %s=%r', key, value)
+                self.log.exception('Error in %s for: %s=%r',
+                                   handler.__class__.__name__, key, value)
 
     def _wait_data(self):
         if self._islocked:
@@ -114,5 +123,6 @@ class Logbook(BaseCacheClient):
         BaseCacheClient._disconnect(self, why)
 
     def doShutdown(self):
-        self._handler.close()
+        for handler in self._handler:
+            handler.close()
         BaseCacheClient.doShutdown(self)

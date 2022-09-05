@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -32,7 +32,10 @@ def determine_instrument(setup_package_path):
     """JCNS lab and infrastructure way to find the instrument."""
     try:
         hostname = socket.gethostname().split('.')
-        if hostname[1] in ('fourcircle', 'galaxi'):
+        # can't use nicos.utils.getfqdn due to import dependency
+        if len(hostname) == 1:
+            hostname = socket.getfqdn().split('.')
+        if hostname[1] in ('fourcircle', 'galaxi', 'jcnsse', 'tmr'):
             instrument = hostname[1]
         elif hostname[0] in ('tr1-phys',):
             instrument = 'testrack'

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,7 @@
 This module contains some classes for NICOS - EPICS integration.
 """
 import threading
-from time import time as currenttime
+from time import monotonic
 
 import epics
 
@@ -116,7 +116,7 @@ class EpicsDevice(DeviceMixinBase):
     parameters = {
         'epicstimeout': Param('Timeout for getting EPICS PVs',
                               type=none_or(floatrange(0.1, 60)),
-                              default=1.0, userparam=False),
+                              default=3.0, userparam=False),
     }
 
     # This will store PV objects for each PV param.
@@ -134,13 +134,14 @@ class EpicsDevice(DeviceMixinBase):
                 epics.ca.use_initial_context()
 
             # When there are standard names for PVs (see motor record), the PV
-            # names may be derived from some prefix. To make this more flexible,
-            # the pv_parameters are obtained via a method that can be overridden
-            # in subclasses.
+            # names may be derived from some prefix. To make this more
+            # flexible, the pv_parameters are obtained via a method that can
+            # be overridden in subclasses.
             pv_parameters = self._get_pv_parameters()
             for pvparam in pv_parameters:
 
-                # Retrieve the actual PV-name from (potentially overridden) method
+                # Retrieve the actual PV-name from (potentially overridden)
+                # method
                 pvname = self._get_pv_name(pvparam)
                 if not pvname:
                     raise ConfigurationError(self, 'PV for parameter %s was '
@@ -249,9 +250,9 @@ class EpicsDevice(DeviceMixinBase):
 
         pv.put(value, use_complete=True)
 
-        start = currenttime()
+        start = monotonic()
         while not pv.put_complete:
-            if currenttime() - start > timeout:
+            if monotonic() - start > timeout:
                 raise CommunicationError('Timeout in setting %s' % pv.pvname)
             session.delay(update_rate)
 
@@ -366,11 +367,11 @@ class EpicsMoveable(EpicsDevice, Moveable):
     def doRead(self, maxage=0):
         return self._get_pv('readpv')
 
-    def doStart(self, value):
-        self._put_pv('writepv', value)
+    def doStart(self, target):
+        self._put_pv('writepv', target)
 
     def doStop(self):
-        self.doStart(self.doRead())
+        self.doStart(self.doRead(0))
 
 
 class EpicsStringMoveable(EpicsMoveable):

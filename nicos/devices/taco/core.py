@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -36,9 +36,9 @@ from nicos.core import SIMULATION, CommunicationError, HasCommunication, \
 from nicos.utils import HardwareStub
 
 try:
-    from TACOErrors import DevErr_ExecutionDenied, DevErr_RangeError, \
-        DevErr_InvalidValue, DevErr_RuntimeError, DevErr_InternalError, \
-        DevErr_IOError, DevErr_SystemError
+    from TACOErrors import DevErr_ExecutionDenied, DevErr_InternalError, \
+        DevErr_InvalidValue, DevErr_IOError, DevErr_RangeError, \
+        DevErr_RuntimeError, DevErr_SystemError
 except ImportError:
     DevErr_ExecutionDenied = 4010
     DevErr_RangeError      = 4017
@@ -52,7 +52,6 @@ try:
     from DEVERRORS import DevErr_RPCTimedOut
 except ImportError:
     DevErr_RPCTimedOut     = 2
-
 
 
 class TacoDevice(HasCommunication):
@@ -109,7 +108,7 @@ class TacoDevice(HasCommunication):
 
     parameter_overrides = {
         # the unit isn't mandatory -- TACO usually knows it already
-        'unit':        Override(mandatory=False),
+        'unit': Override(mandatory=False),
     }
 
     _TACO_STATUS_MAPPING = {
@@ -305,40 +304,38 @@ class TacoDevice(HasCommunication):
         self.log.debug('TACO call: %s%r', function.__name__, args)
         if not self._dev:
             raise NicosError(self, 'TACO Device not initialised')
-        self._com_lock.acquire()
-        try:
-            ret = function(*args)
-        except TACOError as err:
-            # for performance reasons, starting the loop and querying
-            # self.comtries only triggers in the error case
-            if self.comtries > 1 or err == DevErr_RPCTimedOut:
-                tries = 2 if err == DevErr_RPCTimedOut and self.comtries == 1 \
-                    else self.comtries - 1
-                self.log.warning('TACO %s failed, retrying up to %d times',
-                                 function.__name__, tries, exc=1)
-                while True:
-                    session.delay(self.comdelay)
-                    tries -= 1
-                    try:
-                        if self.taco_resetok and \
-                           self._dev.deviceState() == TACOStates.FAULT:
-                            self._dev.deviceInit()
-                            session.delay(self.comdelay)
-                        ret = function(*args)
-                        self.log.debug('TACO return: %r', ret)
-                        return ret
-                    except TACOError as err:
-                        if tries == 0:
-                            break  # and fall through to _raise_taco
-                        self.log.warning('TACO %s failed again',
-                                         function.__name__, exc=True)
-            self.log.debug('TACO exception: %r', err)
-            self._raise_taco(err)
-        else:
-            self.log.debug('TACO return: %r', ret)
-            return ret
-        finally:
-            self._com_lock.release()
+        with self._com_lock:
+            try:
+                ret = function(*args)
+            except TACOError as err:
+                # for performance reasons, starting the loop and querying
+                # self.comtries only triggers in the error case
+                if self.comtries > 1 or err == DevErr_RPCTimedOut:
+                    tries = 2 if err == DevErr_RPCTimedOut and \
+                        self.comtries == 1 else self.comtries - 1
+                    self.log.warning('TACO %s failed, retrying up to %d times',
+                                     function.__name__, tries, exc=1)
+                    while True:
+                        session.delay(self.comdelay)
+                        tries -= 1
+                        try:
+                            if self.taco_resetok and \
+                               self._dev.deviceState() == TACOStates.FAULT:
+                                self._dev.deviceInit()
+                                session.delay(self.comdelay)
+                            ret = function(*args)
+                            self.log.debug('TACO return: %r', ret)
+                            return ret
+                        except TACOError:
+                            if tries == 0:
+                                break  # and fall through to _raise_taco
+                            self.log.warning('TACO %s failed again',
+                                             function.__name__, exc=True)
+                self.log.debug('TACO exception: %r', err)
+                self._raise_taco(err)
+            else:
+                self.log.debug('TACO return: %r', ret)
+                return ret
 
     def _taco_guard_nolog(self, function, *args):
         """Try running the TACO function, and raise a NicosError on exception.
@@ -353,28 +350,26 @@ class TacoDevice(HasCommunication):
         """
         if not self._dev:
             raise NicosError(self, 'TACO device not initialised')
-        self._com_lock.acquire()
-        try:
-            return function(*args)
-        except TACOError as err:
-            # for performance reasons, starting the loop and querying
-            # self.comtries only triggers in the error case
-            if self.comtries > 1 or err == DevErr_RPCTimedOut:
-                tries = 2 if err == DevErr_RPCTimedOut and self.comtries == 1 \
-                    else self.comtries - 1
-                self.log.warning('TACO %s failed, retrying up to %d times',
-                                 function.__name__, tries)
-                while True:
-                    session.delay(self.comdelay)
-                    tries -= 1
-                    try:
-                        return function(*args)
-                    except TACOError as err:
-                        if tries == 0:
-                            break  # and fall through to _raise_taco
-            self._raise_taco(err, '%s%r' % (function.__name__, args))
-        finally:
-            self._com_lock.release()
+        with self._com_lock:
+            try:
+                return function(*args)
+            except TACOError as err:
+                # for performance reasons, starting the loop and querying
+                # self.comtries only triggers in the error case
+                if self.comtries > 1 or err == DevErr_RPCTimedOut:
+                    tries = 2 if err == DevErr_RPCTimedOut and \
+                        self.comtries == 1 else self.comtries - 1
+                    self.log.warning('TACO %s failed, retrying up to %d times',
+                                     function.__name__, tries)
+                    while True:
+                        session.delay(self.comdelay)
+                        tries -= 1
+                        try:
+                            return function(*args)
+                        except TACOError:
+                            if tries == 0:
+                                break  # and fall through to _raise_taco
+                self._raise_taco(err, '%s%r' % (function.__name__, args))
 
     _taco_guard = _taco_guard_nolog
 
@@ -384,17 +379,15 @@ class TacoDevice(HasCommunication):
         """
         if not self._dev:
             raise NicosError(self, 'TACO device not initialised')
-        self._com_lock.acquire()
-        try:
-            self.log.debug('TACO resource update: %s %s', resname, value)
-            self._dev.deviceOff()
-            self._dev.deviceUpdateResource(resname, value)
-            self._dev.deviceOn()
-            self.log.debug('TACO resource update successful')
-        except TACOError as err:
-            self._raise_taco(err, 'While updating %s resource' % resname)
-        finally:
-            self._com_lock.release()
+        with self._com_lock:
+            try:
+                self.log.debug('TACO resource update: %s %s', resname, value)
+                self._dev.deviceOff()
+                self._dev.deviceUpdateResource(resname, value)
+                self._dev.deviceOn()
+                self.log.debug('TACO resource update successful')
+            except TACOError as err:
+                self._raise_taco(err, 'While updating %s resource' % resname)
 
     def _raise_taco(self, err, addmsg=None):
         """Raise a suitable NicosError for a given TACOError instance."""

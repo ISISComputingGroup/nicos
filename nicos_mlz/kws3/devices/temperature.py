@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,8 +25,8 @@
 """KWS-3 flexible temperature controller."""
 
 from nicos.core import Param, dictof, none_or, oneof, tangodev, tupleof
+from nicos.devices.entangle import TemperatureController
 from nicos.devices.generic.paramdev import ParamDevice
-from nicos.devices.tango import TemperatureController
 
 # out-dev, (in-dev, min-out, max-out, init-pid) if software-regulated
 entry = tupleof(tangodev, none_or(tupleof(tangodev, float, float, float, float, float)))

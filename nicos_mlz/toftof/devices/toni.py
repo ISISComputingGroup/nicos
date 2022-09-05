@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Tobias Unruh <tobias.unruh@frm2.tum.de>
 #
 # *****************************************************************************
@@ -27,7 +27,7 @@
 
 from nicos.core import ADMIN, Attach, CommunicationError, Moveable, Override, \
     Param, intrange, oneofdict, requires, status
-from nicos.devices.tango import StringIO
+from nicos.devices.entangle import StringIO
 
 
 class ToniBus(StringIO):
@@ -38,7 +38,7 @@ class ToniBus(StringIO):
     """
 
     parameters = {
-        'source':   Param('Source address of host', type=int, default=0),
+        'source': Param('Source address of host', type=int, default=0),
     }
 
     parameter_overrides = {
@@ -79,16 +79,16 @@ class DelayBox(Moveable):
     """Toni TOFTOF-type programmable delay box."""
 
     attached_devices = {
-        'bus':  Attach('Toni communication bus', ToniBus),
+        'bus': Attach('Toni communication bus', ToniBus),
     }
 
     parameters = {
-        'addr':  Param('Bus address of the supply controller',
-                       type=intrange(0xF0, 0xFF), mandatory=True),
+        'addr': Param('Bus address of the supply controller',
+                      type=intrange(0xF0, 0xFF), mandatory=True),
     }
 
     parameter_overrides = {
-        'fmtstr':  Override(default='%d'),
+        'fmtstr': Override(default='%d'),
     }
 
     valuetype = int

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -48,16 +48,19 @@ class ErrorResponse(Exception):
 
 
 class ConnectionData:
-    def __init__(self, host, port, user, password, viewonly=False):
+    def __init__(self, host, port, user, password, viewonly=False,
+                 expertmode=False):
         self.host = host
         self.port = port
         self.user = user
         self.password = password
         self.viewonly = viewonly
+        self.expertmode = expertmode
 
     def copy(self):
-        return ConnectionData(self.host, self.port, self.user,
-                              self.password, self.viewonly)
+        # the copy shouldn't get the password to enforce a retyping of it
+        return ConnectionData(self.host, self.port, self.user, None,
+                              self.viewonly, self.expertmode)
 
     def serialize(self):
         return vars(self)
@@ -339,7 +342,8 @@ class NicosClient:
         ``'nicos.core.device.Moveable'``.
 
         If *only_explicit* is true, only devices that are in the NICOS
-        namespace will be returned (i.e. no lowlevel devices).
+        namespace will be returned (i.e. those with namespace visibility and
+        that have been explicitly created afterwards).
         """
         query = 'list(dn for (dn, d) in session.devices.items() ' \
                 'if %r in d.classes' % needs_class

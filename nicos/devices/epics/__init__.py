@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,14 +22,13 @@
 #
 # *****************************************************************************
 
-import os
-
 from nicos.core import status
 
 SEVERITY_TO_STATUS = {
     0: status.OK,  # NO_ALARM
     1: status.WARN,  # MINOR
     2: status.ERROR,  # MAJOR
+    3: status.UNKNOWN,  # INVALID
 }
 
 STAT_TO_STATUS = {
@@ -38,16 +37,7 @@ STAT_TO_STATUS = {
     17: status.UNKNOWN,  # Invalid/unknown IOC state
 }
 
-# Use environment variable to determine which python EPICS
-# binding it to be used
-if os.environ.get('NICOS_EPICS') == 'pvaccess':
-    from nicos.devices.epics.pvaccess import EpicsAnalogMoveable, \
-        EpicsDevice, EpicsDigitalMoveable, EpicsMoveable, EpicsReadable, \
-        EpicsStringMoveable, EpicsStringReadable, EpicsWindowTimeoutDevice, \
-        pvget, pvput
-else:
-    from nicos.devices.epics.monitor import PyEpicsMonitor as PVMonitor
-    from nicos.devices.epics.pyepics import EpicsAnalogMoveable, EpicsDevice, \
-        EpicsDigitalMoveable, EpicsMoveable, EpicsReadable, \
-        EpicsStringMoveable, EpicsStringReadable, EpicsWindowTimeoutDevice, \
-        pvget, pvput
+from nicos.devices.epics.monitor import PyEpicsMonitor as PVMonitor
+from nicos.devices.epics.pyepics import EpicsAnalogMoveable, EpicsDevice, \
+    EpicsDigitalMoveable, EpicsMoveable, EpicsReadable, EpicsStringMoveable, \
+    EpicsStringReadable, EpicsWindowTimeoutDevice, pvget, pvput

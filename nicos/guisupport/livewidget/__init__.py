@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -26,6 +26,9 @@
 """NICOS livewidget with GR."""
 
 import math
+import os
+import tempfile
+from functools import lru_cache
 
 import gr
 import numpy
@@ -34,11 +37,17 @@ from gr.pygr import Coords2D, Coords2DList, Plot as OrigPlot, PlotAxes, \
     Point, RegionOfInterest
 from gr.pygr.base import GRMeta, GRVisibility
 
+from nicos.clients.gui.main import log
 from nicos.core import UsageError
 from nicos.guisupport.plots import GRCOLORS, GRMARKS, MaskedPlotCurve
 from nicos.guisupport.qt import QHBoxLayout, QWidget, pyqtSignal
 from nicos.guisupport.qtgr import InteractiveGRWidget
 from nicos.guisupport.utils import savePlot
+
+try:
+    import colorcet
+except ImportError:
+    colorcet = None
 
 DATATYPES = frozenset(('<u4', '<i4', '>u4', '>i4', '<u2', '<i2', '>u2', '>i2',
                        '<u1', '<i1', '>u1', '>i1', '<f8', '<f4', '>f8', '>f4',
@@ -48,6 +57,7 @@ COLOR_MAXINTENSITY = 1255
 
 AXES = ['x', 'y']
 
+COLORMAP_MAGIC_ID = 103
 
 def sgn(x):
     if x >= 0:
@@ -55,21 +65,45 @@ def sgn(x):
     return -1
 
 
+@lru_cache()
+def colormap_from_file(filename):
+    try:
+        with open(filename, 'r', encoding="ascii") as f:
+            data = numpy.loadtxt(f)
+        if numpy.amax(data) > 1:
+            return data / 256
+    except Exception as e:
+        log.error('%s: can\'t use %s', e, filename)
+        return None
+    return data
+
+
 class Cellarray(gr.pygr.PlotSurface):
 
     def drawGR(self):
+
         if self.visible:
-            gr.setcolormap(self.colormap)
-            # GKS origin at upper left corner
-            # swapped ymin, ymax to get have origin
-            # at lower left corner (mirror y)
-            gr.cellarray(self.x[0], self.x[-1], self.y[-1], self.y[0],
-                         len(self.x), len(self.y), self.z)
+            def set_value():
+                gr.cellarray(self.x[0], self.x[-1], self.y[-1], self.y[0],
+                             len(self.x), len(self.y), self.z)
+
+            if isinstance(self.colormap, int):
+                gr.setcolormap(self.colormap)
+                set_value()
+                return
+            if colorcet and self.colormap in colorcet.mapping_flipped.keys():
+                gr.setcolormapfromrgb(getattr(colorcet, self.colormap))
+                set_value()
+                return
+            colormap = colormap_from_file(self.colormap)
+            if colormap is not None:
+                gr.setcolormapfromrgb(colormap)
+            set_value()
 
 
 class GRWidget(InteractiveGRWidget):
-    def __init__(self, widget, **kwds):
-        InteractiveGRWidget.__init__(self, widget, **kwds)
+    def __init__(self, widget, **kwargs):
+        InteractiveGRWidget.__init__(self, widget, **kwargs)
         self.widget = widget
         self.adjustSelectRect = self._noadjustSelectRect
 
@@ -106,10 +140,19 @@ class GRWidget(InteractiveGRWidget):
     def mousePan(self, event):
         self.widget.pan(event.getNDC(), event.getOffset())
 
+    def _save(self, extension=".pdf"):
+        fd, pathname = tempfile.mkstemp(extension)
+        self.save(pathname)
+        os.close(fd)
+        return pathname
+
+    def saveQuietly(self):
+        return self._save('.svg')
+
 
 class Plot(OrigPlot):
-    def __init__(self, widget, **kwds):
-        OrigPlot.__init__(self, **kwds)
+    def __init__(self, widget, **kwargs):
+        OrigPlot.__init__(self, **kwargs)
         self.widget = widget
 
     def resetPlot(self):
@@ -118,8 +161,8 @@ class Plot(OrigPlot):
 
 
 class Axes(PlotAxes):
-    def __init__(self, widget, xdual=False, ydual=False, **kwds):
-        PlotAxes.__init__(self, **kwds)
+    def __init__(self, widget, xdual=False, ydual=False, **kwargs):
+        PlotAxes.__init__(self, **kwargs)
         self.widget = widget
         self.xdual, self.ydual = xdual, ydual
 
@@ -217,7 +260,7 @@ class LiveWidgetBase(QWidget):
 
     closed = pyqtSignal()
 
-    def __init__(self, parent):
+    def __init__(self, parent, **kwargs):
         QWidget.__init__(self, parent)
 
         self._arrays = None
@@ -239,8 +282,9 @@ class LiveWidgetBase(QWidget):
         self.setLayout(layout)
 
         self.plot = Plot(self, viewport=(0.1, 0.95, 0.1, 0.95))
-        self.axes = Axes(self, viewport=self.plot.viewport, xdual=True,
-                         ydual=True)
+        self.axes = Axes(self, viewport=self.plot.viewport,
+                         xdual=kwargs.get('xscale', 'binary') == 'binary',
+                         ydual=kwargs.get('yscale', 'binary') == 'binary')
         self.plot.addAxes(self.axes)
         self.gr.addPlot(self.plot)
 
@@ -445,8 +489,8 @@ class LiveWidgetBase(QWidget):
 
 class LiveWidget(LiveWidgetBase):
 
-    def __init__(self, parent):
-        LiveWidgetBase.__init__(self, parent)
+    def __init__(self, parent, **kwargs):
+        LiveWidgetBase.__init__(self, parent, **kwargs)
 
         self.axes.setGrid(False)
         self.axes.xylinecolor = COLOR_MAXINTENSITY
@@ -481,17 +525,19 @@ class LiveWidget(LiveWidgetBase):
 
 class IntegralLiveWidget(LiveWidget):
 
-    def __init__(self, parent):
-        LiveWidget.__init__(self, parent)
+    def __init__(self, parent, **kwargs):
+        LiveWidget.__init__(self, parent, **kwargs)
 
         self.plot.viewport = (0.1, 0.75, 0.1, 0.75)
         self.axes.viewport = self.plot.viewport
         self.plotyint = Plot(self, viewport=(0.1, 0.75, 0.8, 0.95))
         self.axesyint = Axes(self, viewport=self.plotyint.viewport,
-                             drawX=False, drawY=True, xdual=True)
+                             drawX=False, drawY=True,
+                             xdual=kwargs.get('xscale', 'binary') == 'binary')
         self.plotxint = Plot(self, viewport=(0.8, 0.95, 0.1, 0.75))
         self.axesxint = Axes(self, viewport=self.plotxint.viewport,
-                             drawX=True, drawY=False, ydual=True)
+                             drawX=True, drawY=False,
+                             ydual=kwargs.get('yscale', 'binary') == 'binary')
 
         vp = self.axesxint.viewport
         self._charheight = 0.024 * (vp[3] - vp[2])
@@ -650,13 +696,14 @@ class IntegralLiveWidget(LiveWidget):
 
 class LiveWidget1D(LiveWidgetBase):
 
-    def __init__(self, parent):
-        LiveWidgetBase.__init__(self, parent)
+    def __init__(self, parent, **kwargs):
+        LiveWidgetBase.__init__(self, parent, **kwargs)
 
         self.plot.resetPlot()
         self._curves = [MaskedPlotCurve([0], [1], linecolor=GRCOLORS['blue'])]
-        self.axes = AutoScaleAxes(self, viewport=self.plot.viewport,
-                                  xdual=True)
+        self.axes = AutoScaleAxes(
+            self, viewport=self.plot.viewport,
+            xdual=kwargs.get('xscale', 'binary') == 'binary')
         self.axes.setGrid(True)
         self.axes.addCurves(self._curves[0])
         self.axes.autoscale = PlotAxes.SCALE_Y

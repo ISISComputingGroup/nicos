@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Jens Krüger <jens.krueger@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Christian Felder <c.felder@fz-juelich.de>
 #
 # *****************************************************************************
@@ -146,11 +146,10 @@ class Axis(CanReference, AbstractAxis):
         umin, umax = self._attached_motor.userlimits
         return umin - self.offset, umax - self.offset
 
-    def doWriteUserlimits(self, limits):
+    def doWriteUserlimits(self, value):
         # pylint: disable=assignment-from-none
-        rval = AbstractAxis.doWriteUserlimits(self, limits)
-        if rval:
-            limits = rval
+        rval = AbstractAxis.doWriteUserlimits(self, value)
+        limits = rval if rval else value
         # if the offset is currently changing, we need to use _new_offset
         self._attached_motor.userlimits = (
             limits[0] + getattr(self, '_new_offset', self.offset),
@@ -278,8 +277,8 @@ class Axis(CanReference, AbstractAxis):
     def doStop(self):
         """Stops the movement of the motor."""
         self._stoprequest = 1
-        # send a stop in case the motor was  started via
-        # the lowlevel device or externally.
+        # send a stop in case the motor was started via the attached motor
+        # device, or externally.
         self._attached_motor.stop()
 
     def doFinish(self):
@@ -288,10 +287,10 @@ class Axis(CanReference, AbstractAxis):
             self._errorstate = None
             raise errorstate  # pylint: disable=raising-bad-type
 
-    def doTime(self, start, end):
+    def doTime(self, old_value, target):
         if hasattr(self._attached_motor, 'doTime'):
-            return self._attached_motor.doTime(start, end)
-        return abs(end - start) / self.speed if self.speed != 0 else 0.
+            return self._attached_motor.doTime(old_value, target)
+        return abs(target - old_value) / self.speed if self.speed != 0 else 0.
 
     def doWriteDragerror(self, value):
         if not self._hascoder:

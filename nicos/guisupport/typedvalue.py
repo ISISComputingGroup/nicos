@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -38,6 +38,7 @@ from nicos.guisupport.qt import QCheckBox, QComboBox, QFormLayout, QFrame, \
 from nicos.guisupport.utils import DoubleValidator
 from nicos.guisupport.widget import NicosWidget, PropDef
 from nicos.protocols.cache import cache_dump, cache_load
+from nicos.utils import natural_sort
 
 
 class DeviceValueEdit(NicosWidget, QWidget):
@@ -86,7 +87,7 @@ class DeviceValueEdit(NicosWidget, QWidget):
         self._reinit()
 
     def registerKeys(self):
-        if self.props['updateValue']:
+        if self.props['updateValue'] and self.props['dev']:
             self.registerDevice(self.props['dev'])
 
     def on_devValueChange(self, dev, value, strvalue, unitvalue, expired):
@@ -149,7 +150,8 @@ class DeviceParamEdit(DeviceValueEdit):
         NicosWidget.propertyUpdated(self, pname, value)
 
     def registerKeys(self):
-        self.registerKey(self.props['dev'] + '.' + self.props['param'])
+        if self.props['dev'] and self.props['param']:
+            self.registerKey(self.props['dev'] + '.' + self.props['param'])
 
     def on_devValueChange(self, dev, value, strvalue, unitvalue, expired):
         if self.props['updateValue']:
@@ -248,7 +250,7 @@ def create(parent, typ, curvalue, fmtstr='', unit='',
     elif typ in (int, float, str, params.string):
         return EditWidget(parent, typ, curvalue, fmtstr or '%.4g',
                           allow_enter=allow_enter)
-    elif typ == bool:
+    elif typ in (bool, params.boolean):
         if allow_buttons:
             return ButtonWidget(parent, [True, False])
         return ComboWidget(parent, [True, False], curvalue)
@@ -282,6 +284,15 @@ def create(parent, typ, curvalue, fmtstr='', unit='',
     elif typ == SXTalCellType:
         return TableWidget(parent, float, curvalue.rmat.T.round(10), '%.4g',
                            client, allow_enter=allow_enter)
+    elif typ == list:
+        if curvalue:
+            ltype = type(curvalue[0])
+            if all(isinstance(sub, ltype) for sub in curvalue):
+                return ListOfWidget(parent, ltype, curvalue, client,
+                                    allow_enter=allow_enter)
+        else:
+            return ListOfWidget(parent, str, curvalue, client,
+                                allow_enter=allow_enter)
     return MissingWidget(parent, curvalue)
 
 
@@ -380,7 +391,7 @@ class ComboWidget(QComboBox):
 
     def __init__(self, parent, values, curvalue, add_other=False):
         QComboBox.__init__(self, parent)
-        self._values = sorted(values, key=str)
+        self._values = natural_sort(values)
         self._textvals = list(map(str, self._values))
         self._add_other = add_other
         if add_other:

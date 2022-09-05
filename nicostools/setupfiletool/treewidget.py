@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,7 @@ from os import path
 from nicos.guisupport.qt import QIcon, QMenu, QMessageBox, Qt, \
     QTreeWidgetItem, pyqtSignal
 from nicos.guisupport.utils import waitCursor
+from nicos.utils import writeFile
 
 from . import classparser, setupcontroller
 from .dialogs import NewDeviceDialog, NewSetupDialog
@@ -258,7 +259,7 @@ class TreeWidget(TreeWidgetContextMenu):
         dlg = NewSetupDialog([item.text(0) for item in self.topLevelItems
                               if item.type() == ItemTypes.Directory],
                              instrument)
-        if dlg.exec_():
+        if dlg.exec():
             fileName = dlg.getValue()
             if not fileName:
                 QMessageBox.warning(self, 'Error', 'No setup name entered.')
@@ -266,16 +267,17 @@ class TreeWidget(TreeWidgetContextMenu):
 
             if not fileName.endswith('.py'):
                 fileName += '.py'
+            facility = self.headerItem().text(0)
             if dlg.isSpecialSetup():
                 abspath = path.join(getNicosDir(),
-                                    'nicos_mlz',
+                                    'nicos_%s' % facility,
                                     dlg.currentInstrument(),
                                     'setups',
                                     'special',
                                     fileName)
             else:
                 abspath = path.join(getNicosDir(),
-                                    'nicos_mlz',
+                                    'nicos_%s' % facility,
                                     dlg.currentInstrument(),
                                     'setups',
                                     fileName)
@@ -285,7 +287,7 @@ class TreeWidget(TreeWidgetContextMenu):
                 QMessageBox.warning(self, 'Error', 'Setup already exists!')
                 return None, None
             try:
-                open(abspath, 'w', encoding='utf-8').close()
+                writeFile(abspath, [])
             except OSError:
                 QMessageBox.warning(self, 'Error', 'Could not create new '
                                     'setup!')
@@ -310,17 +312,18 @@ class TreeWidget(TreeWidgetContextMenu):
 
     def addDevice(self):
         with waitCursor():
-            dlg = NewDeviceDialog(classparser.getDeviceClasses
-                                  (self.getCurrentInstrument().text(0)), self)
+            instrument = self.getCurrentInstrument().text(0)
+            dlg = NewDeviceDialog(
+                classparser.getDeviceClasses('nicos_%s' % instrument), self)
 
-        if dlg.exec_():
+        if dlg.exec():
             if not dlg.labelSelectedClass.text():
                 QMessageBox.warning(self, 'Error', 'No class selected.')
                 return
             if not dlg.lineEditDeviceName.text():
                 QMessageBox.warning(self, 'Error', 'No name entered.')
                 return
-            if dlg.lineEditDeviceName.text() in\
+            if dlg.lineEditDeviceName.text() in \
                     self.currentItem().setup.devices.keys():
                 QMessageBox.warning(self, 'Error', 'Setup already contains a '
                                     'device with that name!')

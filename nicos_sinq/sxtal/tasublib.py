@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -185,8 +185,8 @@ def tasReflectionToQC(r, UB):
     return tasReflectionToQCHKL(r.qh, r.qk, r.ql, UB)
 
 
-def tasReflectionToQCHKL(h, k, l, UB):
-    Q = np.array([h, k, l])
+def tasReflectionToQCHKL(h, k, ll, UB):
+    Q = np.array([h, k, ll])
     return np.einsum('ij,j...->i...', UB, Q)
 
 
@@ -380,5 +380,8 @@ def calcTasQH(ub, angles, ki, kf):
     # 2PI factor
     q = np.sqrt(ki**2 + kf**2 -
                 2. * ki * kf * Cosd(sample_two_theta))
+    # The line below depends on the 2PI conventions.
+    q /= np.pi*2.
+
     qv *= q
     return ubinv.dot(qv)

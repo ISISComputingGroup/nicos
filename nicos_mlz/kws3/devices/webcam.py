@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -49,7 +49,7 @@ class WebcamSinkHandler(SingleFileSinkHandler):
         except Exception as e:
             self.log.warning('could not get webcam image: %s', e)
 
-    def putResults(self, quality, result):
+    def putResults(self, quality, results):
         pass
 
     def putMetainfo(self, metainfo):

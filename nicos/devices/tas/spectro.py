@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -19,7 +19,7 @@
 #
 # Module authors:
 #   Klaudia Hradil <klaudia.hradil@frm2.tum.de>
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #
 # *****************************************************************************
 
@@ -28,8 +28,8 @@
 from math import cos, pi, radians, sqrt
 
 from nicos.core import SIMULATION, Attach, AutoDevice, ComputationError, \
-    InvalidValueError, LimitError, Moveable, Override, Param, Readable, \
-    Value, multiStatus, oneof, status, tupleof
+    HasAutoDevices, InvalidValueError, LimitError, Moveable, Override, Param, \
+    Readable, Value, multiStatus, oneof, status, tupleof
 from nicos.devices.instrument import Instrument
 from nicos.devices.tas import spurions
 from nicos.devices.tas.cell import Cell
@@ -40,7 +40,7 @@ SCANMODES = ['CKI', 'CKF', 'CPHI', 'CPSI', 'DIFF']
 ENERGYTRANSFERUNITS = ['meV', 'THz']
 
 
-class TAS(Instrument, Moveable):
+class TAS(HasAutoDevices, Instrument, Moveable):
     """An instrument class that can move in (q,w) space.
 
     When setting up a triple-axis configuration, use this as your instrument
@@ -94,15 +94,19 @@ class TAS(Instrument, Moveable):
     hardware_access = False
 
     def doInit(self, mode):
-        self.__dict__['h'] = TASIndex('h', unit='rlu', fmtstr='%.3f',
-                                      index=0, lowlevel=True, tas=self)
-        self.__dict__['k'] = TASIndex('k', unit='rlu', fmtstr='%.3f',
-                                      index=1, lowlevel=True, tas=self)
-        self.__dict__['l'] = TASIndex('l', unit='rlu', fmtstr='%.3f',
-                                      index=2, lowlevel=True, tas=self)
-        self.__dict__['E'] = TASIndex('E', unit=self.energytransferunit,
-                                      fmtstr='%.3f', index=3, lowlevel=True,
-                                      tas=self)
+        self.add_autodevice('h', TASIndex, namespace='global',
+                            unit='rlu', fmtstr='%.3f', index=0,
+                            visibility=self.autodevice_visibility, tas=self)
+        self.add_autodevice('k', TASIndex, namespace='global',
+                            unit='rlu', fmtstr='%.3f', index=1,
+                            visibility=self.autodevice_visibility, tas=self)
+        self.add_autodevice('l', TASIndex, namespace='global',
+                            unit='rlu', fmtstr='%.3f', index=2,
+                            visibility=self.autodevice_visibility, tas=self)
+        self.add_autodevice('E', TASIndex, namespace='global',
+                            unit=self.energytransferunit, fmtstr='%.3f',
+                            index=3, visibility=self.autodevice_visibility,
+                            tas=self)
         self._last_calpos = None
 
         if self.scatteringsense[0] != self._attached_mono.scatteringsense:
@@ -113,11 +117,6 @@ class TAS(Instrument, Moveable):
             self.log.warning('%s.scatteringsense is not the same as '
                              '%s.scatteringsense[2], please reset %s',
                              self._attached_ana, self, self)
-
-    def doShutdown(self):
-        for name in ['h', 'k', 'l', 'E']:
-            if name in self.__dict__:
-                self.__dict__[name].shutdown()
 
     def _getWaiters(self):
         if self.scanmode == 'DIFF':
@@ -174,9 +173,9 @@ class TAS(Instrument, Moveable):
     def doReset(self):
         self.doWriteScatteringsense(self.scatteringsense)
 
-    def doStart(self, pos):
+    def doStart(self, target):
         self.doWriteScatteringsense(self.scatteringsense)
-        qh, qk, ql, ny = pos
+        qh, qk, ql, ny = target
         ny = self._thz(ny)
         angles = self._attached_cell.cal_angles(
             [qh, qk, ql], ny, self.scanmode, self.scanconstant,
@@ -197,9 +196,9 @@ class TAS(Instrument, Moveable):
             ana.start(from_k(angles[1], ana.unit))
         # spurion check
         if self.spurioncheck and self._mode == SIMULATION:
-            self._spurionCheck(pos)
+            self._spurionCheck(target)
         # store the min and max values of h,k,l, and E for simulation
-        self._sim_setValue(pos)
+        self._sim_setValue(target)
 
     def doFinish(self):
         # make sure index members read the latest value
@@ -261,8 +260,7 @@ class TAS(Instrument, Moveable):
             ny = self._attached_cell.cal_ny(monovalue, anavalue)
             if self.energytransferunit == 'meV':
                 ny *= THZ2MEV
-        pos = [hkl[0], hkl[1], hkl[2], ny]
-        return pos
+        return [hkl[0], hkl[1], hkl[2], ny]
 
     def _calpos(self, pos, printout=True, checkonly=True):
         qh, qk, ql, ny, sc, sm = pos
@@ -447,9 +445,9 @@ class TASIndex(AutoDevice, Moveable):
     def doRead(self, maxage=0):
         return self._attached_tas.read(maxage)[self.index]
 
-    def doStart(self, pos):
+    def doStart(self, target):
         current = list(self._attached_tas.read(0.5))
-        current[self.index] = pos
+        current[self.index] = target
         self._attached_tas.start(current)
 
 
@@ -524,11 +522,11 @@ class Wavevector(TASConstant):
         base = self._attached_base
         return to_k(base.read(maxage), base.unit)
 
-    def doStart(self, pos):
+    def doStart(self, target):
         tas = self._attached_tas
-        if self._start(pos):
+        if self._start(target):
             tas.log.info('scan mode is now %s at %s',
-                         self.scanmode, self.format(pos, unit=True))
+                         self.scanmode, self.format(target, unit=True))
 
     def doReadUnit(self):
         return 'A-1'
@@ -545,11 +543,11 @@ class Energy(TASConstant):
         return from_k(to_k(mono.read(maxage), mono.unit),
                       self._attached_tas.energytransferunit)
 
-    def doStart(self, pos_e):
+    def doStart(self, target):
         tas = self._attached_tas
-        if self._start(to_k(pos_e, tas.energytransferunit)):
+        if self._start(to_k(target, tas.energytransferunit)):
             tas.log.info('scan mode is now %s at %s',
-                         self.scanmode, self.format(pos_e, unit=True))
+                         self.scanmode, self.format(target, unit=True))
 
     def doReadUnit(self):
         return self._attached_tas.energytransferunit
@@ -565,11 +563,11 @@ class Wavelength(TASConstant):
         mono = self._attached_base
         return 2 * pi / to_k(mono.read(maxage), mono.unit)
 
-    def doStart(self, lam):
+    def doStart(self, target):
         tas = self._attached_tas
-        if self._start(to_k(lam, 'A')):
+        if self._start(to_k(target, 'A')):
             tas.log.info('scan mode is now %s at %s',
-                         self.scanmode, self.format(lam, unit=True))
+                         self.scanmode, self.format(target, unit=True))
 
     def doReadUnit(self):
         return 'AA'

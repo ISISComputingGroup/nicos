@@ -1,7 +1,7 @@
 description = 'setup for the NICOS watchdog'
 group = 'special'
 
-# watchlist:
+# watch_conditions:
 # The entries in this list are dictionaries. Possible keys:
 #
 # 'setup' -- setup that must be loaded (default '' to mean all setups)
@@ -17,7 +17,7 @@ group = 'special'
 #     or 'stop' or 'immediatestop' to cancel script execution
 #     (default '')
 # 'action' -- code to execute if condition is true (default no code is executed)
-watchlist = [
+watch_conditions = [
     dict(condition = '( fugwatch_value == "on" and'
                      '  abs(t_setpoint - ts_value) > 1.5 )',
          type = 'default',
@@ -25,11 +25,6 @@ watchlist = [
                    'is too high shutting down high voltage.',
          setup = 'highvoltage',
          action = 'maw(fug, 0)',
-        ),
-    dict(condition = 'ccm8v_lhe_value < 30',
-         type = 'se',
-         setup = 'ccm8v',
-         message = '8T Magnet: He level below 30%',
         ),
 ]
 
@@ -58,6 +53,6 @@ devices = dict(
         cache = 'localhost:14869',
         notifiers = notifiers,
         mailreceiverkey = 'email/receivers',
-        watch = watchlist,
+        watch = watch_conditions,
     ),
 )

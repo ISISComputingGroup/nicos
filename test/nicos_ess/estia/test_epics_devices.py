@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -32,12 +32,13 @@ from unittest.mock import patch
 
 import pytest
 
-from nicos.core import status
-
 pytest.importorskip('epics')
 pytest.importorskip('kafka')
 
-from nicos_ess.devices.epics.base import EpicsDeviceEss, EpicsReadableEss
+from nicos.core import status
+from nicos.devices.epics import EpicsDevice
+
+from nicos_ess.devices.epics.base import EpicsReadableEss
 from nicos_ess.estia.devices.pt100 import EpicsPT100Temperature, error_bits, \
     get_pt100_status_message
 
@@ -87,7 +88,7 @@ class TestEpicsPT100(TestCase):
     @pytest.fixture(autouse=True)
     def initialize_devices(self, session):
         self.session = session
-        create_method_patch(self, EpicsDeviceEss, '_get_mapped_epics_status',
+        create_method_patch(self, EpicsDevice, '_get_mapped_epics_status',
                             return_value_wrapper((status.OK, '')))
 
     def test_status_underrange(self, mock):

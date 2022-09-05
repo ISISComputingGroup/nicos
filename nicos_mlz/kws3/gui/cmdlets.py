@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -84,8 +84,8 @@ class MeasureTable(KWS1MeasureTable):
 
     meas_def_class = MeasDef
 
-    def __init__(self, parent, client):
-        KWS1MeasureTable.__init__(self, parent, client)
+    def __init__(self, parent, client, options):
+        KWS1MeasureTable.__init__(self, parent, client, options)
         self.rtBox.hide()
         self.rtConfBtn.hide()
 
@@ -98,8 +98,8 @@ class RestoreState(Cmdlet):
     name = 'Device state as script'
     category = 'Other'
 
-    def __init__(self, parent, client):
-        Cmdlet.__init__(self, parent, client,
+    def __init__(self, parent, client, options):
+        Cmdlet.__init__(self, parent, client, options,
                         findResource('nicos_mlz/kws3/gui/restore.ui'))
         for devname in self._getDeviceList():
             item = QListWidgetItem(devname, self.devList)

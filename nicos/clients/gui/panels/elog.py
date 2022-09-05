@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 # 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #
 # Module authors:
-#   Georg Brandl <georg.brandl@frm2.tum.de>
+#   Georg Brandl <g.brandl@fz-juelich.de>
 #   Alexander Lenz <alexander.lenz@frm2.tum.de>
 #
 # *****************************************************************************
@@ -31,9 +31,9 @@ from os import path
 from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.utils import dialogFromUi, loadUi
 from nicos.guisupport.qt import QActionGroup, QDesktopServices, QDialog, \
-    QInputDialog, QLineEdit, QMainWindow, QMenu, QPrintDialog, QPrinter, \
-    QPushButton, Qt, QTextDocument, QTextEdit, QTimer, QToolBar, QUrl, \
-    QWebPage, QWebView, pyqtSlot
+    QFontDatabase, QInputDialog, QLineEdit, QMainWindow, QMenu, QPrintDialog, \
+    QPrinter, QPushButton, Qt, QTextDocument, QTextEdit, QTimer, QToolBar, \
+    QUrl, QWebPage, QWebView, pyqtSlot
 
 if QWebView is None:
     raise ImportError('Qt webview component is not available')
@@ -179,7 +179,8 @@ class ELogPanel(Panel):
             return
         filename = reply.url().path()
         if filename.endswith('.dat'):
-            content = open(filename, encoding='utf-8', errors='replace').read()
+            with open(filename, encoding='utf-8', errors='replace') as fp:
+                content = fp.read()
             window = QMainWindow(self)
             window.resize(600, 800)
             window.setWindowTitle(filename)
@@ -244,11 +245,19 @@ class ELogPanel(Panel):
     def on_actionAddComment_triggered(self):
         dlg = dialogFromUi(self, 'panels/elog_comment.ui')
         dlg.helpFrame.setVisible(False)
+        if hasattr(dlg.viewer, 'setMarkdown'):
+            dlg.editor.textChanged.connect(
+                lambda : dlg.viewer.setMarkdown(dlg.editor.toPlainText()))
+        else:
+            dlg.viewer.hide()
         dlg.mdLabel.linkActivated.connect(
             lambda link: dlg.helpFrame.setVisible(True))
-        if dlg.exec_() != QDialog.Accepted:
+        f = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+        f.setFixedPitch(True)
+        dlg.editor.setFont(f)
+        if dlg.exec() != QDialog.Accepted:
             return
-        text = dlg.freeFormText.toPlainText()
+        text = dlg.editor.toPlainText()
         if not text:
             return
         self.client.eval('LogEntry(%r)' % text)
@@ -262,7 +271,7 @@ class ELogPanel(Panel):
             self.selectInputFile(dlg.fileName, 'Choose a file to attach')
             dlg.fileRename.setFocus()
         dlg.fileSelect.clicked.connect(on_fileSelect_clicked)
-        if dlg.exec_() != QDialog.Accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         fname = dlg.fileName.text()
         if not path.isfile(fname):
@@ -271,7 +280,8 @@ class ELogPanel(Panel):
         if not newname:
             newname = path.basename(fname)
         desc = dlg.fileDesc.text()
-        filecontent = open(fname, 'rb').read()
+        with open(fname, 'rb') as fp:
+            filecontent = fp.read()
         remotefn = self.client.ask('transfer', filecontent)
         if remotefn is not None:
             self.client.eval('_LogAttach(%r, [%r], [%r])' %
@@ -284,7 +294,7 @@ class ELogPanel(Panel):
         printer = QPrinter()
         dialog = QPrintDialog(printer)
 
-        if not dialog.exec_():
+        if not dialog.exec():
             return
 
         mainFrame = self.preview.page().mainFrame()

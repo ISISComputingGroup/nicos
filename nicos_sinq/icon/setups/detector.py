@@ -1,51 +1,44 @@
 description = 'Camini Camera Synchronisation Detector'
 
-group = 'lowlevel'
-
 pvprefix = 'SQ:ICON:CAMINI:'
 pvprefix_sumi = 'SQ:ICON:sumi:'
 pvprefix_ai = 'SQ:ICON:B5ADC:'
 
 includes = ['shutters']
+excludes = ['detector_phys']
 
 display_order = 90
 
 devices = dict(
-    cam_shut = device('nicos.devices.epics.EpicsReadable',
-        epicstimeout = 3.0,
+    cam_shut = device('nicos_sinq.devices.epics.EpicsReadable',
         description = 'Camera shutter open',
         readpv = pvprefix + 'SHUTTER',
-        lowlevel = True,
+        visibility = (),
     ),
-    cam_arm = device('nicos.devices.epics.EpicsReadable',
-        epicstimeout = 3.0,
+    cam_arm = device('nicos_sinq.devices.epics.EpicsReadable',
         description = 'Camera ready for acquisition',
         readpv = pvprefix + 'ARM',
-        lowlevel = True,
+        visibility = (),
     ),
-    cam_trig = device('nicos.devices.epics.EpicsDigitalMoveable',
-        epicstimeout = 3.0,
+    cam_trig = device('nicos_sinq.devices.epics.EpicsDigitalMoveable',
         description = 'Camera trigger signal',
         readpv = pvprefix + 'TRIG',
         writepv = pvprefix + 'TRIG',
-        lowlevel = True,
+        visibility = (),
     ),
-    cam_aux = device('nicos.devices.epics.EpicsDigitalMoveable',
-        epicstimeout = 3.0,
+    cam_aux = device('nicos_sinq.devices.epics.EpicsDigitalMoveable',
         description = 'Exposure valid signal',
         readpv = pvprefix + 'AUX',
         writepv = pvprefix + 'AUX',
-        lowlevel = True,
+        visibility = (),
     ),
-    cam_valid = device('nicos.devices.epics.EpicsDigitalMoveable',
-        epicstimeout = 3.0,
+    cam_valid = device('nicos_sinq.devices.epics.EpicsDigitalMoveable',
         description = 'Metadata valid signal',
         readpv = pvprefix + 'VALID',
         writepv = pvprefix + 'VALID',
-        lowlevel = True,
+        visibility = (),
     ),
-    camini = device('nicos_sinq.icon.devices.camini.CaminiDetector',
-        epicstimeout = 3.0,
+    camini = device('nicos_sinq.devices.camini.CaminiDetector',
         description = 'Synchronization with the CAMINI camera '
         'software',
         trigpv = pvprefix + 'TRIG',
@@ -61,45 +54,39 @@ devices = dict(
         arm_timeout = 5.0,
         shutter_timeout = 5.0,
         exposure_timeout = 300.0,
-        lowlevel = False
     ),
-    exp_threshold = device('nicos.devices.epics.EpicsAnalogMoveable',
+    exp_threshold = device('nicos_sinq.devices.epics.generic.WindowMoveable',
         description = 'Exposure threshold',
         readpv = pvprefix_sumi + 'THRES',
         writepv = pvprefix_sumi + 'THRES',
+        window = 10,
         abslimits = (-100, 2000),
-        epicstimeout = 3.0
     ),
-    exp_ok = device('nicos.devices.epics.EpicsReadable',
+    exp_ok = device('nicos_sinq.devices.epics.EpicsReadable',
         description = 'Exposure sufficient',
         readpv = pvprefix + 'AUX',
-        epicstimeout = 3.0
     ),
-    exp_avg = device('nicos.devices.epics.EpicsReadable',
+    exp_avg = device('nicos_sinq.devices.epics.EpicsReadable',
         description = 'Average exposure',
         readpv = pvprefix_sumi + 'BEAMAVG',
-        epicstimeout = 3.0
     ),
-    beam_current = device('nicos.devices.epics.EpicsReadable',
+    beam_current = device('nicos_sinq.devices.epics.EpicsReadable',
         description = 'Beam current',
         readpv = pvprefix_ai + 'V4',
-        epicstimeout = 3.0
     ),
-    exp_time = device('nicos.devices.epics.EpicsReadable',
+    exp_time = device('nicos_sinq.devices.epics.EpicsReadable',
         description = 'Exposure time',
         readpv = pvprefix_sumi + 'EXPTIME',
-        epicstimeout = 3.0
     ),
-    oracle = device('nicos_sinq.icon.devices.beamoracle.BeamOracle',
+    oracle = device('nicos_sinq.devices.beamoracle.BeamOracle',
         description = 'Device to sum proton count',
         pvprefix = pvprefix_sumi,
-        lowlevel = True,
-        epicstimeout = 3.0
+        visibility = (),
     ),
-    camera = device('nicos_sinq.icon.devices.ccdcontrol.NIAGControl',
+    camera = device('nicos_sinq.devices.ccdcontrol.NIAGControl',
         description = 'Count control for NIAG CCD detectors',
         trigger = 'camini',
-        slave_detectors = ['oracle'],
+        followers = ['oracle'],
         rate_monitor = 'oracle',
         rate_threshold = 'exp_threshold',
         exp_ok = 'exp_ok',

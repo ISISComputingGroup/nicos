@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -31,7 +31,7 @@ from nicos import session
 from nicos.core import Value, status
 from nicos.core.device import Measurable, Moveable
 from nicos.core.params import Attach, Param
-from nicos.devices.tango import AnalogInput, DigitalInput, NamedDigitalInput
+from nicos.devices.entangle import AnalogInput, DigitalInput, NamedDigitalInput
 
 
 class SingleDetectors(Measurable):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,7 +25,7 @@
 """NICOS tests for the watchdog condition primitives."""
 
 from nicos.services.watchdog.conditions import DelayedTrigger, Expression, \
-    Precondition
+    ConditionWithPrecondition
 
 
 class DummyLog:
@@ -112,18 +112,73 @@ def test_delayed():
 
 
 def test_precondition():
-    aexpr = Expression(DummyLog(), 'a', '')
-    bexpr = Expression(DummyLog(), 'b', '')
-    precond = Precondition(DummyLog(), aexpr, bexpr)
+    pre = Expression(DummyLog(), 'pre', '')
+    cond = Expression(DummyLog(), 'cond', '')
+    cooldown = 0
+    combined = ConditionWithPrecondition(DummyLog(), pre, cond, cooldown)
 
-    assert precond.interesting_keys() == set(['a', 'b'])
+    assert combined.interesting_keys() == set(['pre', 'cond'])
 
-    precond.update(0, {'a': 0, 'b': 0})
-    assert not precond.triggered
-    precond.update(0, {'a': 0, 'b': 1})
-    assert not precond.triggered
+    combined.update(1, {'pre': 0, 'cond': 0})
+    assert not combined.triggered
+    combined.update(1, {'pre': 0, 'cond': 1})
+    assert not combined.triggered
+    combined.update(1, {'pre': 1, 'cond': 0})
+    assert not combined.triggered
+    combined.update(1, {'pre': 1, 'cond': 1})
+    assert combined.triggered
 
-    precond.update(0, {'a': 1, 'b': 0})
-    assert not precond.triggered
-    precond.update(0, {'a': 1, 'b': 1})
-    assert precond.triggered
+    # if condition becomes true the instant precondition becomes false,
+    # we are still happy
+    combined.update(1, {'pre': 1, 'cond': 0})
+    assert not combined.triggered
+    combined.update(1, {'pre': 0, 'cond': 1})
+    assert combined.triggered
+
+
+def test_pre_with_cooldown():
+    pre = Expression(DummyLog(), 'pre', '')
+    pre = DelayedTrigger(DummyLog(), pre, 2)
+    cond = Expression(DummyLog(), 'cond', '')
+    cond = DelayedTrigger(DummyLog(), cond, 2)
+    cooldown = 5
+    combined = ConditionWithPrecondition(DummyLog(), pre, cond, cooldown)
+
+    assert combined.interesting_keys() == set(['pre', 'cond'])
+
+    combined.update(0, {'pre': 0, 'cond': 0})
+    assert not combined.pre.triggered
+    assert not combined.cond.triggered
+    assert not combined.triggered
+    combined.update(10, {'pre': 1, 'cond': 0})
+    assert not combined.pre.triggered
+    combined.update(15, {'pre': 1, 'cond': 0})
+    assert combined.pre.triggered
+    assert not combined.triggered
+    combined.update(20, {'pre': 1, 'cond': 1})
+    assert not combined.triggered
+    combined.update(25, {'pre': 1, 'cond': 1})
+    assert combined.triggered
+    combined.update(30, {'pre': 0, 'cond': 1})
+    assert combined.triggered
+    combined.update(36, {'pre': 0, 'cond': 1})
+    assert not combined.triggered
+
+    combined.update(100, {'pre': 0, 'cond': 0})
+    assert not combined.pre.triggered
+    assert not combined.cond.triggered
+    assert not combined.triggered
+    combined.update(110, {'pre': 1, 'cond': 0})
+    assert not combined.pre.triggered
+    combined.update(115, {'pre': 1, 'cond': 0})
+    assert combined.pre.triggered
+    assert not combined.triggered
+    combined.update(120, {'pre': 0, 'cond': 1})
+    assert not combined.pre.triggered
+    assert not combined.triggered
+    combined.update(125, {'pre': 0, 'cond': 1})
+    assert not combined.pre.triggered
+    assert combined.triggered
+    combined.update(126, {'pre': 0, 'cond': 1})
+    assert not combined.pre.triggered
+    assert not combined.triggered

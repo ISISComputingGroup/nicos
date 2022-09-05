@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,6 +24,8 @@
 
 """NICOS GUI single cmdlet command input."""
 
+from os import path
+
 from nicos.clients.flowui import uipath
 from nicos.clients.flowui.panels import get_icon
 from nicos.clients.gui.panels.cmdbuilder import \
@@ -37,7 +39,7 @@ class CommandPanel(DefaultCommandPanel):
     """
 
     panelName = 'Command'
-    ui = '%s/panels/ui_files/cmdbuilder.ui' % uipath
+    ui = path.join(uipath, 'panels', 'ui_files', 'cmdbuilder.ui')
     frame_visible = False
 
     def __init__(self, parent, client, options):

@@ -12,7 +12,7 @@ group = 'special'
 # 'priority' -- 1 or 2, where 2 is more severe (default 1)
 # 'action' -- code to execute if condition is true (default no code is executed)
 
-watchlist = [
+watch_conditions = [
     dict(condition = 'LogSpace_status[0] == WARN',
          message = 'Disk space for log files becomes too low.',
          type = 'critical',
@@ -43,6 +43,21 @@ watchlist = [
         message = 'There is a leak in the chopper cooling system',
         priority = 2,
     ),
+    dict(
+        condition = 'flow_in_chopper_value < 15',
+        message = 'The flow in the chopper cooling system is too low',
+        # priority = 1,
+    ),
+    dict(
+        condition = 't_in_chopper_value > 30',
+        message = 'The temperature in the chopper cooling system is too high',
+        # priority = 1,
+    ),
+    dict(
+        condition = "water_level_chopper_value != 'OK'",
+        message = 'The water level in the chopper cooling level is too low',
+        # priority = 1,
+    ),
 ]
 
 # The Watchdog device has two lists of notifiers, one for priority 1 and
@@ -54,7 +69,7 @@ devices = dict(
     Watchdog = device('nicos.services.watchdog.Watchdog',
         cache = 'tofhw.toftof.frm2:14869',
         notifiers = {'default': ['emailer']},
-        watch = watchlist,
+        watch = watch_conditions,
         mailreceiverkey = 'emailer/receivers',
     ),
 )

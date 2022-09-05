@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2021 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@
 import socket
 from os import path
 
-from nicos_sinq.devices.loggers.mongo import create_mongo_handler
+from nicos_sinq.devices.loggers import create_logstash_handler
 
 
 def determine_instrument(setup_package_path):
@@ -45,12 +45,9 @@ def determine_instrument(setup_package_path):
 
 def get_log_handlers(config):
     """
-    :param config: configuration dictionary
-    :return: a list containing one or both of:
-        - KafkaLoggingHandler if 'kafka_logger' in options
-        - GELFTCPHandler if 'graylog' in options
-        or [] if none is present
+    To enable logstash add to nicos.conf the line
+    logstash="//<host>:<port>"
     """
 
-    handler = create_mongo_handler(config)
+    handler = create_logstash_handler(config)
     return [handler] if handler else []

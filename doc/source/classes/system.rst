@@ -5,6 +5,12 @@ These device classes do not represent actual hardware devices, but they use the
 same configuration and parameter API as devices and are therefore Device
 subclasses.
 
+- `Experiment`_
+- `Instrument`_
+- `Sample`_
+- `Data Sinks`_
+- `Notifiers`_
+
 Experiment
 ----------
 
@@ -23,9 +29,6 @@ The experiment device is selected in setups using
 
 .. autoclass:: SXTalExperiment()
 
-.. autoclass:: Sample()
-
-
 Instrument
 ----------
 
@@ -36,6 +39,13 @@ functionality of the specific instrument.  It is selected in setups using
 :ref:`sysconfig <setup-sysconfig>`.
 
 .. autoclass:: Instrument()
+
+Sample
+------
+
+.. module:: nicos.devices.sample
+
+.. autoclass:: Sample()
 
 
 .. _data-sinks:
@@ -70,14 +80,14 @@ be configured in setups like normal devices and selected in
 .. autoclass:: FITSImageSink()
 .. autoclass:: TIFFImageSink()
 
+.. module:: nicos.devices.datasinks.text
 
-Data Sink Handlers
-^^^^^^^^^^^^^^^^^^
+.. autoclass:: NPFileSink()
+.. autoclass:: NPGZFileSink()
 
-.. currentmodule:: nicos.core.data
+.. module:: nicos.nexus.nexussink
 
-.. autoclass:: DataSinkHandler
-   :members:
+.. autoclass:: NexusSink
 
 
 .. _notifiers:
@@ -94,12 +104,6 @@ script has run for more than a few seconds.
 Notifiers can be configured in setups like normal devices and are selected in
 :ref:`sysconfig <setup-sysconfig>`.  They are also used by the
 :ref:`watchdog <watchdog>` service.
-
-.. todo::
-
-   add the ``Notifier`` class to the developer section.
-
-.. .. autoclass:: Notifier()
 
 .. autoclass:: Mailer()
 .. autoclass:: SMSer()

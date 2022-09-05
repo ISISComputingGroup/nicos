@@ -3,6 +3,7 @@
 description = 'Setup of a Monochromator Focusing Box on PANDA'
 
 group = 'lowlevel'
+display_order = 22
 
 extended = dict(dynamic_loaded = True)
 
@@ -10,7 +11,7 @@ devices = dict(
     # Nicos based access to phytron in magnet rack
     focimotorbus = device('nicos_mlz.panda.devices.mcc2.TangoSerial',
         tangodevice = 'tango://phys.panda.frm2:10000/panda/mcc/focibox',
-        lowlevel = True,
+        visibility = (),
     ),
     focibox = device('nicos_mlz.panda.devices.mcc2.MCC2Monoframe',
         bus = 'focimotorbus',
