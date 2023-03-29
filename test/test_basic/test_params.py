@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -161,6 +161,8 @@ def test_tupleof():
     assert raises(ValueError, tupleof(int, str), ('a', 'b'))
     assert raises(ValueError, tupleof(int, str), ('a',))
     assert raises(ValueError, tupleof(int, str), 'x')
+    assert raises(ValueError, tupleof(float, float), (1,))
+    assert raises(ValueError, tupleof(float, float), (1, 2, 3))
     assert raises(ProgrammingError, tupleof,)
 
 

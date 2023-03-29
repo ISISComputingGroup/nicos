@@ -4,7 +4,7 @@ description = 'system setup'
 group = 'lowlevel'
 
 sysconfig = dict(
-    cache = 'sans1ctrl.sans1.frm2',
+    cache = 'ctrl.sans1.frm2.tum.de',
     instrument = 'Instrument',
     experiment = 'Exp',
     datasinks = ['conssink', 'filesink', 'daemonsink'],
@@ -16,7 +16,7 @@ modules = ['nicos.commands.standard']
 includes = ['notifiers']
 
 devices = dict(
-    Sample = device('nicos_mlz.sans1.devices.sample.Sans1Sample',
+    Sample = device('nicos_mlz.sans1.devices.sample.Sample',
         description = 'sample',
     ),
     Instrument = device('nicos.devices.instrument.Instrument',

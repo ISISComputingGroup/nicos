@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -34,8 +34,9 @@ from nicos.core import ADMIN, SIMULATION, USER, Attach, CommunicationError, \
     Override, Param, PositionError, UsageError, floatrange, intrange, \
     none_or, oneof, oneofdict, requires, status, usermethod
 from nicos.core.utils import multiStatus
-from nicos.devices.abstract import CanReference, Coder, Motor
-from nicos.devices.generic import Switcher
+from nicos.devices.abstract import CanReference, Coder as NicosCoder, \
+    Motor as NicosMotor
+from nicos.devices.generic import Switcher as BaseSwitcher
 from nicos.devices.generic.sequence import SeqMethod, SequencerMixin
 from nicos.devices.tango import PyTangoDevice
 
@@ -45,7 +46,7 @@ CODER_VALIDATOR = intrange(0x4000, 0x4800)
 MOTOR_VALIDATOR = oneof(*range(0x4020, 0x4800, 10))
 
 
-class Sans1ColliSlit(Switcher):
+class Slit(BaseSwitcher):
     """class for slit mounted onto something moving
 
     and thus beeing only effective if the underlying
@@ -76,7 +77,7 @@ class Sans1ColliSlit(Switcher):
         return Switcher.doStatus(self, maxage)
 
 
-class Sans1ColliSwitcher(Switcher):
+class Switcher(BaseSwitcher):
     """Switcher, specially adapted to Sans1 needs"""
     parameter_overrides = {
         'precision':    Override(default=0.1, mandatory=False),
@@ -110,7 +111,7 @@ class Sans1ColliSwitcher(Switcher):
                             self._attached_moveable)
 
 
-class Sans1ColliBase(PyTangoDevice):
+class TangoDevice(PyTangoDevice):
 
     hardware_access = True
 
@@ -124,7 +125,7 @@ class Sans1ColliBase(PyTangoDevice):
                                          "be set to 'little'!")
 
 
-class Sans1ColliCoder(Sans1ColliBase, Coder):
+class Coder(TangoDevice, NicosCoder):
     """
     Reads out the Coder for a collimation axis
     """
@@ -160,7 +161,7 @@ class Sans1ColliCoder(Sans1ColliBase, Coder):
         return status.WARN, 'Coder should never be at 0 Steps, Coder may be broken!'
 
 
-class Sans1ColliMotor(Sans1ColliBase, CanReference, SequencerMixin, HasTimeout, Motor):
+class Motor(TangoDevice, CanReference, SequencerMixin, HasTimeout, NicosMotor):
     """
     Device object for a digital output device via a Beckhoff modbus interface.
     Minimum Parameter Implementation.
@@ -200,7 +201,7 @@ class Sans1ColliMotor(Sans1ColliBase, CanReference, SequencerMixin, HasTimeout, 
     _busy_until = 0
 
     def doInit(self, mode):
-        Sans1ColliBase.doInit(self, mode)
+        TangoDevice.doInit(self, mode)
         if mode != SIMULATION:
             if self.autopower == 'on':
                 self._HW_disable()
@@ -539,7 +540,7 @@ class Sans1ColliMotor(Sans1ColliBase, CanReference, SequencerMixin, HasTimeout, 
         self._startSequence(seq)
 
 
-class Sans1ColliMotorAllParams(Sans1ColliMotor):
+class MotorAllParams(Motor):
     """
     Device object for a digital output device via a Beckhoff modbus interface.
     Maximum Parameter Implementation.
@@ -661,6 +662,10 @@ class Sans1ColliMotorAllParams(Sans1ColliMotor):
     @usermethod
     @requires(level=USER)
     def readParameter(self, index):
+        """reads one of the numerically indexed parameters
+
+        indices see docu.
+        """
         self.log.debug('readParameter %d', index)
         try:
             index = int(self._paridx.get(index, index))
@@ -700,6 +705,10 @@ class Sans1ColliMotorAllParams(Sans1ColliMotor):
     @usermethod
     @requires(level=ADMIN)
     def writeParameter(self, index, value, store2eeprom=False):
+        """writes one of the numerically indexed parameters
+
+        indices see docu.
+        """
         self.log.debug('writeParameter %d:0x%04x', index, value)
         if store2eeprom:
             self.log.warning('writeParameter stores to eeprom !')

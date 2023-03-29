@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -58,10 +58,11 @@ class SeqFuzzyParam(SeqParam):
         setattr(self.dev, self.paramname, self.value)
 
     def isCompleted(self):
-        value = getattr(self.dev, self.paramname)
-        if self.precision is None:
-            return value == self.value
-        return abs(value - self.value) <= self.precision
+        return True  # for known bug in firmware
+        # value = getattr(self.dev, self.paramname)
+        # if self.precision is None:
+        #     return value == self.value
+        # return abs(value - self.value) <= self.precision
 
 
 class ChopperMaster(CanReference, BaseSequencer):
@@ -126,7 +127,7 @@ class ChopperMaster(CanReference, BaseSequencer):
         self.gap = target.get('gap', self.gap)
         chopper2_pos = target.get('chopper2_pos')
 
-        speed, angles = chopper_config(
+        speed, angles, _ = chopper_config(
             self.wlmin, self.wlmax, self.dist, chopper2_pos, gap=self.gap)
 
         self.log.debug('speed: %d, angles = %s', speed, angles)
@@ -178,8 +179,7 @@ class ChopperMaster(CanReference, BaseSequencer):
     def doReadResolution(self):
         if self.mode == 'normal_mode':
             return self._attached_chopper2.pos
-        else:
-            return 6
+        return 6
 
     def doReadSpeed(self):
         return self._attached_chopper1.read(0)

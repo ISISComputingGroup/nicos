@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,15 +24,17 @@
 
 """Support classes for neutron cameras at the FRM II."""
 
-from nicos.devices.entangle import BaseImageChannel
+from nicos.core.constants import FINAL, INTERRUPTED
+from nicos.devices.entangle import ImageChannel
 
 
-class CameraImage(BaseImageChannel):
+class CameraImage(ImageChannel):
     """Tango ImageChannel subclass that waits for the channel's status
     (for CCD readout) before reading the image.
     """
 
     def doReadArray(self, quality):
         # need to wait for readout of the CCD
-        self._hw_wait()
-        return BaseImageChannel.doReadArray(self, quality)
+        if quality not in (FINAL, INTERRUPTED):
+            return []
+        return ImageChannel.doReadArray(self, quality)

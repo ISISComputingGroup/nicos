@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,10 @@ from os import path
 
 import pytest
 
+pytest.importorskip('dataparser')
+
 from nicos.commands.measure import count
+from nicos_mlz.spodi.datasinks import CaressHistogramReader
 
 session_setup = 'spodi'
 exp_dataroot = 'spodidata'
@@ -39,10 +42,9 @@ class TestSinks:
     def prepare(self, session, dataroot):
         """Prepare SPODI dataset"""
 
-        pytest.importorskip('dataparser')
         session.experiment.setDetectors(['adet'])
         # Create devices needed in data sinks
-        for dev in ['omgs', 'tths']:
+        for dev in ['omgs', 'tths', 'detsampledist']:
             session.getDevice(dev)
         count(resosteps=1, t=0.01)
         count(resosteps=1, mon1=100)
@@ -51,3 +53,5 @@ class TestSinks:
     def test_caress_sink(self, session):
         caressfile = path.join(session.experiment.datapath, 'm100000043.ctxt')
         assert path.isfile(caressfile)
+
+        CaressHistogramReader.fromfile(caressfile)

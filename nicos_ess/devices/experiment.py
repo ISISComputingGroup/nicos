@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,28 +21,38 @@
 #   Matt Clarke <matt.clarke@ess.eu>
 #
 # *****************************************************************************
-
 """ESS Experiment device."""
 
 import time
+from os import path
 
 from yuos_query.exceptions import BaseYuosException
 from yuos_query.yuos_client import YuosCacheClient
 
 from nicos import session
-from nicos.core import Override, Param, SIMULATION, UsageError, listof, \
-    mailaddress
+from nicos.core import SIMULATION, Override, Param, UsageError, \
+    absolute_path, listof, mailaddress
 from nicos.devices.experiment import Experiment
 from nicos.utils import createThread
 
 
 class EssExperiment(Experiment):
     parameters = {
-        'cache_filepath': Param('Path to the proposal cache',
-                                type=str, category='experiment',
-                                mandatory=True, userparam=False),
-        'update_interval': Param('Time interval (in hrs.) for cache updates',
-                                 default=1.0, type=float, userparam=False)
+        'cache_filepath':
+            Param('Path to the proposal cache',
+                  type=str,
+                  category='experiment',
+                  mandatory=True,
+                  userparam=False),
+        'filewriter_root':
+            Param('Root data path on the file writer server under which all '
+                  'proposal specific paths exist.', mandatory=True,
+                  type=absolute_path),
+        'update_interval':
+            Param('Time interval (in hrs.) for cache updates',
+                  default=1.0,
+                  type=float,
+                  userparam=False)
     }
 
     parameter_overrides = {
@@ -53,13 +63,15 @@ class EssExperiment(Experiment):
         'zipdata': Override(default=False),
         'users': Override(default=[], type=listof(dict)),
         'localcontact': Override(default=[], type=listof(dict)),
+        'title': Override(settable=True)
     }
 
     def doInit(self, mode):
         Experiment.doInit(self, mode)
         self._client = None
-        self._update_cache_worker = createThread(
-            'update_cache', self._update_cache, start=False)
+        self._update_cache_worker = createThread('update_cache',
+                                                 self._update_cache,
+                                                 start=False)
         try:
             self._client = YuosCacheClient.create(self.cache_filepath)
             self._update_cache_worker.start()
@@ -115,7 +127,11 @@ class EssExperiment(Experiment):
     def update(self, title=None, users=None, localcontacts=None):
         self._check_users(users)
         self._check_local_contacts(localcontacts)
+        title = str(title) if title else ''
         Experiment.update(self, title, users, localcontacts)
+
+    def proposalpath_of(self, proposal):
+        return path.join(self.filewriter_root, time.strftime('%Y'), proposal)
 
     def _check_users(self, users):
         if not users:
@@ -153,17 +169,13 @@ class EssExperiment(Experiment):
             time.sleep(self.update_interval * 3600)
 
     def _queryProposals(self, proposal=None, kwds=None):
-        if not proposal:
-            raise RuntimeError('Please enter a valid proposal ID or federal ID')
-
-        if proposal[0].isdigit():
-            results = self._query_by_id(proposal)
+        if not kwds:
+            return []
+        if kwds.get('admin', False):
+            results = self._get_all_proposals()
         else:
-            results = self._query_by_fed_id(proposal)
+            results = self._query_by_fed_id(kwds.get('fed_id', ''))
 
-        if not results:
-            raise RuntimeError(f'could not find corresponding proposal(s) for '
-                               f'{proposal}')
         return [{
             'proposal': str(prop.id),
             'title': prop.title,
@@ -176,14 +188,6 @@ class EssExperiment(Experiment):
             'warnings': [],
         } for prop in results]
 
-    def _query_by_id(self, proposal):
-        try:
-            result = self._client.proposal_by_id(proposal)
-            return [result] if result else []
-        except BaseYuosException as error:
-            self.log.error('%s', error)
-            raise
-
     def _query_by_fed_id(self, name):
         try:
             return self._client.proposals_for_user(name)
@@ -191,10 +195,18 @@ class EssExperiment(Experiment):
             self.log.error('%s', error)
             raise
 
+    def _get_all_proposals(self):
+        try:
+            return self._client.all_proposals()
+        except BaseYuosException as error:
+            self.log.error('%s', error)
+            raise
+
     def _extract_samples(self, query_result):
         samples = []
         for sample in query_result.samples:
-            mass = f'{sample.mass_or_volume[0]} {sample.mass_or_volume[1]}'.strip()
+            mass = f'{sample.mass_or_volume[0]} {sample.mass_or_volume[1]}'.strip(
+            )
             density = f'{sample.density[0]} {sample.density[1]}'.strip()
             samples.append({
                 'name': sample.name,

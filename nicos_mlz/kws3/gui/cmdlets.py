@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -103,13 +103,13 @@ class RestoreState(Cmdlet):
                         findResource('nicos_mlz/kws3/gui/restore.ui'))
         for devname in self._getDeviceList():
             item = QListWidgetItem(devname, self.devList)
-            item.setCheckState(Qt.Unchecked)
+            item.setCheckState(Qt.CheckState.Unchecked)
         # self.devList.
 
     def generate(self, mode):
         entries = []
         for i in range(self.devList.count()):
-            if self.devList.item(i).checkState() == Qt.Checked:
+            if self.devList.item(i).checkState() == Qt.CheckState.Checked:
                 dev = self.devList.item(i).text()
                 value = self.client.getDeviceValue(dev)
                 if value is not None:

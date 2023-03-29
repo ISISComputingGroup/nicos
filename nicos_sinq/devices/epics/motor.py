@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,9 +22,11 @@
 #
 # *****************************************************************************
 from nicos import session
-from nicos.core import MAIN, Param, pvname, status
+from nicos.core import MAIN, Param, pvname, status, usermethod
 
 from nicos_ess.devices.epics import EpicsMotor as EssEpicsMotor
+from nicos.devices.epics.pyepics import pvget
+
 
 
 class EpicsMotor(EssEpicsMotor):
@@ -54,18 +56,13 @@ class EpicsMotor(EssEpicsMotor):
         if session.sessiontype == MAIN and self.auto_enable:
             self.enable()
 
-    def doShutdown(self):
-        if session.sessiontype == MAIN and self.auto_enable:
-            self.disable()
-        EssEpicsMotor.doShutdown(self)
-
     def doStatus(self, maxage=0):
         if self.can_disable:
             target = self._get_pv('enable')
             if target != self._get_pv('enable_rbv'):
                 return status.BUSY, f'{"En" if target else "Dis"}abling motor'
             if not self._get_pv('enable_rbv'):
-                return status.WARN, 'Motor is disabled'
+                return status.DISABLED, 'Motor is disabled'
         return EssEpicsMotor.doStatus(self, maxage)
 
     def _get_pv_parameters(self):
@@ -75,9 +72,26 @@ class EpicsMotor(EssEpicsMotor):
             pvs.add('enable_rbv')
         return pvs
 
-    def _enable(self, on):
+    def doEnable(self, on):
         if self.can_disable:
-            EssEpicsMotor._enable(self, on)
+            EssEpicsMotor.doEnable(self, on)
             self.status()
             self._cache.put(self, 'status', (status.BUSY,
                             f'{"En" if on else "Dis"}abling'))
+
+    @property
+    def isEnabled(self):
+        """Shows if the motor is enabled or not"""
+        if self.can_disable:
+            # I need to read this value also in simulation
+            # mode when the PV class has been replaced by a
+            # hardware stub. This is why I read directly here
+            ename = self._get_pv_name('enable_rbv')
+            val = pvget(ename)
+            return bool(val == 1)
+        return True
+
+    def doIsAllowed(self, target):
+        if not self.isEnabled:
+            return False, 'Motor disabled'
+        return True, ''

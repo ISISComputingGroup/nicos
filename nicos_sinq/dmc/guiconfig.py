@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -49,7 +49,7 @@ main_window = docked(
                      ('Scan Plot',
                       panel('nicos.clients.flowui.panels.scans.ScansPanel')),
                      ('Detector Image',
-                      panel('nicos.clients.flowui.panels.live.LiveDataPanel')),
+                      panel('nicos_sinq.gui.panels.live.LiveDataPanel')),
                      ('Script Status',
                       panel('nicos.clients.flowui.panels.status.ScriptStatusPanel',
                             eta=True)),
@@ -77,7 +77,7 @@ main_window = docked(
             ), # vsplit
         ),
         ('Detector Image',
-         panel('nicos.clients.flowui.panels.live.LiveDataPanel')),
+         panel('nicos_sinq.gui.panels.live.LiveDataPanel')),
         (
             'History',
             panel('nicos.clients.flowui.panels.history.HistoryPanel'),
@@ -110,4 +110,5 @@ tools = [
 
 options = {
     'facility': 'sinq',
+    'mainwindow_class': 'nicos_sinq.gui.mainwindow.MainWindow',
 }

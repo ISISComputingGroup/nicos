@@ -29,11 +29,10 @@ If not mentioned otherwise, Python packages are available from PyPI
 
 * For hardware access (optional):
 
-  - the MLZ TACO Python libraries (see https://forge.frm2.tum.de/wiki/projects:software_distribution)
-  - PyTango 8.1.x or 9.x (for TANGO interface, needs TANGO libraries)
-  - EPICSv3 and pyepics (for Epics interface)
+  - PyTango 9.x (for TANGO interface, needs TANGO libraries)
+  - EPICSv3 and pyepics or p4p/caproto (for Epics interface)
   - a working installation of omniORBpy 4.2.X (http://omniorb.sourceforge.net/) (for CARESS interface)
-  - pyserial (for TACO-less serial line communication)
+  - pyserial (for direct serial line communication)
 
 * Optional for the basic system:
 
@@ -44,7 +43,7 @@ If not mentioned otherwise, Python packages are available from PyPI
   - astropy or pyfits (for the handling of FITS formatted files)
   - ldap3 (for ldap authentication)
   - sendsms tool to use the SMS notifier (See: http://smslink.sourceforge.net/)
-  - keyring, keyrings.alt, PyCryptoDome for encrypted password storage (note: using
+  - keyring, keyrings.alt, pycryptodomex for encrypted password storage (note: using
     the keystore commandline program may require additional system dependent
     dependencies)
   - requests-oauthlib to use the OAuth authentication
@@ -52,13 +51,12 @@ If not mentioned otherwise, Python packages are available from PyPI
 
 * For the GUI and status monitor:
 
-  - PyQt5
+  - PyQt5 (^5.13) or PyQt6 (^6.3.1)
+  - PyQtWebEngine (^5.13) or PyQt6-WebEngine (^6.3.1)
   - gr (optional, for plots, see: http://gr-framework.org/c.html#linux-packages)
   - QScintilla-python (optional, for the script editor component)
     (not installable with pip)
   - scipy (optional, for fitting)
-  - nicos-livewidget (optional, for detector live view, available from
-    http://forge.frm2.tum.de/simple)
   - cfitsio (optional, required by nicos-livewidget, this not a Python package)
   - python-redmine (optional, for the bug reporting dialog)
   - sshtunnel (optional, for the ssh tunneling between GUI and server)
@@ -102,8 +100,8 @@ GR runtime packages (`gr` and `python-gr`) are available in the repositories
 linked at:
 https://software.opensuse.org/download.html?project=science:gr-framework&package=gr
 
-Debian/Ubuntu
-^^^^^^^^^^^^^
+Generic Debian/Ubuntu
+^^^^^^^^^^^^^^^^^^^^^
 
 The `nicos-pyctl` and `lttb` packages are available in the MLZ repositories
 linked at:
@@ -112,7 +110,7 @@ https://forge.frm2.tum.de/wiki/projects:software_distribution:deb
 * Basic system::
 
      apt-get install python3-{dev,zmq,numpy,scipy,psutil,rsa,systemd,toml} gnuplot
-     apt-get install python3-{keyring,keyrings.alt,crypto,html2text,lttb,nicos-pyctl}
+     apt-get install python3-{keyring,keyrings.alt,html2text,lttb,nicos-pyctl}
 
 * Optional components::
 
@@ -127,3 +125,13 @@ https://forge.frm2.tum.de/wiki/projects:software_distribution:deb
 
      apt-get install python3-{sip-dev,pytest,pytest-cov,mock,coverage,sphinx}
      apt-get install python3-pyqt5-{dev,dev-tools}
+
+
+Debian 11 (Bullseye)
+^^^^^^^^^^^^^^^^^^^^
+
+An additional plugin for pytest is required (which was formerly included).
+
+* Development and documentation build::
+
+     apt-get install python3-pytest-timeout

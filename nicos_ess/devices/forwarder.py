@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -31,6 +31,7 @@ from nicos_ess.devices.kafka.status_handler import KafkaStatusHandler
 
 class EpicsKafkaForwarder(KafkaStatusHandler):
     """ Monitor the status of the EPICS to Kafka forwarder """
+
     def doPreinit(self, mode):
         KafkaStatusHandler.doPreinit(self, mode)
 
@@ -52,6 +53,7 @@ class EpicsKafkaForwarder(KafkaStatusHandler):
         where StatusMessage is the named tuple defined in schema x5f2
         (https://github.com/ess-dmsc/streaming-data-types)
         """
+
         def get_latest_message(message_list):
             gen = (msg for _, msg in sorted(message_list.items(), reverse=True)
                    if 'streams' in msg)
@@ -62,8 +64,10 @@ class EpicsKafkaForwarder(KafkaStatusHandler):
             return
 
         self._set_next_update(message)
-        self._forwarded = {stream["channel_name"]
-                           for stream in message["streams"]}
+        self._forwarded = {
+            stream["channel_name"]
+            for stream in message["streams"]
+        }
 
         status_msg = 'Forwarding..' if self._forwarded else 'idle'
         self._setROParam('curstatus', (status.OK, status_msg))

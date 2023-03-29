@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -129,7 +129,7 @@ class VoltageSupply(PowerSupply):
         return 3
 
 
-class Sans1HV(BaseSequencer):
+class HV(BaseSequencer):
     valuetype = float
     attached_devices = {
         'supply':     Attach('NICOS Device for the highvoltage supply',
@@ -264,9 +264,9 @@ class Sans1HV(BaseSequencer):
         return self.doReadRamp()
 
 
-class Sans1HVOffDuration(Readable):
+class HVOffDuration(Readable):
     attached_devices = {
-        'hv_supply': Attach('Sans1HV Device', Sans1HV),
+        'hv_supply': Attach('HV Device', HV),
     }
     parameter_overrides = {
         'unit':      Override(mandatory=False),
@@ -284,7 +284,7 @@ class Sans1HVOffDuration(Readable):
         return 'never'
 
 
-class Sans1ZMotor(TangoMotor):
+class ZMotor(TangoMotor):
     tango_status_mapping = TangoMotor.tango_status_mapping.copy()
     tango_status_mapping[DevState.FAULT] = status.WARN
 

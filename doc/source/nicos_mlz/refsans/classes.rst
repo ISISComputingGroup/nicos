@@ -63,7 +63,7 @@
 .. module:: nicos_mlz.refsans.devices.sample
 .. autoclass:: Sample()
 
-.. module:: nicos_mlz.refsans.devices.analog
+.. module:: nicos_mlz.refsans.devices.accuracy
 .. autoclass:: Accuracy()
 
 .. module:: nicos_mlz.refsans.devices.det_yoke_enc
@@ -72,7 +72,7 @@
 Data Sinks
 ----------
 
-.. module:: nicos_mlz.refsans.devices.datasinks
+.. module:: nicos_mlz.refsans.datasinks
 .. autoclass:: ConfigObjDatafileSink()
 
 .. currentmodule:: nicos_mlz.refsans.devices.detector

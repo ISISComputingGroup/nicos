@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -142,9 +142,8 @@ class AsyncCommandsTool(CommandsTool):
         if ((self.thread and self.thread.is_alive()) or
                 (self.proc and self.proc.poll is None)):
             res = QMessageBox.question(self, 'Message',
-                                       'Close window and kill program?',
-                                       QMessageBox.Yes, QMessageBox.No)
-            if res == QMessageBox.No:
+                                       'Close window and kill program?')
+            if res == QMessageBox.StandardButton.No:
                 return False
             else:
                 if self.proc:

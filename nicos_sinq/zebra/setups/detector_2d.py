@@ -1,10 +1,8 @@
 description = 'Neutron counter box and HM at SINQ ZEBRA'
 
-group = 'lowlevel'
-
 includes = ['hm_config']
 excludes = [
-    'single_detector',
+    'detector_single',
 ]
 
 sysconfig = dict(datasinks = ['nxsink'])
@@ -43,7 +41,7 @@ devices = dict(
         description = "Histogram Memory Channel",
         connector = 'hm_connector'
     ),
-    area_detector = device('nicos_sinq.devices.sinqhm.channel.HistogramImageChannel',
+    area_detector = device('nicos_sinq.zebra.devices.zebrachannel.ZebraChannel',
         description = "Image channel for area detector",
         bank = 'hm_bank0',
         connector = 'hm_connector',
@@ -67,7 +65,7 @@ devices = dict(
         liveinterval = 20,
         saveintervals = [60]
     ),
-    nxsink = device('nicos.nexus.nexussink.NexusSink',
+    nxsink = device('nicos.nexus.NexusSink',
         description = "Sink for NeXus file writer",
         filenametemplate = ['zebra%(year)sn%(scancounter)06d.hdf'],
         templateclass =

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -700,11 +700,13 @@ class Motor(HasTimeout, NicosMotor):
 
     @usermethod
     def _store(self):
+        """Store the current parameter values to EEPROM."""
         self._attached_bus.send(self.addr, 40)
         self.log.info('parameters stored to EEPROM')
 
     @usermethod
     def _printconfig(self):
+        """Print the current configuration in human readable format."""
         byte = self.confbyte
         c = ''
 

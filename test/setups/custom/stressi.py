@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -75,7 +75,7 @@ devices = dict(
         unit = 'deg',
         abslimits = (50, 100),
     ),
-    slits = device('nicos_mlz.stressi.devices.slit.Slit',
+    slits = device('nicos.devices.generic.Slit',
         left = device('nicos.devices.generic.VirtualMotor',
             unit = 'mm',
             abslimits = (-26, 10),
@@ -94,7 +94,7 @@ devices = dict(
         ),
         opmode = 'centered',
     ),
-    slitm = device('nicos_mlz.stressi.devices.slit.TwoAxisSlit',
+    slitm = device('nicos.devices.generic.TwoAxisSlit',
         horizontal = device('nicos.devices.generic.VirtualMotor',
             unit = 'mm',
             abslimits = (0, 100),
@@ -104,7 +104,7 @@ devices = dict(
             abslimits = (0, 155),
         ),
     ),
-    slitp = device('nicos_mlz.stressi.devices.slit.TwoAxisSlit',
+    slitp = device('nicos.devices.generic.TwoAxisSlit',
         horizontal = device('nicos.devices.generic.VirtualMotor',
             unit = 'mm',
             abslimits = (0, 100),
@@ -159,11 +159,11 @@ devices = dict(
         maxage = 3,
         pollinterval = 0.5,
     ),
-    ysink = device('nicos_mlz.stressi.devices.datasinks.YamlDatafileSink',
+    ysink = device('nicos_mlz.stressi.datasinks.YamlDatafileSink',
         filenametemplate = ['m2%(scancounter)08d.yaml'],
         detectors = ['adet'],
     ),
-    csink = device('nicos_mlz.stressi.devices.datasinks.CaressScanfileSink',
+    csink = device('nicos_mlz.stressi.datasinks.CaressScanfileSink',
         filenametemplate = ['m2%(scancounter)08d.dat'],
         detectors = ['adet'],
     ),

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,7 +33,7 @@ from nicos.guisupport.qt import QToolBar
 class EditorPanel(DefaultEditorPanel):
 
     def __init__(self, parent, client, options):
-        if not 'show_browser' in options:
+        if 'show_browser' not in options:
             options['show_browser'] = False
         DefaultEditorPanel.__init__(self, parent, client, options)
         self.layout().setMenuBar(self.createPanelToolbar())

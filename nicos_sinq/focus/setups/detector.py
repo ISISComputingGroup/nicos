@@ -42,7 +42,6 @@ devices = dict(
     # As all banks use the same time binning, this axis is shared
     hm_tof_array = device('nicos_sinq.devices.sinqhm.configurator.HistogramConfTofArray',
         description = 'TOF Array for histogramming',
-        visibility = (),
         tag = 'tof',
         dim = [
             5,
@@ -80,10 +79,10 @@ devices = dict(
     ),
     hm_ax_tof = device('nicos_sinq.devices.sinqhm.configurator.HistogramConfAxis',
         description = 'TOF axis',
-        visibility = (),
         mapping = 'boundary',
         array = 'hm_tof_array',
         label = 'TOF',
+        visibility = (),
         unit = 'ms'
     ),
     delay = device('nicos.devices.generic.manual.ManualMove',
@@ -131,14 +130,14 @@ devices = dict(
         description = 'Emmenegger time delay',
         readpv = 'SQ:FOCUS:EMMI:TD_RBV',
         writepv = 'SQ:FOCUS:EMMI:TD',
-        window = 10,
+        precision = 10,
         abslimits = (0, 100000)
     ),
     em_aw = device('nicos_sinq.devices.epics.generic.WindowMoveable',
         description = 'Emmenegger acceptance window',
         readpv = 'SQ:FOCUS:EMMI:AW_RBV',
         writepv = 'SQ:FOCUS:EMMI:AW',
-        window = 5,
+        precision = 5,
         abslimits = (0, 5000)
     ),
 )

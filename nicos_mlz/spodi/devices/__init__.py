@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,8 +22,7 @@
 #
 # *****************************************************************************
 
-from nicos_mlz.spodi.devices.datasinks import CaressHistogram, \
-    CaressHistogramReader, LiveViewSink
 from nicos_mlz.spodi.devices.detector import Detector
+from nicos_mlz.spodi.devices.samplechanger import SampleChanger
 from nicos_mlz.spodi.devices.virtual import VirtualImage
 from nicos_mlz.spodi.devices.wavelength import Wavelength

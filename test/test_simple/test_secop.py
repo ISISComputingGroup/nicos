@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,13 +28,13 @@ import pytest
 
 session_setup = 'secop'
 
-pytest.importorskip('secop')
+pytest.importorskip('frappy')
 
 from nicos.core.params import dictwith, floatrange, intrange, listof, \
     nonemptystring, oneofdict, string, tupleof
-from nicos.devices.secop import get_validator
+from nicos.devices.secop.validators import get_validator
 from nicos.protocols.cache import cache_dump
-from secop.datatypes import get_datatype
+from frappy.datatypes import get_datatype
 
 from test.utils import raises
 

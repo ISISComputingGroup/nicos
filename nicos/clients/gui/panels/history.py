@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -121,7 +121,8 @@ class View(QObject):
 
             if fromtime is not None:
                 if key not in hist_cache:
-                    history = query_func(key, self.fromtime, hist_totime)
+                    history = query_func(key, self.fromtime, hist_totime,
+                                         interval)
                     if not history:
                         from nicos.clients.gui.main import log
                         if log is None:
@@ -225,7 +226,8 @@ class NewViewDialog(DlgUtils, QDialog):
         else:
             devices = client.getDeviceList()
             devcompleter = QCompleter(devices, self)
-            devcompleter.setCompletionMode(QCompleter.InlineCompletion)
+            devcompleter.setCompletionMode(
+                QCompleter.CompletionMode.InlineCompletion)
             self.devices.setCompleter(devcompleter)
 
         if info is not None:
@@ -265,10 +267,10 @@ class NewViewDialog(DlgUtils, QDialog):
                 isinstance(value, (number_types, list, tuple))
 
         def item_callback(item, parent=None):
-            item.setFlags(item.flags() | Qt.ItemIsEditable)
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
             if parent and item.text(0) == 'status':
                 item.setText(1, '0')
-            item.setCheckState(0, Qt.Unchecked)
+            item.setCheckState(0, Qt.CheckState.Unchecked)
             return True
 
         self.deviceTree = tree = BaseDeviceParamTree(self)
@@ -323,7 +325,7 @@ class NewViewDialog(DlgUtils, QDialog):
                 else:
                     continue
                 newkey = devitem.text(0) + '.' + item.text(0)
-            item.setCheckState(0, Qt.Checked)
+            item.setCheckState(0, Qt.CheckState.Checked)
             item.setText(1, '')
             item.setText(2, '')
             item.setText(3, '')
@@ -334,7 +336,7 @@ class NewViewDialog(DlgUtils, QDialog):
         key = item.text(0)
         if item.parent():  # a device parameter
             key = item.parent().text(0) + '.' + key
-        if item.checkState(0) == Qt.Checked:
+        if item.checkState(0) == Qt.CheckState.Checked:
             index = item.text(1)
             if not item.text(2):
                 item.setText(2, '1')
@@ -445,7 +447,7 @@ class BaseHistoryWindow:
     def __init__(self):
         loadUi(self, self.ui)
 
-        self.user_color = Qt.white
+        self.user_color = Qt.GlobalColor.white
         self.user_font = QFont('Monospace')
 
         self.views = []
@@ -465,10 +467,11 @@ class BaseHistoryWindow:
         for (name, view) in self.last_views:
             item = QListWidgetItem(name, self.viewList)
             item.setForeground(QBrush(QColor('#aaaaaa')))
-            item.setData(Qt.UserRole, view)
+            item.setData(Qt.ItemDataRole.UserRole, view)
 
-        self.viewList.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.viewList.customContextMenuRequested['QPoint'].connect(self.showContextMenu)
+        self.viewList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.viewList.customContextMenuRequested['QPoint']\
+            .connect(self.showContextMenu)
 
         self.menus = None
         self.bar = None
@@ -773,7 +776,7 @@ class BaseHistoryWindow:
         # since one can't change the current item if it's the only one
         self.on__viewList_currentItemChanged(item, None)
         # is it a "saved from last time" item?
-        info = item.data(Qt.UserRole)
+        info = item.data(Qt.ItemDataRole.UserRole)
         if info is not None:
             row = self.viewList.row(item)
 
@@ -891,7 +894,7 @@ class BaseHistoryWindow:
         newdlg = NewViewDialog(self, client=self.client)
         newdlg.devices.setText(devices)
         ret = newdlg.exec()
-        if ret != QDialog.Accepted:
+        if ret != QDialog.DialogCode.Accepted:
             return
         info = newdlg.infoDict()
         self._createViewFromDialog(info)
@@ -957,7 +960,7 @@ class BaseHistoryWindow:
         newdlg = NewViewDialog(self, view.dlginfo, client=self.client)
         newdlg.setWindowTitle('Edit history view')
         ret = newdlg.exec()
-        if ret != QDialog.Accepted:
+        if ret != QDialog.DialogCode.Accepted:
             return
         info = newdlg.infoDict()
         if newdlg.savePreset.isChecked():
@@ -1107,7 +1110,7 @@ class HistoryPanel(BaseHistoryWindow, Panel):
 
         self.statusBar = QStatusBar(self)
         policy = self.statusBar.sizePolicy()
-        policy.setVerticalPolicy(QSizePolicy.Fixed)
+        policy.setVerticalPolicy(QSizePolicy.Policy.Fixed)
         self.statusBar.setSizePolicy(policy)
         self.statusBar.setSizeGripEnabled(False)
         self.layout().addWidget(self.statusBar)
@@ -1144,10 +1147,10 @@ class HistoryPanel(BaseHistoryWindow, Panel):
         self.client.cache.disconnect(self.newvalue_callback)
         return True
 
-    def gethistory_callback(self, key, fromtime, totime):
-        return split_query(fromtime, totime, lambda fr, to:
+    def gethistory_callback(self, key, fromtime, totime, interval):
+        return split_query(fromtime, totime, interval, lambda fr, to, interval:
                            self.client.ask('gethistory', key, str(fr), str(to),
-                                           default=[]))
+                                           interval, default=[]))
 
     def on_client_disconnected(self):
         self._disconnected_since = currenttime()
@@ -1172,7 +1175,7 @@ class HistoryPanel(BaseHistoryWindow, Panel):
         newdlg.filename.setText(
             safeName('history_%s' % self.currentPlot.view.name + suffix))
         ret = newdlg.exec()
-        if ret != QDialog.Accepted:
+        if ret != QDialog.DialogCode.Accepted:
             return
         descr = newdlg.description.text()
         fname = newdlg.filename.text()
@@ -1218,9 +1221,9 @@ class StandaloneHistoryWindow(DlgUtils, BaseHistoryWindow, QMainWindow):
         self.statusBar = QStatusBar(self)
         self.setStatusBar(self.statusBar)
 
-    def gethistory_callback(self, key, fromtime, totime):
-        return split_query(fromtime, totime, lambda fr, to:
-                           self.app.history(None, key, fr, to))
+    def gethistory_callback(self, key, fromtime, totime, interval):
+        return split_query(fromtime, totime, interval, lambda fr, to, interval:
+                           self.app.history(None, key, fr, to, interval))
 
     def closeEvent(self, event):
         self.saveSettings(self.settings)

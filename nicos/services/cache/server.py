@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -219,13 +219,11 @@ class CacheWorker:
             self.db.tell(key, value, time, ttl, self)
         elif op == OP_ASK:
             if ttl is not None:
-                return self.db.ask_hist(key, time, time + ttl)
+                return self.db.ask_hist(key, time, time + ttl, interval=value)
             else:
-                # although passed, time and ttl are ignored here
-                return self.db.ask(key, tsop, time, ttl)
+                return self.db.ask(key, tsop)
         elif op == OP_WILDCARD:
-            # time and ttl are currently ignored for wildcard requests
-            return self.db.ask_wc(key, tsop, time, ttl)
+            return self.db.ask_wc(key, tsop)
         elif op == OP_SUBSCRIBE:
             # both time and ttl are ignored for subscription requests,
             # but the return format changes when the @ is included
@@ -257,9 +255,9 @@ class CacheWorker:
                     time = currenttime()
                 # self.log.debug('sending update of %s to %s', key, value)
                 if ttl is not None:
-                    msg = '%r+%s@%s%s%s\n' % (time, ttl, key, op, value)
+                    msg = f'{time}+{ttl}@{key}{op}{value}\n'
                 else:
-                    msg = '%r@%s%s%s\n' % (time, key, op, value)
+                    msg = f'{time}@{key}{op}{value}\n'
                 self.send_queue.put(msg)
                 return  # send at most one update
         # same for requested updates without timestamp

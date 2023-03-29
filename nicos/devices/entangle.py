@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ from nicos.core import SIMULATION, ArrayDesc, CanDisable, Device, HasLimits, \
     HasPrecision, HasTimeout, Moveable, NicosError, Override, Param, \
     Readable, Value, dictof, intrange, listof, nonemptylistof, oneof, \
     oneofdict, status, waitForCompletion
-from nicos.core.constants import FINAL, SLAVE
+from nicos.core.constants import FINAL, INTERRUPTED, LIVE, SLAVE
 from nicos.core.mixins import HasOffset, HasWindowTimeout
 from nicos.devices.abstract import CanReference, Coder, Motor as NicosMotor
 from nicos.devices.generic.detector import ActiveChannel, \
@@ -396,11 +396,13 @@ class NamedDigitalInput(DigitalInput):
     }
 
     def doInit(self, mode):
-        if self.mapping:
+        if 'mapping' in self._config:
             self._reverse = {v: k for (k, v) in self.mapping.items()}
             return
         try:
             self._reverse = parse_mapping(self._getProperty('mapping'))[0]
+            self._setROParam('mapping',
+                             {k: v for (v, k) in self._reverse.items()})
         except Exception:
             self.log.warning('could not parse value mapping from Tango', exc=1)
             self._reverse = {}
@@ -463,7 +465,7 @@ class NamedDigitalOutput(DigitalOutput):
     }
 
     def doInit(self, mode):
-        if self.mapping:
+        if 'mapping' in self._config:
             self._reverse = {v: k for (k, v) in self.mapping.items()}
             # oneofdict: allows both types of values (string/int), but
             # normalizes them into the string form
@@ -473,13 +475,13 @@ class NamedDigitalOutput(DigitalOutput):
         try:
             self._reverse, self._forward = \
                 parse_mapping(self._getProperty('mapping'))
-            # we don't build the valuetype from self._reverse since it should
-            # only contain the write-able values
-            self.valuetype = oneofdict({v: k for (k, v)
-                                        in self._forward.items()})
+            self._setROParam('mapping', self._forward)
         except Exception:
             self.log.warning('could not parse value mapping from Tango', exc=1)
             self._reverse = self._forward = {}
+
+    def doUpdateMapping(self, mapping):
+        self.valuetype = oneofdict({v: k for (k, v) in mapping.items()})
 
     def doStart(self, target):
         self._dev.value = self._forward.get(target, target)
@@ -594,11 +596,11 @@ class DetectorChannel(PyTangoDevice, ActiveChannel):
         # no readresult by default
         return ()
 
-    def doReadIsmaster(self):
+    def doReadIscontroller(self):
         # if the channel is passive, it will always return False here
         return self._dev.active
 
-    def doWriteIsmaster(self, value):
+    def doWriteIscontroller(self, value):
         self._dev.active = value
 
     def doReadPreselection(self):
@@ -644,9 +646,10 @@ class CounterChannel(CounterChannelMixin, DetectorChannel):
         return self._dev.value
 
 
-class BaseImageChannel(ImageChannelMixin, DetectorChannel):
+class ImageChannel(ImageChannelMixin, DetectorChannel):
     """
-    Detector channel for delivering images.
+    Detector channel for delivering images that automatically returns the sum
+    of all counts.
     """
 
     parameters = {
@@ -668,6 +671,8 @@ class BaseImageChannel(ImageChannelMixin, DetectorChannel):
         else:
             shape = (256, 256)  # select some arbitrary shape
         self.arraydesc = ArrayDesc(self.name, shape=shape, dtype='<u4')
+        if mode != SLAVE:
+            self.readArray(LIVE)  # update readresult at startup
 
     @property
     def _shape(self):
@@ -698,24 +703,11 @@ class BaseImageChannel(ImageChannelMixin, DetectorChannel):
         return self._dev.zeroPoint.tolist()
 
     def doReadArray(self, quality):
-        self.arraydesc = ArrayDesc(
-            self.name, shape=self._shape, dtype='<u4')
-        return self._dev.value.reshape(self.arraydesc.shape)
-
-
-class ImageChannel(BaseImageChannel):
-    """Image channel that automatically returns the sum of all counts."""
-
-    def doInit(self, mode):
-        BaseImageChannel.doInit(self, mode)
-        if mode != SLAVE:
-            self.readArray(FINAL)  # update readresult at startup
-
-    def doReadArray(self, quality):
         # on quality FINAL wait for entangle ImageChannel finishing readout
-        if quality == FINAL:
+        if quality in (FINAL, INTERRUPTED):
             waitForCompletion(self)
-        narray = BaseImageChannel.doReadArray(self, quality)
+        self.arraydesc = ArrayDesc(self.name, shape=self._shape, dtype='<u4')
+        narray = self._dev.value.reshape(self.arraydesc.shape)
         self.readresult = [narray.sum()]
         return narray
 
@@ -724,7 +716,7 @@ class ImageChannel(BaseImageChannel):
                      errors='sqrt', unit='cts'),
 
 
-class TOFChannel(BaseImageChannel):
+class TOFChannel(ImageChannel):
     """
     Image channel with Time-of-flight related attributes.
     """

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -170,7 +170,12 @@ setup(
     maintainer = 'Jens Krüger',
     maintainer_email = 'jens.krueger@frm2.tum.de',
     description = 'The Networked Instrument Control System',
-    url = 'http://www.nicos-controls.org',
+    url = 'https://www.nicos-controls.org',
+    project_urls = {
+        'Documentation': 'https://forge.frm2.tum.de/nicos/doc/nicos-master/documentation/',
+        'Source': 'https://forge.frm2.tum.de/cgit/cgit.cgi/frm2/nicos/nicos-core.git/',
+        'Tracker': 'https://forge.frm2.tum.de/redmine/projects/nicos/issues',
+    },
     cmdclass = {'install': nicosinstall},
     packages = packages,
     package_data = package_data,

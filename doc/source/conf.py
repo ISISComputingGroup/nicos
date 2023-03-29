@@ -45,6 +45,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.inheritance_diagram',
     'sphinx.ext.todo',
+    'sphinx.ext.mathjax',
     'ext.setupdoc',
     'ext.daemondoc',
     'ext.stubs',
@@ -72,7 +73,7 @@ master_doc = 'index'
 # General information about the project.
 project = 'NICOS'
 author = 'NICOS authors and contributors'
-copyright = '2009-2022, FRM II / ' + author  # pylint: disable=redefined-builtin
+copyright = '2009-2023, FRM II / ' + author  # pylint: disable=redefined-builtin
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

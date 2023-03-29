@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -39,12 +39,13 @@ DEFAULT_PORT = 1301
 # protocol version, increment this whenever making changes to command
 # arguments or adding new commands
 
-PROTO_VERSION = 22
+PROTO_VERSION = 23
 
 # old versions with which the client is still compatible
 
 # 21 -> 22: added "done" event
-COMPATIBLE_PROTO_VERSIONS = [21]
+# 22 -> 23: added interval in history queries
+COMPATIBLE_PROTO_VERSIONS = [23]
 
 # to encode payload lengths as network-order 32-bit unsigned int
 LENGTH = struct.Struct('>I')

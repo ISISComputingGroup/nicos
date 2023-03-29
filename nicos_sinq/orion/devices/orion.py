@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -47,7 +47,9 @@ class OrionSXTal(EulerSXTal):
         return chi, phi
 
     def _extractPos(self, pos):
-        om, chi, phi = z1ToBisecting(self._attached_mono.read(0),
+        # The conversion to float is required because the monochromator
+        # is a switcher which returns a string
+        om, chi, phi = z1ToBisecting(float(self._attached_mono.read(0)),
                                      pos)
         chi, phi = self._orionChiPhi(chi, phi)
 

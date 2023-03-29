@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -58,10 +58,10 @@ class ComtecCounter(CounterChannelMixin, TacoBaseChannel, PassiveChannel):
     def doWriteMode(self, value):
         return 'normal'
 
-    def doReadIsmaster(self):
+    def doReadIscontroller(self):
         return False
 
-    def doWriteIsmaster(self, value):
+    def doWriteIscontroller(self, value):
         return False
 
     def valueInfo(self):
@@ -90,11 +90,11 @@ class ComtecTimer(TimerChannelMixin, TacoBaseChannel, ActiveChannel):
     def doRead(self, maxage=0):
         return self._taco_guard(self._dev.read)[3] * 0.001
 
-    def doReadIsmaster(self):
+    def doReadIscontroller(self):
         return True
 
-    def doWriteIsmaster(self, value):
-        return True  # is ALWAYS master
+    def doWriteIscontroller(self, value):
+        return True  # is ALWAYS controller
 
     def doReadBinwidth(self):
         return int(self._taco_guard(self._dev.deviceQueryResource,
@@ -155,11 +155,11 @@ class ComtecFilename(TacoBaseChannel, PassiveChannel):
         # How to obtain the part after the prefix???
         return self._taco_guard(self._dev.deviceQueryResource, 'prefix')
 
-    def doReadIsmaster(self):
+    def doReadIscontroller(self):
         return False
 
-    def doWriteIsmaster(self, value):
-        return False  # is NEVER master
+    def doWriteIscontroller(self, value):
+        return False  # is NEVER controller
 
     def valueInfo(self):
         return Value(self.name, unit='', errors='none',

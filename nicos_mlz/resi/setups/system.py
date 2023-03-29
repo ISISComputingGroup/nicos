@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 description = 'system setup only'
 
-group = 'basic'
+group = 'lowlevel'
 
 sysconfig = dict(
     cache = 'resictrl.resi.frm2',
@@ -29,7 +29,7 @@ devices = dict(
         operators = ['Ludwig-Maximilians-Universität München (LMU)'],
         website = 'http://www.mlz-garching.de/resi',
     ),
-    Sample = device('nicos.devices.sample.Sample',
+    Sample = device('nicos_mlz.devices.sample.Sample',
         description = 'The sample',
     ),
     filesink = device('nicos.devices.datasinks.AsciiScanfileSink',

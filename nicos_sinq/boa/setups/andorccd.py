@@ -1,6 +1,6 @@
 description = 'Setup for the ANDOR CCD camera at BOA using the CCDWWW server'
 
-excludes = ['andor', 'embl']
+excludes = ['andor', 'embl', 'fastcomtec', 'camini', 'andorccd-l']
 
 motprefix = 'SQ:BOA:mcu1:DCCDATZ'
 counterprefix = 'SQ:BOA:counter'

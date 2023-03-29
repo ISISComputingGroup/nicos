@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -32,10 +32,17 @@ class EpicsCounter(CounterChannelMixin, EpicsReadable, PassiveChannel):
     """Counter channel that sums the values of a PV as it changes."""
 
     parameters = {
-        'total': Param('The total amount summed so far', type=float,
-                       settable=True, internal=True),
-        'started': Param('Whether a collection is in progress', type=bool,
-                         settable=True, default=False, internal=True),
+        'total':
+            Param('The total amount summed so far',
+                  type=float,
+                  settable=True,
+                  internal=True),
+        'started':
+            Param('Whether a collection is in progress',
+                  type=bool,
+                  settable=True,
+                  default=False,
+                  internal=True),
     }
 
     parameter_overrides = {

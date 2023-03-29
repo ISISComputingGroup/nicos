@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,7 @@
 #
 # *****************************************************************************
 from nicos.core import Attach, Override, Param, Readable, Waitable, status
-from nicos.devices.abstract import MappedMoveable
+from nicos.devices.abstract import MappedMoveable, Moveable
 from nicos.devices.epics import SEVERITY_TO_STATUS, STAT_TO_STATUS
 from nicos.devices.epics.pva import EpicsDevice
 
@@ -36,29 +36,34 @@ class ChopperAlarms(EpicsDevice, Readable):
     This device handles chopper alarms.
     """
     parameters = {
-        'pv_root': Param('PV root for device', type=str, mandatory=True,
-                         userparam=False),
+        'pv_root':
+            Param('PV root for device',
+                  type=str,
+                  mandatory=True,
+                  userparam=False),
     }
     parameter_overrides = {
         'unit': Override(mandatory=False, settable=False, volatile=False),
     }
 
     _alarm_state = {}
-    _chopper_alarm_names = {'Comm_Alrm', 'HW_Alrm', 'IntLock_Alrm', 'Lvl_Alrm',
-                            'Pos_Alrm', 'Pwr_Alrm', 'Ref_Alrm', 'SW_Alrm',
-                            'Volt_Alrm'}
+    _chopper_alarm_names = {
+        'Comm_Alrm', 'HW_Alrm', 'IntLock_Alrm', 'Lvl_Alrm', 'Pos_Alrm',
+        'Pwr_Alrm', 'Ref_Alrm', 'SW_Alrm', 'Volt_Alrm'
+    }
     _record_fields = {}
     _cache_relations = {}
 
     def doPreinit(self, mode):
         self._alarm_state = {
             name: (status.OK, '')
-            for name in self._chopper_alarm_names}
+            for name in self._chopper_alarm_names
+        }
 
         for pv in self._chopper_alarm_names:
             for pv_field in ['', '.STAT', '.SEVR']:
-                self._record_fields[
-                    pv + pv_field] = self.pv_root + pv + pv_field
+                self._record_fields[pv +
+                                    pv_field] = self.pv_root + pv + pv_field
         EpicsDevice.doPreinit(self, mode)
 
     def _get_pv_parameters(self):
@@ -115,14 +120,21 @@ class EssChopperController(MappedMoveable):
     attached_devices = {
         'state': Attach('Current state of the chopper', Readable),
         'command': Attach('Command PV of the chopper', MappedMoveable),
-        'alarms': Attach('Alarms of the chopper', ChopperAlarms, optional=True)
+        'alarms': Attach('Alarms of the chopper', ChopperAlarms, optional=True),
+        'speed': Attach('Speed PV of the chopper', Moveable),
+        'chic_conn': Attach('Status of the CHIC connection', Readable)
     }
 
     parameter_overrides = {
-        'fmtstr': Override(default='%s'),
-        'unit': Override(mandatory=False),
-        'mapping': Override(mandatory=False, settable=False, userparam=False,
-                            volatile=True)
+        'fmtstr':
+            Override(default='%s'),
+        'unit':
+            Override(mandatory=False),
+        'mapping':
+            Override(mandatory=False,
+                     settable=False,
+                     userparam=False,
+                     volatile=True)
     }
 
     hardware_access = False
@@ -132,6 +144,9 @@ class EssChopperController(MappedMoveable):
         return self._attached_state.read()
 
     def doStart(self, target):
+        if target.lower() == 'stop':
+            # Set the speed to zero to keep EPICS behaviour consistent.
+            self._attached_speed.move(0)
         self._attached_command.move(target)
 
     def doStop(self):
@@ -147,6 +162,8 @@ class EssChopperController(MappedMoveable):
             stat, msg = self._attached_alarms.doStatus(maxage)
             if stat != status.OK:
                 return stat, msg
+        if self._attached_chic_conn.read() != 'Connected':
+            return status.ERROR, 'no connection to the CHIC'
         stat, msg = Waitable.doStatus(self, maxage)
         if stat != status.OK:
             return stat, msg

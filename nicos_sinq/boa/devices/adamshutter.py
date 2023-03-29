@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,7 +25,6 @@
 import select
 import socket
 
-from nicos import session
 from nicos.core import SIMULATION, CommunicationError, MoveError, Param, status
 from nicos.core.device import Moveable
 from nicos.core.params import oneof
@@ -45,7 +44,7 @@ class AdamShutter(SequencerMixin, Moveable):
         'port':      Param('TCP Port on network2serial converter',
                            type=int, default=4001),
     }
-    valuetype = oneof('open', 'closed', 'enclosure broken')
+    valuetype = oneof('open', 'close', 'enclosure broken')
     _connection = None
     readRequest = bytearray([1, 0, 0, 0, 0, 6, 1, 1, 0, 0, 0, 12])
     zeroRequest = [2, 0, 0, 0, 0, 6, 1, 5, 0, 0, 0, 0]
@@ -77,7 +76,7 @@ class AdamShutter(SequencerMixin, Moveable):
 
         try:
             return inner_transact(self, request, expected_bytes)
-        except CommunicationError:
+        except (CommunicationError, ConnectionResetError):
             # This could mean that the connection became stale.
             # Try to reopen and try again before really treating this
             # as an error
@@ -101,7 +100,7 @@ class AdamShutter(SequencerMixin, Moveable):
         Just calls ``self._startSequence(self._generateSequence(target))``
         """
         if self.target == self.read(0):
-            session.log.info('Shutter is alread at %s', self.target)
+            self.log.info('Shutter is already at %s', self.target)
             return
 
         if self._seq_is_running():

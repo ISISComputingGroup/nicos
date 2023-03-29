@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,38 +24,13 @@
 
 """Beamstop handling for SANS1"""
 
-import numpy as np
-
 from nicos import session
 from nicos.core import ADMIN, SIMULATION, SLAVE, Attach, Moveable, Override, \
-    Param, PositionError, UsageError, dictof, floatrange, intrange, limits, \
-    oneof, requires, status, tupleof
-from nicos.devices.entangle import Sensor
+    Param, UsageError, dictof, floatrange, intrange, limits, oneof, requires, \
+    status, tupleof
 from nicos.devices.generic import Axis
 from nicos.devices.generic.sequence import SeqCall, SeqDev as NicosSeqDev, \
     SequencerMixin
-
-
-class FunnySensor(Sensor):
-    """Sensor which sometimes returns senseless values"""
-    parameters = {
-        'limits': Param('range of sensible values',
-                        type=limits, settable=True),
-    }
-
-    def doRead(self, maxage=0):
-        for _ in range(10):
-            # try to filter out 'half-broken' values
-            value = np.median([Sensor.doRead(self, maxage) for _ in range(3)])
-            # avoid fully broken values
-            if self.limits[0] <= value <= self.limits[1]:
-                return value
-            # at least warn (every retry!)
-            self.log.warning('Sensor value %s outside sensible range [%s..%s]',
-                             value, self.limits[0], self.limits[1])
-        # 10 times no good value -> error
-        raise PositionError('Sensor value %s outside sensible range [%s..%s]' %
-                            (value, self.limits[0], self.limits[1]))
 
 
 class BeamStopAxis(Axis):
@@ -71,7 +46,8 @@ class BeamStopAxis(Axis):
 
     def doInit(self, mode):
         Axis.doInit(self, mode)
-        self.userlimits = self.abslimits
+        if mode != SLAVE:
+            self.userlimits = self.abslimits
         if mode not in (SIMULATION, SLAVE) and \
            self._attached_motor.status()[0] != status.BUSY:
             self._attached_motor.doSetPosition(self._attached_coder.read())

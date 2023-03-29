@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -36,7 +36,7 @@ from nicos.commands.analyze import COLHELP, _getData, findpeaks
 from nicos.commands.measure import _count
 from nicos.commands.scan import ADDSCANHELP2, _infostr, cscan, scan
 from nicos.core import FINAL, Measurable, Moveable, NicosError, Readable, Scan
-from nicos.core.errors import ConfigurationError, UsageError
+from nicos.core.errors import ConfigurationError, LimitError, UsageError
 from nicos.core.spm import Bare, spmsyntax
 from nicos.core.utils import multiWait
 from nicos.devices.generic.detector import DummyDetector
@@ -390,8 +390,7 @@ def Max(dev, step, counter=None, maxpts=None, **preset):
             if positions[idx] <= center < positions[idx+1]:
                 peakmax = counts[idx]
                 break
-        dev.start(center)
-        multiWait([dev])
+        dev.maw(center)
         session.log.info('Found peak at %f, counts = %ld', center, peakmax)
         return True
 
@@ -425,8 +424,7 @@ def Max(dev, step, counter=None, maxpts=None, **preset):
     while idx >= 0:
         i = half_point - idx
         target = positions[half_point] - i * step
-        dev.start(target)
-        multiWait([dev])
+        dev.maw(target)
         session.log.info('%s = %f', dev.name, dev.read())
         _count(*(), **preset)
         count = countdev.read()[0]
@@ -451,8 +449,7 @@ def Max(dev, step, counter=None, maxpts=None, **preset):
     while idx < maxpts:
         i = idx - half_point
         target = positions[half_point] + i * step
-        dev.start(target)
-        multiWait([dev])
+        dev.maw(target)
         session.log.info('%s = %f', dev.name, dev.read())
         _count(*(), **preset)
         count = countdev.read()[0]
@@ -492,8 +489,7 @@ def go_reflection(r, devs):
         multiWait(devs)
     else:
         inst = session.instrument
-        inst.start(r[0])
-        multiWait([inst])
+        inst.maw(r[0])
 
 
 def inner_center(r, **preset):
@@ -793,18 +789,23 @@ class HKLScan(Scan):
             else:
                 self.scanmode = 'omega'
                 inst.scanmode = 'omega'
-        _scanfuncs[self.scanmode](point.target[0], subscan=True,
-                                  **self._preset)
-        subscan = self.dataset.subsets[-1].subsets[-1]
-        # If NICOS crashes on this line then the center_counter
-        # for the instrument is set to a non existing value.
-        index = [i for (i, v) in enumerate(subscan.detvalueinfo)
-                 if v.name == session.instrument.center_counter][0]
-        vals = [x[index] for x in subscan.detvaluelists]
-        if vals:
-            _, _, intensity,  _ = window_integrate(vals)
-            session.experiment.data.putResults(FINAL,
-                                               {'intensity': [intensity]})
+        try:
+            _scanfuncs[self.scanmode](point.target[0], subscan=True,
+                                      **self._preset)
+
+            subscan = self.dataset.subsets[-1].subsets[-1]
+            # If NICOS crashes on this line then the center_counter
+            # for the instrument is set to a non existing value.
+            index = [i for (i, v) in enumerate(subscan.detvalueinfo)
+                     if v.name == session.instrument.center_counter][0]
+            vals = [x[index] for x in subscan.detvaluelists]
+            if vals:
+                _, _, intensity,  _ = window_integrate(vals)
+                session.experiment.data.putResults(FINAL,
+                                                   {'intensity': [intensity]})
+        except LimitError:
+            session.log.info('Skipping reflection %s after LimitError',
+                             str(point.target[0]))
 
 
 @usercommand
@@ -1127,6 +1128,7 @@ class SinqQScan(Scan):
         Scan.__init__(self, [inst], positions, [],
                       firstmoves, multistep, detlist, envlist, preset,
                       scaninfo, subscan)
+        # self._envlist[0:0] = inst.get_motors()
         if inst in self._envlist:
             self._envlist.remove(inst)
 
@@ -1207,8 +1209,14 @@ def qcscan(Q, dQ, numperside, *args, **kwargs):
         _handleQScanArgs(args, kwargs, Q, dQ, scanstr)
     if all(v == 0 for v in dQ) and numperside > 0:
         raise UsageError('scanning with zero step width')
-    values = [[(Q[0]+i*dQ[0], Q[1]+i*dQ[1], Q[2]+i*dQ[2], Q[3]+i*dQ[3])]
-              for i in range(-numperside, numperside+1)]
+
+    if isinstance(session.instrument, TASSXTal):
+        values = [[(Q[0]+i*dQ[0], Q[1]+i*dQ[1], Q[2]+i*dQ[2], Q[3]+i*dQ[3])]
+                  for i in range(-numperside, numperside+1)]
+    else:
+        values = [[(Q[0]+i*dQ[0], Q[1]+i*dQ[1], Q[2]+i*dQ[2])]
+                  for i in range(-numperside, numperside+1)]
+
     scan = SinqQScan(values, move, multistep, detlist, envlist, preset,
                      scaninfo)
     scan.run()

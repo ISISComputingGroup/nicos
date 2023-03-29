@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -52,12 +52,7 @@ class ClientTransport(BaseClientTransport):
 
     def connect_events(self, conndata):
         # connect to event port
-        try:
-            self.event_sock = tcpSocket(conndata.host, conndata.port)
-        except OSError as err:
-            msg = err.args[1]
-            self.signal('failed', 'Event connection failed: %s.' % msg, err)
-            return
+        self.event_sock = tcpSocket(conndata.host, conndata.port)
 
         # write client id to ensure we get registered as event connection
         self.event_sock.sendall(self.client_id)

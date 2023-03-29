@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,7 +26,8 @@
 """NICOS GUI single cmdlet command input."""
 
 from os import path
-from nicos.clients.gui.cmdlets import all_categories, all_cmdlets
+from nicos.clients.gui.cmdlets import get_priority_sorted_categories, \
+    get_priority_sorted_cmdlets
 from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.utils import loadUi, modePrompt
 from nicos.guisupport.qt import QAction, QApplication, QKeyEvent, QMenu, Qt, \
@@ -56,7 +57,7 @@ class CommandPanel(Panel):
         Panel.__init__(self, parent, client, options)
         loadUi(self, self.ui)
 
-        self.window = parent
+        self.parent_window = parent
         self.options = options
         self.mapping = {}
         self.current_cmdlet = None
@@ -78,7 +79,7 @@ class CommandPanel(Panel):
         for module in modules:
             importString(module)  # should register cmdlets
 
-        for cmdlet in all_cmdlets:
+        for cmdlet in get_priority_sorted_cmdlets():
             action = QAction(cmdlet.name, self)
 
             def callback(on, cmdlet=cmdlet):
@@ -86,19 +87,19 @@ class CommandPanel(Panel):
             action.triggered.connect(callback)
             self.mapping.setdefault(cmdlet.category, []).append(action)
 
-        for category in all_categories[::-1]:
+        for category in get_priority_sorted_categories()[::-1]:
             if category not in self.mapping:
                 continue
             toolbtn = QToolButton(self)
             toolbtn.setText(category)
-            toolbtn.setPopupMode(QToolButton.InstantPopup)
+            toolbtn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             menu = QMenu(self)
             menu.addActions(self.mapping[category])
             toolbtn.setMenu(menu)
             self.btnLayout.insertWidget(1, toolbtn)
 
     def postInit(self):
-        self.console = self.window.getPanel('Console')
+        self.console = self.parent_window.getPanel('Console')
         if self.console:
             self.console.outView.anchorClicked.connect(
                 self.on_consoleView_anchorClicked)
@@ -197,7 +198,8 @@ class CommandPanel(Panel):
     @pyqtSlot()
     def on_runBtn_clicked(self):
         # Make sure we add the command to the history.
-        event = QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Enter, Qt.NoModifier)
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Enter,
+                          Qt.KeyboardModifier.NoModifier)
         QApplication.postEvent(self.commandInput, event)
 
     def on_commandInput_execRequested(self, script, action):

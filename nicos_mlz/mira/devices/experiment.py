@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,15 +26,15 @@
 
 from nicos.core import Override
 
-from nicos_mlz.devices.experiment import Experiment
+from nicos_mlz.devices.experiment import Experiment as MLZExperiment
 
 
-class MiraExperiment(Experiment):
+class Experiment(MLZExperiment):
     """Experiment object customization for MIRA.
 
     Currently only the template path is set by default.
     """
 
     parameter_overrides = {
-        'templates':   Override(default='template'),
+        'templates': Override(default='template'),
     }

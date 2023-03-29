@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -173,7 +173,7 @@ def test_get_device_list(client):
     # expected:
     # l1: ['dax', 'dm1', 'dm2', 'Exp', 'Instr', 'Sample', 'testnotifier']
     # l2: ['dax', 'dm1', 'dm2', 'Sample']
-    assert 'Instr' in l1
+    assert 'Exp' in l1
     assert l1 != l2
     assert all(item in l1 for item in l2)
     assert 'Exp' not in l2
@@ -245,3 +245,30 @@ def test_run(client):
             assert data['reqid'] == reqid
             assert data['success'] is True
             break
+
+
+def test_parameter_queries(client):
+    load_setup(client, 'daemontest')
+    pinfo = client.getDeviceParamInfo('dmalias')
+    assert sorted(list(pinfo.keys())) == sorted([
+        'name', 'classes', 'description', 'visibility', 'loglevel', 'fmtstr',
+        'unit', 'maxage', 'pollinterval', 'warnlimits', 'target', 'fixed',
+        'fixedby', 'requires', 'precision', 'userlimits', 'abslimits', 'alias',
+        'speed', 'offset', 'jitter', 'curvalue', 'curstatus', 'ramp',
+        'devclass'])
+    params = client.getDeviceParams('dm1')
+    # parameters 'status' and 'value' not in all test cases available
+    # their occurances depends on the previous test history
+    assert set(params.keys()).issubset({
+        'abslimits', 'classes', 'curstatus', 'curvalue', 'description', 'fixed',
+        'fixedby', 'fmtstr', 'jitter', 'loglevel', 'maxage', 'name', 'offset',
+        'pollinterval', 'precision', 'ramp', 'requires', 'speed', 'target',
+        'unit', 'userlimits', 'visibility', 'warnlimits', 'status', 'value'})
+    assert client.getDeviceParam('dm1', 'name') == 'dm1'
+    assert client.getDeviceParam('dm1', 'noparam') is None
+
+
+def test_devices_values(client):
+    load_setup(client, 'daemontest')
+    assert client.getDeviceValuetype('dm1') == float
+    assert client.getDeviceValue('dm1') == 0.

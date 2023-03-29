@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ class LivePowderWidget(LiveWidget1D):
         start = float(self.client.getCacheKey('s2t/value')[1])
         self.curve.x = numpy.linspace(start,start+nx*self.tthstep,nx)
         self.curve.y = numpy.ma.masked_equal(self._array.ravel(), 0).astype(
-            numpy.float)
+            numpy.float64)
         self.curve.filly = .1 if self._logscale else 0
         self.axes.setWindow(start,start+nx*self.tthstep,0,ny)
         title = self.client.getCacheKey('exp/title')[1]

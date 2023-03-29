@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -37,7 +37,7 @@ class ScanSlider(QWidget):
     def __init__(self, parent):
         QWidget.__init__(self, parent)
         self.setLayout(QVBoxLayout())
-        self.slider = QSlider(Qt.Horizontal, self)
+        self.slider = QSlider(Qt.Orientation.Horizontal, self)
         self.title = QLabel('Scanpoint selection', self)
         self.title.setMaximumHeight(25)
         self.layout().addWidget(self.title)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,12 +33,12 @@ import numpy as np
 
 from nicos import session
 from nicos.core.device import Readable
-from nicos.core.errors import ConfigurationError, NicosError
+from nicos.core.errors import ConfigurationError
 from nicos.nexus.elements import DeviceDataset, NexusElementBase, \
     NexusSampleEnv, NXAttribute
 
 from nicos_sinq.devices.sinqhm.configurator import HistogramConfArray
-from nicos_sinq.sxtal.sample import SXTalSample
+from nicos_sinq.devices.sample import CrystalSample
 
 
 class TwoThetaArray(NexusElementBase):
@@ -267,10 +267,10 @@ class EnvDeviceDataset(DeviceDataset):
             # can happen, when we cannot find the device on creation
             return
         dset = h5parent[name]
-        for dev in sinkhandler.dataset.devices + \
-                sinkhandler.dataset.environment:
+        dataset = sinkhandler.dataset
+        for dev, value in zip(dataset.devices + dataset.environment,
+                              dataset.devvaluelist + dataset.envvaluelist):
             if dev.name == self.device:
-                value = dev.read()
                 if self.doAppend:
                     self.resize_dataset(dset)
                     dset[self.np] = value
@@ -301,7 +301,7 @@ class OutSampleEnv(NexusSampleEnv):
 
     def updatelog(self, h5parent, dataset):
         current_time = time.time()
-        for devidx, dev in enumerate(dataset.environment):
+        for dev, val in zip(dataset.environment, dataset.envvaluelist):
             if not isinstance(dev, Readable) or not self.isValidDevice(dev):
                 continue
             logname = dev.name
@@ -309,7 +309,6 @@ class OutSampleEnv(NexusSampleEnv):
                 logname += self._postfix
             loggroup = h5parent[logname]
             dset = loggroup['value']
-            val = dataset.envvaluelist[devidx]
             if val is None:
                 return
             idx = len(dset)
@@ -358,12 +357,12 @@ class OptionalDeviceDataset(DeviceDataset):
 class CellArray(NexusElementBase):
     """
     This little class stores the cell constants from
-    nicos_sinq.sxtal.SXTalsample as an array
+    nicos_sinq.devices.CrystalSample, nicos_sinq.sxtal.SXTalsample as an array
     """
     def create(self, name, h5parent, sinkhandler):
         sample = session.experiment.sample
-        if not isinstance(sample, SXTalSample):
-            session.log.error('Your sample is no SXTalSample')
+        if not isinstance(sample, CrystalSample):
+            session.log.error('Your sample is no CrystalSample or SXTalSample')
             return
         data = [sample.a, sample.b, sample.c,
                 sample.alpha, sample.beta, sample.gamma]
@@ -424,22 +423,145 @@ class ScanSampleEnv(NexusElementBase):
         NexusElementBase.__init__(self)
 
     def create(self, name, h5parent, sinkhandler):
-        for dev in sinkhandler.dataset.environment:
+        for dev, inf in zip(sinkhandler.dataset.environment,
+                            sinkhandler.dataset.envvalueinfo):
             # Prevent duplicate creations
             if dev.name not in h5parent:
                 dset = h5parent.create_dataset(dev.name, (1,),
                                                maxshape=(None,), dtype=float)
-                try:
-                    inf = session.getDevice(dev.name).info()
-                    dset.attrs['units'] = np.string_(inf[0][3])
-                except NicosError:
-                    pass
+                dset.attrs['units'] = np.string_(inf.unit)
                 self._managed_devices.append(dev.name)
 
     def results(self, name, h5parent, sinkhandler, results):
-        for dev in sinkhandler.dataset.environment:
+        for dev, value in zip(sinkhandler.dataset.environment,
+                              sinkhandler.dataset.envvaluelist):
             if dev.name in self._managed_devices:
                 dset = h5parent[dev.name]
-                value = dev.read()
                 self.resize_dataset(dset)
                 dset[self.np] = value
+
+
+class SaveSampleEnv(NexusElementBase):
+    """Element for storing sample environment data.
+
+    It looks at the dataset.environment field and creates a NXlog structure
+    with the sample environment devices name and a postfix appended.
+    To this NXlog structure, incoming data is appended whenever
+    data can be found.
+
+    It also creates arrays using the names found in dataset.environment
+    in order to recreate the traditional NeXus structure of having one
+    array entry per scan point.
+
+    This also attempts to translate the secop names into NeXus names. This
+    may be highly specific to SINQ.
+
+    On some instruments, most notably TAS, the dataset.environment is used to
+    log additional motors together with the data. In such cases, the
+    generation of a NXlog is undesirable and is suppressed. In order
+    to identify such cases there is a blocklist.
+    """
+
+    def __init__(self, update_interval=10, postfix='_log',
+                 blocklist=None, nexus_map=None):
+        self._update_interval = update_interval
+        self._last_update = {}
+        self._postfix = postfix
+        if blocklist:
+            self._blocklist = blocklist
+        else:
+            self._blocklist = []
+        if nexus_map:
+            self.nexus_map = nexus_map
+        else:
+            self.nexus_map = {'Ts': 'temperature', 'B': 'magnetic_field'}
+        self.doAppend = True
+        self._managed_devices = []
+        NexusElementBase.__init__(self)
+
+    def _get_logname(self, devicename):
+        return self.nexus_map.get(devicename, devicename)
+
+    def isValidDevice(self, dev):
+        if self._blocklist and dev.name in self._blocklist:
+            return False
+        return isinstance(dev, Readable)
+
+    def createNXlog(self, h5parent, dev):
+        logname = self._get_logname(dev.name)
+        if self._postfix:
+            logname += self._postfix
+        loggroup = h5parent.create_group(logname)
+        loggroup.attrs['NX_class'] = np.string_('NXlog')
+        dset = loggroup.create_dataset('time', (1,), maxshape=(None,),
+                                       dtype='float32')
+        dset[0] = .0
+        dset.attrs['start'] = time.strftime('%Y-%m-%d %H:%M:%S',
+                                            time.localtime(self.starttime))
+        dset = loggroup.create_dataset('value', (1,), maxshape=(None,),
+                                       dtype='float32')
+        dset[0] = dev.read()
+        self._last_update[dev.name] = time.time()
+
+    def create(self, name, h5parent, sinkhandler):
+        self.starttime = time.time()
+        for dev in sinkhandler.dataset.environment:
+            # There can be DeviceStatistics in the environment.
+            # We do not know how to write those
+            if self.isValidDevice(dev):
+                self.createNXlog(h5parent, dev)
+        self.createArrays(name, h5parent, sinkhandler)
+
+    def updatelog(self, h5parent, dataset):
+        current_time = time.time()
+        for dev, val in zip(dataset.environment, dataset.envvaluelist):
+            if not self.isValidDevice(dev):
+                continue
+            logname = self._get_logname(dev.name)
+            if self._postfix:
+                logname += self._postfix
+            loggroup = h5parent[logname]
+            dset = loggroup['value']
+            if val is None:
+                continue
+            idx = len(dset)
+            # We need to control the amount of data written as update
+            # gets called frequently. This tests:
+            # - The value has changed at all
+            # - Against a maximum update interval
+            if val != dset[idx - 1] and \
+               current_time > self._last_update[dev.name] +\
+                    self._update_interval:
+                dset.resize((idx + 1,))
+                dset[idx] = val
+                dset = loggroup['time']
+                dset.resize((idx + 1,))
+                dset[idx] = current_time - self.starttime
+                self._last_update[dev.name] = current_time
+
+    def createArrays(self, name, h5parent, sinkhandler):
+        for dev, inf in zip(sinkhandler.dataset.environment,
+                            sinkhandler.dataset.envvalueinfo):
+            # Prevent duplicate creations
+            arrayname = self._get_logname(dev.name)
+            if arrayname not in h5parent:
+                dset = h5parent.create_dataset(arrayname, (1,),
+                                               maxshape=(None,), dtype=float)
+                dset.attrs['units'] = np.string_(inf.unit)
+                self._managed_devices.append(arrayname)
+
+    def resultsArray(self, name, h5parent, sinkhandler, results):
+        for dev, value in zip(sinkhandler.dataset.environment,
+                              sinkhandler.dataset.envvaluelist):
+            arrayname = self._get_logname(dev.name)
+            if arrayname in self._managed_devices:
+                dset = h5parent[arrayname]
+                self.resize_dataset(dset)
+                dset[self.np] = value
+
+    def update(self, name, h5parent, sinkhandler, values):
+        self.updatelog(h5parent, sinkhandler.dataset)
+
+    def results(self, name, h5parent, sinkhandler, results):
+        self.updatelog(h5parent, sinkhandler.dataset)
+        self.resultsArray(name, h5parent, sinkhandler, results)

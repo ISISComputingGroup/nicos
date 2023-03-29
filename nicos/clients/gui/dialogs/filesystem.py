@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -54,9 +54,9 @@ class FileFilterDialog(QFileDialog):
 
     def __init__(self, *args):
         QFileDialog.__init__(self, *args)
-        self.setAcceptMode(QFileDialog.AcceptOpen)
-        self.setFileMode(QFileDialog.ExistingFiles)
-        self.setOption(QFileDialog.DontUseNativeDialog)
+        self.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
+        self.setFileMode(QFileDialog.FileMode.ExistingFiles)
+        self.setOption(QFileDialog.Option.DontUseNativeDialog)
         filterproxy = FileFilterProxyModel(self)
         self.setProxyModel(filterproxy)
         child = None  # make pylint happy

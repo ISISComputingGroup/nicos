@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -163,6 +163,13 @@ class Motor1(Motor):
             msg = ', moving' + msg
         self.log.debug('status is %d:%s', st, msg[2:])
         return st, msg[2:]
+
+
+class Motor2(Motor1):
+
+    def doWriteSteps(self, value):
+        self.log.debug('set new steps value: %s', value)
+        self._attached_bus.send(self.addr, SET_CURR_POS, value, 6)
 
 
 class ReferenceMotor(CanReference, Motor1):

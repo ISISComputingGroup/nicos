@@ -20,6 +20,7 @@ doc/source/auto
 doc/source/nicos_*/**/setups
 
 .coverage.*
+.coverage
 .cache/
 .pytest_cache/
 htmlcov/
@@ -54,3 +55,6 @@ mprofile_*.dat
 
 #PyCharm
 .idea/
+
+#MacOS
+.DS_Store

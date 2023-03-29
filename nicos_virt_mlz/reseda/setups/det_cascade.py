@@ -2,13 +2,13 @@ description = 'CASCADE detector'
 
 group = 'lowlevel'
 
-includes = ['det_base', 'filesavers', 'mono']
+includes = ['det_base', 'filesavers']
 
 excludes = ['det_3he']
 
 sysconfig = dict(
     datasinks = ['psd_padformat', 'psd_tofformat', 'psd_liveview',
-                 'psd_xmlformat', 'HDF5FileSaver'],
+                 'HDF5FileSaver'],
 )
 
 devices = dict(
@@ -32,15 +32,32 @@ devices = dict(
         abslimits = (0, 5000),
         unit = 'mm',
     ),
-    psd_xmlformat = device('nicos_mlz.mira.devices.cascade.MiraXmlSink',
-        subdir = 'cascade',
-        timer = 'timer',
-        monitor = 'monitor1',
-        sampledet = 'sampledet',
-        mono = 'vmono',
+    mcstas = device('nicos_virt_mlz.reseda.devices.detector.McStasSimulation',
+        description = 'McStas simulation',
+        neutronspersec = 1241000,
+        intensityfactor = 1e17,
+        l_ambda = 'selector_lambda',
+        d_lambda = 'selector_delta_lambda',
+        tablex = 'stx',
+        tabley = 'sty',
+        tablez = 'stz',
+        table_rotx = 'sgx',
+        table_roty = 'sgy',
+        table_rotz = 'srz',
+        # l1 = '',
+        l2 = 'psd_distance',
+        # coil_nse_len = '',
+        detectorangle = 'arm2_rot',
+        i_nse = 'nse0',
+        om0 = '',
+        om1 = '',
+        sample = 'Sample',
     ),
-    psd_channel = device('nicos_virt_mlz.reseda.devices.CascadeDetector',
+    psd_channel = device('nicos_virt_mlz.reseda.devices.detector.McStasImage',
+    # psd_channel = device('nicos_virt_mlz.reseda.devices.CascadeDetector',
         description = 'CASCADE detector channel',
+        mcstas = 'mcstas',
+        foils = 8,
         foilsorder = [5, 4, 3, 0, 1, 2, 6, 7],
     ),
     psd = device('nicos.devices.generic.Detector',
@@ -48,6 +65,7 @@ devices = dict(
         timers = ['timer'],
         monitors = ['monitor1'],
         images = ['psd_channel'],
+        liveinterval = 1,
     ),
     psd_distance = device('nicos.devices.generic.ManualMove',
         description = 'Sample-Detector Distance L_sd',

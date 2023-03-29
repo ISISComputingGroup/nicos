@@ -9,8 +9,16 @@ sysconfig = dict(
     datasinks=['conssink', 'daemonsink', 'liveview', 'FileWriterControl'],
 )
 
-modules = ['nicos.commands.standard', 'nicos_ess.commands.epics',
-           'nicos_ess.commands.filewriter']
+alias_config = {
+    'NexusStructure': {
+        'NexusStructure_Basic': 100,
+        'NexusStructure_AreaDetector':  50
+    },
+}
+
+modules = [
+    'nicos.commands.standard', 'nicos_ess.commands'
+]
 
 devices = dict(
     YMIR=device(
@@ -26,11 +34,12 @@ devices = dict(
     Exp=device(
         'nicos_ess.devices.experiment.EssExperiment',
         description='experiment object',
-        dataroot='/opt/nicos-data/ymir',
+        dataroot='/opt/nicos-data',
+        filewriter_root='/ess/data/ymir',
         sample='Sample',
-        cache_filepath='/opt/nicos-data/ymir/cached_proposals.json'
-    ),
-    conssink=device('nicos.devices.datasinks.ConsoleScanSink',),
+        cache_filepath='/opt/nicos-data/ymir/cached_proposals.json'),
+    conssink=device(
+        'nicos_ess.devices.datasinks.console_scan_sink.ConsoleScanSink',),
     daemonsink=device('nicos.devices.datasinks.DaemonSink',),
     Space=device(
         'nicos.devices.generic.FreeSpace',
@@ -38,24 +47,24 @@ devices = dict(
         path=None,
         minfree=5,
     ),
-    liveview=device('nicos.devices.datasinks.LiveViewSink',),
+    liveview=device('nicos.devices.datasinks.LiveViewSink', ),
     NexusStructure_Basic=device(
         'nicos_ess.devices.datasinks.nexus_structure.NexusStructureJsonFile',
         description='Provides the NeXus structure',
-        nexus_config_path='nicos_ess/ymir/nexus/ymir_basic.json',
+        nexus_config_path='nicos_ess/ymir/nexus/ymir_nexus.json',
         visibility=(),
     ),
     NexusStructure_AreaDetector=device(
         'nicos_ess.devices.datasinks.nexus_structure.NexusStructureAreaDetector',
         description='Provides the NeXus structure',
-        nexus_config_path='nicos_ess/ymir/nexus/ymir_ltomo.json',
+        nexus_config_path='nicos_ess/ymir/nexus/ymir_nexus.json',
         area_det_collector_device='area_detector_collector',
         visibility=(),
     ),
     NexusStructure=device(
         'nicos.devices.generic.DeviceAlias',
-        alias='NexusStructure_AreaDetector',
-        devclass='nicos_ess.devices.datasinks.nexus_structure.NexusStructureJsonFile',
+        devclass=
+        'nicos_ess.devices.datasinks.nexus_structure.NexusStructureJsonFile',
     ),
     FileWriterStatus=device(
         'nicos_ess.devices.datasinks.file_writer.FileWriterStatus',
@@ -71,11 +80,11 @@ devices = dict(
         pool_topic='ess_filewriter_pool',
         status='FileWriterStatus',
         nexus='NexusStructure',
+        use_instrument_directory=True,
     ),
     SciChat=device(
         'nicos_ess.devices.scichat.ScichatBot',
-        description='Connects to SciChat as a write-only client',
-        url='https://server.scichat.esss.lu.se/_matrix/client/r0',
-        room_id='!gaEXiGVYXizrNgFExx:ess',
+        description='Sends messages to SciChat',
+        brokers=['10.100.1.19:9092'],
     ),
 )

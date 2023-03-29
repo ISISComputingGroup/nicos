@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -75,10 +75,10 @@ class HttpConnector(HasCommunication, Readable):
         response = result.status_code
         if response in self.status_code_msg:
             raise CommunicationError(self.status_code_msg.get(response)
-                                     + result.content)
+                                     + result.content.decode('utf-8'))
         elif response != 200:
             raise CommunicationError('Error while connecting to server! %s'
-                                     % result.content)
+                                     % result.content.decode('utf-8'))
         self._setROParam('curstatus', (status.OK, ''))
         return result
 

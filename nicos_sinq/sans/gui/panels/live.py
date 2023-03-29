@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -126,54 +126,17 @@ class SansLiveDataPanel(EssLiveDataPanel):
         self.widget.gr.keepRatio = True
         self.widget.updateZData = createBoundMethod(updateZData, self.widget)
 
-    def _show(self, data=None):
-        """Show the provided data. If no data has been provided extract it
-        from the datacache via the current item's uid.
-
-        :param data: dictionary containing 'dataarrays' and 'labels'
-        """
-        idx = self.fileList.currentRow()
-        if idx == -1:
-            self.fileList.setCurrentRow(0)
-            return
-
-        # no data has been provided, try to get it from the cache
-        if data is None:
-            data = self.getDataFromItem(self.fileList.currentItem())
-            # still no data
-            if data is None:
-                return
-
-        arrays = data.get('dataarrays', [])
-        labels = data.get('labels', {})
-        titles = data.get('titles', {})
-        try:
-            if self.actionPolar.isChecked():
-                # make sure that the certer is meanungful
+    def processDataArrays(self, params, index, entry):
+        arrays = EssLiveDataPanel.processDataArrays(self, params, index, entry)
+        if self.actionPolar.isChecked():
+            try:
                 output = [to_polar_image(np.array(array),
                                          center=self.dlg.getCenter()) for array
-                    in arrays]
-                labels = output[0][1]
+                          in arrays]
                 arrays = [val[0] for val in output]
-                titles = {'x': 'rho', 'y': 'theta'}
-        except ValueError as e:
-            log.error(e)
-            return
-
-        # if multiple datasets have to be displayed in one widget, they have
-        # the same dimensions, so we only need the dimensions of one set
-        self._initLiveWidget(arrays[0])
-        self.applyPlotSettings()
-        for widget in self._get_all_widgets():
-            widget.setData(arrays, labels)
-            widget.setTitles(titles)
-
-        if self.unzoom and self.widget:
-            self.on_actionUnzoom_triggered()
-
-    @pyqtSlot()
-    def on_actionPolar_triggered(self):
-        self._show()
+            except ValueError as e:
+                log.error(e)
+        return arrays
 
     @pyqtSlot()
     def on_actionSetCenter_triggered(self):

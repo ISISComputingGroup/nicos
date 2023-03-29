@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -32,7 +32,7 @@ from nicos.devices.generic.detector import ActiveChannel
 from nicos.devices.tas.mono import Monochromator, from_k, to_k
 
 
-class MiraXmlHandler(SingleFileSinkHandler):
+class XmlHandler(SingleFileSinkHandler):
     filetype = 'xml'
     accept_final_images_only = True
 
@@ -86,9 +86,9 @@ class MiraXmlHandler(SingleFileSinkHandler):
 ''')
 
 
-class MiraXmlSink(ImageSink):
+class XmlSink(ImageSink):
 
-    handlerclass = MiraXmlHandler
+    handlerclass = XmlHandler
 
     attached_devices = {
         'timer':     Attach('Timer readout', ActiveChannel),

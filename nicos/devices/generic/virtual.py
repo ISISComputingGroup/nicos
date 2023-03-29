@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -375,11 +375,13 @@ class VirtualCounter(VirtualChannel):
 
 class VirtualGauss(PassiveChannel):
     """A virtual channel which returns values from gauss curves centered
-    at  defined positions of movable devices
+    at defined positions of movable devices.
     """
     attached_devices = {
         'motors': Attach('Moveables on which the count depends',
                          Moveable, multiple=True),
+        'timer':  Attach('Timer device to use as elapsed time instead of '
+                         'real time', PassiveChannel, optional=True),
     }
 
     parameters = {
@@ -398,12 +400,13 @@ class VirtualGauss(PassiveChannel):
     _start_time = None
     _end_time = None
     _pause_start = None
-    _pause_intervall = None
+    _pause_interval = None
 
     def doStart(self):
         self._start_time = time.time()
         self._pause_start = None
         self._pause_time = None
+        self._pause_interval = 0
         PassiveChannel.doStart(self)
 
     def doStop(self):
@@ -421,15 +424,17 @@ class VirtualGauss(PassiveChannel):
 
     def doResume(self):
         time_paused = time.time() - self._pause_start
-        if self._pause_intervall:
-            self._pause_intervall += time_paused
+        if self._pause_interval:
+            self._pause_interval += time_paused
         else:
-            self._pause_intervall = time_paused
+            self._pause_interval = time_paused
 
     def doRead(self, maxage=0):
-        if self._end_time:
+        if self._attached_timer:
+            ampl = self._attached_timer.read(maxage)[0] * self.rate
+        elif self._end_time:
             elapsed_time = self._end_time - self._start_time
-            if self._pause_intervall:
+            if self._pause_interval:
                 elapsed_time -= self._pause_interval
             ampl = elapsed_time * self.rate
         else:
@@ -801,7 +806,11 @@ class VirtualImage(ImageChannelMixin, PassiveChannel):
         self._timer = Timer()
         self._timer.start()
         self._stopflag = False
-        self._mythread = createThread('virtual detector %s' % self, self._run)
+        if self._buf is None:
+            self._buf = self._generate(0).astype('<u4')
+            self.readresult = [self._buf.sum()]
+        if not self._mythread:
+            self._mythread = createThread('virtual detector %s' % self, self._run)
 
     def _run(self):
         while not self._stopflag:
@@ -876,16 +885,15 @@ class VirtualScanningDetector(SubscanMeasurable):
 
     def doInit(self, mode):
         self._last = [0, '']
-        self._preset = None
 
     def doSetPreset(self, **preset):
-        self._preset = preset
+        self._lastpreset = preset
 
     def doStart(self):
         positions = [[p] for p in self.positions]
         dataset = Scan([self._adevs['scandev']], positions, positions,
-                       detlist=[self._adevs['detector']], preset=self._preset,
-                       subscan=True).run()
+                       detlist=[self._adevs['detector']],
+                       preset=self._lastpreset, subscan=True).run()
         # process the values...
         yvalues = [subset.detvaluelist[0] for subset in dataset.subsets]
         self._last = [sum(yvalues) / float(len(yvalues)), dataset.filenames[0]]

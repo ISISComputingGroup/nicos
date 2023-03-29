@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -275,14 +275,14 @@ class PyTangoDevice(HasCommunication):
         # successfully created once, skip it
         if getattr(dev, '_nicos_proxies_applied', False):
             return dev
-        dev.command_inout = self._applyGuardToFunc(dev.command_inout)
-        dev.write_attribute = self._applyGuardToFunc(dev.write_attribute,
-                                                     'attr_write')
-        dev.read_attribute = self._applyGuardToFunc(dev.read_attribute,
-                                                    'attr_read')
-        dev.attribute_query = self._applyGuardToFunc(dev.attribute_query,
-                                                     'attr_query')
-        dev._nicos_proxies_applied = True
+        dev.__dict__['command_inout'] = self._applyGuardToFunc(dev.command_inout)
+        dev.__dict__['write_attribute'] = self._applyGuardToFunc(
+            dev.write_attribute, 'attr_write')
+        dev.__dict__['read_attribute'] = self._applyGuardToFunc(
+            dev.read_attribute, 'attr_read')
+        dev.__dict__['attribute_query'] = self._applyGuardToFunc(
+            dev.attribute_query, 'attr_query')
+        dev.__dict__['_nicos_proxies_applied'] = True
         return dev
 
     def _applyGuardToFunc(self, func, category='cmd'):

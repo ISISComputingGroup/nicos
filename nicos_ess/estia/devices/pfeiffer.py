@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -22,7 +22,6 @@
 #   Artur Glavic <artur.glavic@psi.ch>
 #
 # *****************************************************************************
-
 """
 This module contains a device for reading the Pfeiffer TPG 261
 vacuum gauge controller using a Moxa terminal server.
@@ -37,8 +36,11 @@ class PfeifferTPG261(MoxaCommunicator, Readable):
     a Moxa terminal server.
     """
     parameter_overrides = {
-        'unit': Override(default='mbar', mandatory=False, settable=False,
-                         userparam=False),
+        'unit':
+            Override(default='mbar',
+                     mandatory=False,
+                     settable=False,
+                     userparam=False),
     }
 
     valuetype = float

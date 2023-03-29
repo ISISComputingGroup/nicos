@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -63,11 +63,11 @@ def zebraconf():
     to_add['w1'] = ['wagen1']
     to_remove['w1'] = ['wagen2']
 
-    to_add['w2'] = ['wagen2', 'single_detector']
+    to_add['w2'] = ['wagen2', 'detector_single']
     to_remove['w2'] = ['wagen1', 'detector_2d']
 
     to_add['twod'] = ['detector_2d']
-    to_remove['twod'] = ['single_detector']
+    to_remove['twod'] = ['detector_single']
 
     to_add['euler_present'] = ['zebraeuler']
     to_remove['euler_present'] = ['zebratas', 'zebranb']

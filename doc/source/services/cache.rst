@@ -104,6 +104,15 @@ Cache databases
 
 .. autoclass:: MemoryCacheDatabaseWithHistory()
 
+.. module:: nicos.services.cache.database.kafka
+
+.. autoclass:: KafkaCacheDatabase()
+
+.. autoclass:: KafkaCacheDatabaseWithHistory()
+
+.. module:: nicos.services.cache.database.influxdb
+
+.. autoclass:: InfluxDBCacheDatabase()
 
 For a documentation of the network protocol of the cache, please see
 :doc:`/protocols/cache`.

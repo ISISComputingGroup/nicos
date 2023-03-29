@@ -9,7 +9,7 @@ sysconfig = dict(
     datasinks=['conssink', 'daemonsink'],
 )
 
-modules = ['nicos.commands.standard', 'nicos_ess.commands.epics']
+modules = ['nicos.commands.standard', 'nicos_ess.commands']
 
 devices = dict(
     Premp=device(
@@ -30,9 +30,9 @@ devices = dict(
         serviceexp='p0',
         sample='Sample',
     ),
-    filesink=device('nicos.devices.datasinks.AsciiScanfileSink',),
-    conssink=device('nicos.devices.datasinks.ConsoleScanSink',),
-    daemonsink=device('nicos.devices.datasinks.DaemonSink',),
+    filesink=device('nicos.devices.datasinks.AsciiScanfileSink', ),
+    conssink=device('nicos.devices.datasinks.ConsoleScanSink', ),
+    daemonsink=device('nicos.devices.datasinks.DaemonSink', ),
     Space=device(
         'nicos.devices.generic.FreeSpace',
         description='The amount of free space for storing data',

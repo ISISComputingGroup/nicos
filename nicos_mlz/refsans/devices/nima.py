@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -127,10 +127,16 @@ class Area(MoveName):
 
     @usermethod
     def open(self):
+        """
+        Open barrier, at selected speed
+        """
         self.doStart('open')
 
     @usermethod
     def close(self):
+        """
+        Close barrier, at selected speed
+        """
         self.doStart('close')
 
 

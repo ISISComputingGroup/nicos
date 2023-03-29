@@ -3,7 +3,7 @@ description = 'detector related devices including beamstop'
 # included by sans1
 group = 'lowlevel'
 
-tangohost = 'tango://sans1hw.sans1.frm2:10000'
+tangohost = 'tango://hw.sans1.frm2.tum.de:10000'
 detector_base = 'tango://mesydaq.sans1.frm2.tum.de:10000/qm/qmesydaq/'
 
 BS1_X_OFS = -475.055  # from entangle
@@ -56,7 +56,7 @@ devices = dict(
         visibility = (),
         precision = 3,
     ),
-    det1_hv_ax = device('nicos_mlz.sans1.devices.hv.Sans1HV',
+    det1_hv_ax = device('nicos_mlz.sans1.devices.hv.HV',
         description = 'high voltage of detector 1',
         unit = 'V',
         fmtstr = '%d',
@@ -67,7 +67,7 @@ devices = dict(
         pollinterval = 15,
         visibility = (),
     ),
-    det1_hv_offtime = device('nicos_mlz.sans1.devices.hv.Sans1HVOffDuration',
+    det1_hv_offtime = device('nicos_mlz.sans1.devices.hv.HVOffDuration',
         description = 'Duration below operating voltage',
         hv_supply = 'det1_hv_ax',
         maxage = 120,
@@ -139,7 +139,7 @@ devices = dict(
         motor = 'det1_zmot',
         coder = 'det1_zenc',
     ),
-    det1_zmot = device('nicos_mlz.sans1.devices.hv.Sans1ZMotor',
+    det1_zmot = device('nicos_mlz.sans1.devices.hv.ZMotor',
         description = 'detector 1 z motor',
         tangodevice = '%s/sans1/detector1/z_mot' % (tangohost, ),
         fmtstr = '%.1f',
@@ -178,7 +178,7 @@ devices = dict(
         visibility = (),
     ),
     # bs1_xenc = device('nicos.devices.entangle.Sensor',
-    bs1_xenc = device('nicos_mlz.sans1.devices.beamstop.FunnySensor',
+    bs1_xenc = device('nicos_mlz.sans1.devices.sensor.FunnySensor',
         description = 'beamstop 1 x coder',
         tangodevice = '%s/sans1/beamstop1/x_enc' % (tangohost, ),
         fmtstr = '%.2f',
@@ -193,7 +193,7 @@ devices = dict(
         visibility = (),
     ),
     # bs1_yenc = device('nicos.devices.entangle.Sensor',
-    bs1_yenc = device('nicos_mlz.sans1.devices.beamstop.FunnySensor',
+    bs1_yenc = device('nicos_mlz.sans1.devices.sensor.FunnySensor',
         description = 'beamstop 1 y coder',
         tangodevice = '%s/sans1/beamstop1/y_enc' % (tangohost, ),
         fmtstr = '%.1f',

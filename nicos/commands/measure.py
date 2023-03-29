@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -82,7 +82,7 @@ def inner_count(detectors, preset, temporary=False, threaded=False):
                 dataman.finishScan()
 
     if threaded:
-        session._thd_acquire = createThread("acquire", _acquire_func)
+        session._thd_acquire = createThread('acquire', _acquire_func)
         return None
     else:
         _acquire_func()
@@ -125,6 +125,12 @@ def _count(*detlist, **preset):
         if not detectors:
             session.log.warning('counting without detector, use SetDetectors()'
                                 ' to select which detector(s) you want to use')
+    if preset is None:
+        preset = {}
+    if not preset:
+        for det in detectors:
+            preset.update(det.preset())
+
     # check preset names for validity
     names = set(preset)
     for det in detectors:
@@ -162,7 +168,7 @@ def count(*detlist, **preset):
     Within a manual scan, this command is also used to perform the count as one
     point of the manual scan.
     """
-    preset.pop("live", None)
+    preset.pop('live', None)
     return _count(*detlist, **preset)
 
 

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -35,12 +35,18 @@ class ProducesKafkaMessages(DeviceMixinBase):
     """
 
     parameters = {
-        'brokers': Param('List of kafka hosts to be connected',
-                         type=listof(host(defaultport=9092)),
-                         mandatory=True, preinit=True, userparam=False),
-        'max_request_size': Param('Maximum size of kafka message',
-                                  type=int, default=16000000, preinit=True,
-                                  userparam=False),
+        'brokers':
+            Param('List of kafka hosts to be connected',
+                  type=listof(host(defaultport=9092)),
+                  mandatory=True,
+                  preinit=True,
+                  userparam=False),
+        'max_request_size':
+            Param('Maximum size of kafka message',
+                  type=int,
+                  default=16000000,
+                  preinit=True,
+                  userparam=False),
     }
 
     def doPreinit(self, mode):

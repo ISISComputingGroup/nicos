@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -132,6 +132,7 @@ class Field:
                 desc['name'] = dev
             key, expr, _ = parseKeyExpression(
                 dev, False, normalize=lambda s: s.lower())
+            dev = dev.lower()
             desc['expr'] = expr
             desc['key'] = prefix + dev + '/value'
             desc['statuskey'] = prefix + dev + '/status'
@@ -534,7 +535,9 @@ class Monitor(BaseMonitor):
         elif key == field.formatkey:
             if value is not None:
                 field.format = value
-                self.signalKeyChange(field, field.key, field.value, 0, False)
+                self.signalKeyChange(field, field.key, field.value,
+                                     currenttime(),
+                                     field._valuelabel.back == self._gray)
 
     def _labelunittext(self, text, unit, fixed):
         return html.escape(text) + ' <span class="unit">%s</span><span ' \

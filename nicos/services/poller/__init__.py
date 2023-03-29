@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -242,14 +242,6 @@ class Poller(Device):
                             work_queue.put('pollparam:%s' % name)
 
                 if not registered:
-                    if not isinstance(dev, Readable):
-                        self.log.info('%s is not a readable', dev)
-                        return
-                    if isinstance(dev, (DeviceAlias, CacheReader)):
-                        self.log.info('%s is a DeviceAlias or a CacheReader, '
-                                      'not polling', dev)
-                        return
-
                     self.log.debug('%-10s: registering callbacks', dev)
                     # keep track of some parameters via cache callback
                     # session.cache.addCallback(dev, 'value', reconfigure_dev_value)  # spams events
@@ -317,11 +309,19 @@ class Poller(Device):
                 # for some external modules like Epics
                 self.log.debug('importing device class for %s', devname)
                 try:
-                    session.importDevice(devname)
+                    cls, _ = session.importDevice(devname)
                 except Exception:
                     self.log.warning('%-10s: error importing device class, '
                                      'not retrying this device', devname, exc=True)
                     continue
+                if not issubclass(cls, Readable):
+                    self.log.debug('%s is not readable, ignoring', devname)
+                    continue
+                if issubclass(cls, (DeviceAlias, CacheReader)):
+                    self.log.info('%s is a DeviceAlias or a CacheReader, '
+                                  'not polling', devname)
+                    continue
+
                 self.log.debug('starting thread for %s', devname)
                 work_queue = queue.Queue()
                 worker = createThread('%s poller' % devname,

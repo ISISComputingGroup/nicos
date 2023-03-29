@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -51,7 +51,10 @@ session = Session()
 
 
 def get_custom_version():
-    return get_git_version(cwd=config.setup_package_path)
+    try:
+        return get_git_version(cwd=config.setup_package_path)
+    except RuntimeError:
+        return None
 
 
 try:

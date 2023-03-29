@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,7 @@
 from nicos.clients.base import ConnectionData
 from nicos.clients.gui.dialogs.instr_select import InstrSelectDialog
 from nicos.clients.gui.utils import DlgUtils, SettingGroup, dialogFromUi, \
-    loadUi
+    loadUi, splitTunnelString
 from nicos.guisupport.qt import QDialog, QListWidgetItem, QTreeWidgetItem, \
     pyqtSlot
 
@@ -37,6 +37,10 @@ class SettingsDialog(DlgUtils, QDialog):
         QDialog.__init__(self, main)
         DlgUtils.__init__(self, 'Settings')
         loadUi(self, 'dialogs/settings.ui')
+        self.tunnelUserLabel.setVisible(False)
+        self.tunnelUserInput.setVisible(False)
+        self.tunnelHostLabel.setVisible(False)
+        self.tunnelHostInput.setVisible(False)
         self.main = main
         self.sgroup = main.sgroup
 
@@ -55,6 +59,13 @@ class SettingsDialog(DlgUtils, QDialog):
         self.manualSaveLayout.setChecked(not main.autosavelayout)
         self.allowOutputLineWrap.setChecked(main.allowoutputlinewrap)
 
+        self.useTunnelCheckBox.setChecked(bool(main.tunnel))
+        tunnelUser, tunnelHost, _ = splitTunnelString(main.tunnel)
+        if tunnelUser:
+            self.tunnelUserInput.setText(tunnelUser)
+        if tunnelHost:
+            self.tunnelHostInput.setText(tunnelHost)
+
         # connection data page
         self.connpresets = main.connpresets
         for setting, cdata in main.connpresets.items():
@@ -69,6 +80,15 @@ class SettingsDialog(DlgUtils, QDialog):
         self.main.autoreconnect = self.autoReconnect.isChecked()
         self.main.autosavelayout = self.autoSaveLayout.isChecked()
         self.main.allowoutputlinewrap = self.allowOutputLineWrap.isChecked()
+        self.main.tunnel = ''
+        if self.useTunnelCheckBox.isChecked():
+            tunnelHost = self.tunnelHostInput.text()
+            tunnelUser = self.tunnelUserInput.text()
+            if tunnelHost:
+                if tunnelUser:
+                    self.main.tunnel = f'{tunnelUser}@{tunnelHost}'
+                else:
+                    self.main.tunnel = f'{tunnelHost}'
         with self.sgroup as settings:
             settings.setValue(
                 'connpresets_new', {k: v.serialize() for (k, v)
@@ -105,7 +125,7 @@ class SettingsDialog(DlgUtils, QDialog):
     @pyqtSlot()
     def on_settingAdd_clicked(self):
         dlg = dialogFromUi(self, 'dialogs/settings_conn.ui')
-        if dlg.exec() != QDialog.Accepted:
+        if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         if not dlg.name.text():
             return
@@ -141,7 +161,7 @@ class SettingsDialog(DlgUtils, QDialog):
         dlg.login.setText(cdata.user)
         dlg.viewonly.setChecked(cdata.viewonly)
         dlg.expertmode.setChecked(cdata.expertmode)
-        if dlg.exec() != QDialog.Accepted:
+        if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         cdata.host = dlg.host.text()
         cdata.port = dlg.port.value()
@@ -162,3 +182,9 @@ class SettingsDialog(DlgUtils, QDialog):
             self.stacker.setCurrentIndex(1)
         elif item.type() == 0:
             self.stacker.setCurrentIndex(2)
+
+    @pyqtSlot()
+    def on_useTunnelCheckBox_toggled(self, value):
+        if not value:
+            self.tunnelHostInput.setText('')
+            self.tunnelUserInput.setText('')

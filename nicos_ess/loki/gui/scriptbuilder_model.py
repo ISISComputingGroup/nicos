@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,19 +23,20 @@
 #   Matt Clarke <matt.clarke@ess.eu>
 #
 # *****************************************************************************
-
 """LoKI Script Model."""
 import re
 
 from nicos.core import ConfigurationError
 from nicos.guisupport.qt import Qt
 from nicos.guisupport.tablemodel import TableModel
+
 from nicos_ess.loki.gui.table_delegates import LimitsDelegate, ReadOnlyDelegate
 
-SAMPLE_INFO_INDEX = 1   # The column where the sample info is displayed
+SAMPLE_INFO_INDEX = 1  # The column where the sample info is displayed
 
 
 class LokiScriptModel(TableModel):
+
     def __init__(self, headings, columns, mappings=None, num_rows=25):
         TableModel.__init__(self, headings, mappings)
         self._default_num_rows = num_rows
@@ -45,13 +46,17 @@ class LokiScriptModel(TableModel):
         self._columns = columns
 
     def headerData(self, section, orientation, role):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+        if role == Qt.ItemDataRole.DisplayRole and \
+           orientation == Qt.Orientation.Horizontal:
             return self._headings[section]
-        if role == Qt.DisplayRole and orientation == Qt.Vertical:
+        if role == Qt.ItemDataRole.DisplayRole and \
+           orientation == Qt.Orientation.Vertical:
             return section + 1
 
-    def setHeaderData(self, section, orientation, value, role=Qt.DisplayRole):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+    def setHeaderData(self, section, orientation, value,
+                      role=Qt.ItemDataRole.DisplayRole):
+        if role == Qt.ItemDataRole.DisplayRole and \
+           orientation == Qt.Orientation.Horizontal:
             self._headings[section] = value
             self.headerDataChanged.emit(orientation, section, section)
         return True
@@ -64,7 +69,7 @@ class LokiScriptModel(TableModel):
         self._emit_update()
 
     def setData(self, index, value, role):
-        if role != Qt.EditRole:
+        if role != Qt.ItemDataRole.EditRole:
             return False
 
         row, column = self._get_row_and_column(index)

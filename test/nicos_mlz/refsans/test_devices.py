@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,9 +27,9 @@
 import pytest
 
 from nicos.core import status
-from nicos.core.errors import LimitError
+from nicos.core.errors import ConfigurationError, LimitError
 
-from test.utils import raises
+from test.utils import approx, raises
 
 session_setup = 'refsans'
 
@@ -127,8 +127,8 @@ def test_resolution(session):
     chopper = session.getDevice('chopper')
     chopper.maw({'D': 22.8, 'chopper2_pos': 5, 'gap': 0.1,
                  'wlmax': 21.0, 'wlmin': 3.0})
-    assert rfp.read(0) == 11.153
-    assert res.read(0) == 6.168
+    assert rfp.read(0) == 11.1496
+    assert res.read(0) == 6.133
 
 
 class TestDevices:
@@ -150,6 +150,16 @@ class TestDevices:
         raw.maw(-1)
         assert dev.read(0) == -1
         assert identity.read(0) == raw.read(0)
+
+    def test_analog_move(self, session):
+        raw = session.getDevice('h2_ctrl_l')
+        dev = session.getDevice('h2_motor_l')
+        assert raw.read(0) == 0
+        assert dev.read(0) == 61.6156
+
+        dev.maw(50)
+
+        assert raises(ConfigurationError, session.getDevice, 'h2_motor_r')
 
 
 class TestChopper:
@@ -208,7 +218,7 @@ class TestChopper:
                      'wlmin': 0.0})
         assert chopper.read(0) == {'D': 22.8, 'chopper2_pos': 6, 'gap': 0.0,
                                    'wlmax': 21.0, 'wlmin': 0.0}
-        assert chopper2.phase == 300
+        assert approx(chopper2.phase) == 302.415
         assert chopper.mode == 'virtual_disc2_pos_6'
 
 

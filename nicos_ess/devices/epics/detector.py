@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,7 +21,6 @@
 #   Nikhil Biyani <nikhil.biyani@psi.ch>
 #
 # *****************************************************************************
-
 """
 This module contains EPICS and detector integration.
 """
@@ -55,8 +54,12 @@ class EpicsActiveChannel(EpicsReadableEss, ActiveChannel):
     """
 
     parameters = {
-        'presetpv': Param('PV to set the preset for the count', type=pvname,
-                          mandatory=True, settable=False, userparam=False),
+        'presetpv':
+            Param('PV to set the preset for the count',
+                  type=pvname,
+                  mandatory=True,
+                  settable=False,
+                  userparam=False),
     }
 
     parameter_overrides = {
@@ -110,10 +113,15 @@ class EpicsDetector(EpicsDevice, Detector):
     """
 
     parameters = {
-        'startpv': Param('PV to start the counting', type=pvname,
-                         mandatory=True, userparam=False),
-        'pausepv': Param('Optional PV to pause the counting', type=pvname,
-                         userparam=False),
+        'startpv':
+            Param('PV to start the counting',
+                  type=pvname,
+                  mandatory=True,
+                  userparam=False),
+        'pausepv':
+            Param('Optional PV to pause the counting',
+                  type=pvname,
+                  userparam=False),
     }
 
     def doPreinit(self, mode):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -34,13 +34,13 @@ from nicos.core.constants import FINAL, INTERMEDIATE, POINT
 from nicos.core.data import DataSinkHandler
 from nicos.core.status import BUSY, OK
 from nicos.devices.datasinks import FileSink
-from nicos.devices.entangle import BaseImageChannel
+from nicos.devices.entangle import ImageChannel
 from nicos.utils import lazy_property
 
 MODES = ['cross_auto1', 'cross_auto2', 'auto1_auto2', 'cross_cross']
 
 
-class DLSCard(BaseImageChannel):
+class DLSCard(ImageChannel):
     attached_devices = {
         'wheels': Attach('The filter wheel positions', Readable,
                          multiple=True, optional=True),
@@ -139,6 +139,7 @@ class DLSDetector(Measurable):
     def doSetPreset(self, **preset):
         if 't' in preset:
             self._ntotal = int(preset['t'] / self.duration) or 1
+        self._lastpreset = preset
 
     def presetInfo(self):
         return ('t',)

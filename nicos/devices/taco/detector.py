@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -72,10 +72,10 @@ class BaseChannel(TacoDevice):
         self.doStop()
         self._taco_guard(self._dev.setPreselection, value)
 
-    def doReadIsmaster(self):
+    def doReadIscontroller(self):
         return self._taco_guard(self._dev.isMaster)
 
-    def doWriteIsmaster(self, value):
+    def doWriteIscontroller(self, value):
         self.doStop()
         self._taco_guard(self._dev.enableMaster, value)
 
@@ -111,10 +111,10 @@ class FRMChannel(BaseChannel, ActiveChannel):
                  'preselection': IOCommon.MODE_PRESELECTION}
         self._taco_guard(self._dev.setMode, modes[value])
 
-    def doWriteIsmaster(self, value):
+    def doWriteIscontroller(self, value):
         if self.mode == 'ratemeter':
             if value:
-                raise UsageError(self, 'ratemeter channel cannot be master')
+                raise UsageError(self, "ratemeter channel can't be controller")
             return
         self.doStop()
         self.mode = 'preselection' if value else 'normal'

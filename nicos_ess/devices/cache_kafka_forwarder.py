@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,65 +27,73 @@ import time
 from threading import Lock
 
 from kafka import KafkaProducer
-from streaming_data_types.fbschemas.logdata_f142.AlarmSeverity import \
-    AlarmSeverity
-from streaming_data_types.fbschemas.logdata_f142.AlarmStatus import AlarmStatus
-from streaming_data_types.logdata_f142 import serialise_f142
+from streaming_data_types.alarm_al00 import Severity, serialise_al00
+from streaming_data_types.logdata_f144 import serialise_f144
 
 from nicos.core import Device, Override, Param, host, listof, status
 from nicos.protocols.cache import cache_load
 from nicos.services.collector import ForwarderBase
 from nicos.utils import createThread
 
-nicos_status_to_f142 = {
-    status.OK: AlarmSeverity.NO_ALARM,
-    status.WARN: AlarmSeverity.MINOR,
-    status.ERROR: AlarmSeverity.MAJOR,
+nicos_status_to_al00 = {
+    status.OK: Severity.OK,
+    status.WARN: Severity.MINOR,
+    status.ERROR: Severity.MAJOR,
+    status.UNKNOWN: Severity.INVALID
 }
 
 
 def convert_status(nicos_status):
-    """Convert the NICOS status into the corresponding f142 schema severity.
+    """Convert the NICOS status into the corresponding al00 schema severity.
 
     Policy decision: treat everything that is not WARN or ERROR as OK.
 
     :param nicos_status: the NICOS status
-    :return: the f142 schema severity
+    :return: the al00 schema severity
     """
-    return nicos_status_to_f142.get(nicos_status, AlarmSeverity.NO_ALARM)
+    severity, msg = cache_load(nicos_status)
+    return nicos_status_to_al00.get(severity, Severity.OK), msg
 
 
-def to_f142(dev_name, dev_value, dev_severity, timestamp_ns):
-    """Convert the device information in to an f142 FlatBuffer.
+def to_f144(dev_name, dev_value, timestamp_ns):
+    """Convert the device information into an f144 FlatBuffer.
 
     :param dev_name: the device name
     :param dev_value: the device's value
-    :param dev_severity: the device's status
     :param timestamp_ns: the associated timestamp in nanoseconds
     :return: FlatBuffer representation of data
     """
-    # Alarm status is not relevant for NICOS but we have to send something
-    return serialise_f142(dev_value, dev_name, timestamp_ns,
-                          AlarmStatus.NO_ALARM, dev_severity)
+    return serialise_f144(dev_name, dev_value, timestamp_ns)
 
 
 class CacheKafkaForwarder(ForwarderBase, Device):
     parameters = {
-        'brokers': Param('List of kafka hosts to be connected',
-                         type=listof(host(defaultport=9092)),
-                         mandatory=True, preinit=True, userparam=False
-                         ),
-        'output_topic': Param('The topic to send data to',
-                              type=str, userparam=False, settable=False,
-                              mandatory=True,
-                              ),
-        'dev_ignore': Param('Devices to ignore; if empty, all devices are '
-                            'accepted', default=[],
-                            type=listof(str),
-                            ),
-        'update_interval': Param('Time interval (in secs.) to send regular updates',
-                                 default=10.0, type=float, settable=False)
-
+        'brokers':
+            Param('List of kafka hosts to be connected',
+                  type=listof(host(defaultport=9092)),
+                  mandatory=True,
+                  preinit=True,
+                  userparam=False),
+        'output_topic':
+            Param(
+                'The topic to send data to',
+                type=str,
+                userparam=False,
+                settable=False,
+                mandatory=True,
+            ),
+        'dev_ignore':
+            Param(
+                'Devices to ignore; if empty, all devices are '
+                'accepted',
+                default=[],
+                type=listof(str),
+            ),
+        'update_interval':
+            Param('Time interval (in secs.) to send regular updates',
+                  default=10.0,
+                  type=float,
+                  settable=False),
     }
     parameter_overrides = {
         # Key filters are irrelevant for this collector
@@ -95,16 +103,17 @@ class CacheKafkaForwarder(ForwarderBase, Device):
     def doInit(self, mode):
         self._dev_to_value_cache = {}
         self._dev_to_status_cache = {}
-        self._dev_to_timestamp_cache = {}
         self._producer = None
         self._lock = Lock()
 
         self._initFilters()
         self._queue = queue.Queue(1000)
-        self._worker = createThread('cache_to_kafka', self._processQueue,
+        self._worker = createThread('cache_to_kafka',
+                                    self._processQueue,
                                     start=False)
-        self._regular_update_worker = createThread(
-            'send_regular_updates', self._poll_updates, start=False)
+        self._regular_update_worker = createThread('send_regular_updates',
+                                                   self._poll_updates,
+                                                   start=False)
         while not self._producer:
             try:
                 self._producer = \
@@ -123,14 +132,12 @@ class CacheKafkaForwarder(ForwarderBase, Device):
     def _poll_updates(self):
         while True:
             with self._lock:
-                for dev_name in set(self._dev_to_value_cache.keys()).union(
-                        self._dev_to_status_cache.keys()):
-                    if self._relevant_properties_available(dev_name):
-                        self._push_to_queue(
-                            dev_name,
-                            self._dev_to_value_cache[dev_name],
-                            self._dev_to_status_cache[dev_name],
-                            self._dev_to_timestamp_cache[dev_name])
+                for name, (value,
+                           timestamp) in self._dev_to_value_cache.items():
+                    self._push_to_queue(name, value, timestamp, True)
+                for name, (value,
+                           timestamp) in self._dev_to_status_cache.items():
+                    self._push_to_queue(name, value, timestamp, False)
 
             time.sleep(self.update_interval)
 
@@ -153,45 +160,41 @@ class CacheKafkaForwarder(ForwarderBase, Device):
         self.log.debug('_putChange %s %s %s', key, value, timestamp)
 
         with self._lock:
+            timestamp_ns = int(float(timestamp) * 10**9)
             if key.endswith('value'):
-                self._dev_to_value_cache[dev_name] = value
+                self._dev_to_value_cache[dev_name] = (value, timestamp_ns)
+                self._push_to_queue(dev_name, value, timestamp_ns, True)
             else:
-                self._dev_to_status_cache[dev_name] = convert_status(value)
+                self._dev_to_status_cache[dev_name] = (convert_status(value),
+                                                       timestamp_ns)
+                self._push_to_queue(dev_name,
+                                    *self._dev_to_status_cache[dev_name],
+                                    False)
 
-            timestamp_ns = int(float(timestamp) * 10 ** 9)
-            self._dev_to_timestamp_cache[dev_name] = timestamp_ns
-            # Don't send until have at least one reading for both value and status
-            if self._relevant_properties_available(dev_name):
-                self._push_to_queue(
-                    dev_name,
-                    self._dev_to_value_cache[dev_name],
-                    self._dev_to_status_cache[dev_name],
-                    timestamp_ns,)
-
-    def _relevant_properties_available(self, dev_name):
-        return dev_name in self._dev_to_value_cache \
-            and dev_name in self._dev_to_status_cache \
-            and dev_name in self._dev_to_timestamp_cache
-
-    def _push_to_queue(self, dev_name, value, status, timestamp):
+    def _push_to_queue(self, dev_name, value, timestamp, is_value):
         try:
-            self._queue.put_nowait((dev_name, value, status, timestamp))
+            self._queue.put_nowait((dev_name, value, timestamp, is_value))
         except queue.Full:
             self.log.error('Queue full, so discarding older value(s)')
             self._queue.get()
-            self._queue.put((dev_name, value, status, timestamp))
+            self._queue.put((dev_name, value, timestamp, is_value))
             self._queue.task_done()
 
     def _processQueue(self):
         while True:
-            name, value, status, timestamp = self._queue.get()
+            name, value, timestamp, is_value = self._queue.get()
             try:
-                # Convert value from string to correct type
-                value = cache_load(value)
-                if not isinstance(value, str):
-                    # Policy decision: don't send strings via f142
-                    buffer = to_f142(name, value, status, timestamp)
-                    self._send_to_kafka(buffer)
+                if is_value:
+                    # Convert value from string to correct type
+                    value = cache_load(value)
+                    if not isinstance(value, str):
+                        # Policy decision: don't send strings via f144
+                        buffer = to_f144(name, value, timestamp)
+                        self._send_to_kafka(buffer, name)
+                else:
+                    buffer = serialise_al00(name, timestamp, value[0],
+                                            value[1])
+                    self._send_to_kafka(buffer, name)
             except Exception as error:
                 self.log.error('Could not forward data: %s', error)
             self._queue.task_done()
@@ -199,6 +202,8 @@ class CacheKafkaForwarder(ForwarderBase, Device):
     def doShutdown(self):
         self._producer.close()
 
-    def _send_to_kafka(self, buffer):
-        self._producer.send(self.output_topic, buffer)
+    def _send_to_kafka(self, buffer, name):
+        self._producer.send(self.output_topic,
+                            buffer,
+                            key=name.encode('utf-8'))
         self._producer.flush(timeout=3)

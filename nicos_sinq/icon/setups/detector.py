@@ -5,7 +5,7 @@ pvprefix_sumi = 'SQ:ICON:sumi:'
 pvprefix_ai = 'SQ:ICON:B5ADC:'
 
 includes = ['shutters']
-excludes = ['detector_phys']
+excludes = ['detector_phys', 'beam_monitor']
 
 display_order = 90
 
@@ -26,7 +26,7 @@ devices = dict(
         writepv = pvprefix + 'TRIG',
         visibility = (),
     ),
-    cam_aux = device('nicos_sinq.devices.epics.EpicsDigitalMoveable',
+    cam_aux = device('nicos_ess.devices.epics.base.EpicsAnalogMoveableEss',
         description = 'Exposure valid signal',
         readpv = pvprefix + 'AUX',
         writepv = pvprefix + 'AUX',
@@ -59,7 +59,7 @@ devices = dict(
         description = 'Exposure threshold',
         readpv = pvprefix_sumi + 'THRES',
         writepv = pvprefix_sumi + 'THRES',
-        window = 10,
+        precision = 10,
         abslimits = (-100, 2000),
     ),
     exp_ok = device('nicos_sinq.devices.epics.EpicsReadable',

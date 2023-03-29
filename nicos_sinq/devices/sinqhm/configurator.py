@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -48,9 +48,10 @@ class HistogramConfArray(HistogramConfElement):
     specified in the array attribute of the axis tag.
 
     The array tags itself has the following attributes:
+
     - rank: The number of dimensions of the array.
-    - dim: A comma separated list of values describing the length
-        of each dimension.
+    - dim: A comma separated list of values describing the length of each
+      dimension.
 
     Between the closing and ending array tag is the array data. This is
     just numbers. C storage order is assumed.
@@ -118,6 +119,14 @@ class HistogramConfTofArray(HistogramConfArray):
     The data vector represents the time bins. This class provides
     a way to change the time bins.
     """
+
+    parameters = {
+        'start_delay':  Param('start delay for tof',
+                              type=int, settable=True,
+                              unit='us'),
+        'channel_width': Param('channel width', type=int,
+                               settable=True, unit='us')
+    }
     parameter_overrides = {
         'tag': Override(mandatory=False, default='tof'),
         'data': Override(type=listof(int)),
@@ -131,35 +140,46 @@ class HistogramConfTofArray(HistogramConfArray):
         """
         data = np.arange(tmin, tmin + tstep * channels, tstep)
         self.setData([channels], data)
+        self.start_delay = tmin
+        self.channel_width = tstep
 
 
 class HistogramConfAxis(HistogramConfElement):
-    """ This element describes an axis of the histogram memory.
+    """This element describes an axis of the histogram memory.
     The axis tag has the following attributes:
+
     *length*: The length of the axis.
+
     *mapping*: The mapping type of the axis.
-        Currently supported mapping types are:
+    Currently supported mapping types are:
+
         direct:  Detector number in packet is detector number in histogram.
+
         calculate:  The detector number in the histogram memory must be
-            calculated from the data in the packet. If calculate has been
-            selected, the following additional attribute to axis are evaluated:
+        calculated from the data in the packet. If calculate has been selected,
+        the following additional attribute to axis are evaluated:
+
             - multiplier A multiplier
             - divisor A divisor
             - preoffset An offset to apply before division or multiplication.
             - postoffset An offset to apply after division or multiplication.
-            The formula to arrive at the histogram memory detector number d
-            from the value in the packet p is:
-            d = postoffset + (preoffset + p ∗ multiplier)/divisor
-            If any of the parameters are not given or 0, then the operation
-            is not performed: i.e. without a divisor no division.
+
+        The formula to arrive at the histogram memory detector number d
+        from the value in the packet p is:
+        :math:`d = postoffset + (preoffset + p \cdot multiplier)/divisor`.
+        If any of the parameters are not given or 0, then the operation
+        is not performed: i.e. without a divisor no division.
+
         boundary: The histogram memory detector position is deduced through
-            lookup in an array of bin boundaries. These boundaries must not
-            necessarily be linear. This mode is commonly applied to time of
-            flight data. This array should have length+1 bin boundary entries.
+        lookup in an array of bin boundaries. These boundaries must not
+        necessarily be linear. This mode is commonly applied to time of flight
+        data. This array should have length+1 bin boundary entries.
+
         lookuptable: This is for an area detector where the lookup for y is
         not independent of x. A 2D lookup array is required.
+
     *array*: Some axis mappings, tof, lookup, need arrays for their data.
-        This attribute gives the name of the array to use.
+    This attribute gives the name of the array to use.
 
     Additionally an axis can provide information about it's unit and label
     using parameters. The arrays associated with this axis need to be
@@ -311,9 +331,11 @@ class ConfiguratorBase(HistogramConfElement):
     XML file. The tag names must be those specified in the array attribute
     of the axis tag.
 
-    Example of the sample configuration file:
-    <?xml version="1.0" encoding="UTF-8"?>
-    <sinqhm filler="tof" hdr_daq_mask=’’0x000000’’ hdr_daq_active=’’0x000000’’>
+    Example of the sample configuration file::
+
+      <?xml version="1.0" encoding="UTF-8"?>
+      <sinqhm filler="tof" hdr_daq_mask=’’0x000000’’
+                           hdr_daq_active=’’0x000000’’>
         <bank rank="2">
             <axis length="400" mapping="direct"/>
             <axis length="1000" mapping="boundary" array="tof"/>
@@ -323,7 +345,8 @@ class ConfiguratorBase(HistogramConfElement):
             10000 11000 12000 13000 14000 15000 16000 17000 18000 19000
             ............. many numbers cut here ....................
         </tof>
-    </sinqhm>
+      </sinqhm>
+
     """
     parameters = {
         'filler': Param('Filler algorithm to be used',

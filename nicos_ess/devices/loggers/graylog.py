@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,7 +21,6 @@
 #   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
-
 """Graylog log handler"""
 
 import logging
@@ -31,8 +30,8 @@ import urllib
 try:
     from graypy import GELFTCPHandler
 
-
     class ESSGELFTCPHandler(GELFTCPHandler):
+
         @staticmethod
         def _add_full_message(gelf_dict, record):
             full_message = None

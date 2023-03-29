@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -285,9 +285,9 @@ class ScanDataset(BaseDataset):
         # Index of the X value to plot.
         self.xindex = 0
 
-        # If this is a continuation dataset, the UIDs of the continued ones.
-        self.continuation = []
-        self.cont_direction = 0
+        # If this is a chained dataset, the UIDs of the continued ones.
+        self.chain = []
+        self.chain_direction = 0
 
         BaseDataset.__init__(self, **kwds)
 
@@ -367,8 +367,8 @@ class ScanData:
     xindex = 0
     # number of env. values
     envvalues = 0
-    # continuation info
-    continuation = ''
+    # chaining info
+    chain = ''
     # value info
     xvalueinfo = []
     yvalueinfo = []
@@ -398,7 +398,7 @@ class ScanData:
             self.filepaths = dataset.filepaths
             self.xindex = dataset.xindex
             self.envvalues = len(dataset.envvalueinfo)
-            self.continuation = ','.join(str(uid) for uid in dataset.continuation)
+            self.chain = ','.join(str(uid) for uid in dataset.chain)
             self.xvalueinfo = dataset.devvalueinfo + dataset.envvalueinfo
             self.yvalueinfo = dataset.detvalueinfo
 
@@ -412,6 +412,8 @@ class ScanData:
             if dataset.subsets:
                 for (devname, key), (_, val, unit, category) in \
                         dataset.metainfo.items():
+                    if len(val) > 100:  # omit large values
+                        continue
                     catlist = self.headerinfo.setdefault(category, [])
                     catlist.append((devname, key, (val + ' ' + unit).strip()))
 
