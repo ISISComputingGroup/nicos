@@ -16,7 +16,7 @@ modules = ['nicos.commands.standard']
 includes = ['notifiers']
 
 devices = dict(
-    Exp = device('nicos_mlz.mira.devices.experiment.MiraExperiment',
+    Exp = device('nicos_mlz.mira.devices.experiment.Experiment',
         description = 'experiment object',
         sample = 'Sample',
         dataroot = '/data',
@@ -24,7 +24,7 @@ devices = dict(
         sendmail = True,
         mailsender = 'rgeorgii@frm2.tum.de',
     ),
-    Sample = device('nicos.devices.sample.Sample',
+    Sample = device('nicos_mlz.devices.sample.Sample',
         description = 'sample object',
     ),
     mira = device('nicos.devices.instrument.Instrument',

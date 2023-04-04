@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -62,11 +62,18 @@ class PlotWidget1D(PlotWidget):
 
 
 class ComparisonPlot1D(PlotWidget1D):
+
     def __init__(self, title, x_label, y_label, n_curves, parent=None):
-        PlotWidget1D.__init__(self, title, x_label, y_label, n_curves, parent=parent)
-        curve = MaskedPlotCurve(
-            [0], [1], linewidth=2, legend='Difference', linecolor=COLOR_GREEN
-        )
+        PlotWidget1D.__init__(self,
+                              title,
+                              x_label,
+                              y_label,
+                              n_curves,
+                              parent=parent)
+        curve = MaskedPlotCurve([0], [1],
+                                linewidth=2,
+                                legend='Difference',
+                                linecolor=COLOR_GREEN)
         self.plot.axes.addCurves(curve)
         self.plot._curves.append(curve)
         self.plot._curves[0].legend = 'Current'
@@ -74,17 +81,17 @@ class ComparisonPlot1D(PlotWidget1D):
 
 
 class ComparisonPlot2D(QWidget):
+
     def __init__(self, title, parent=None):
         QWidget.__init__(self, parent)
         parent.setLayout(QVBoxLayout())
         self.plot = IntegralLiveWidget(self)
         titleLabel = QLabel(title)
-        titleLabel.setAlignment(Qt.AlignCenter)
+        titleLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         titleLabel.setStyleSheet('QLabel {font-weight: 600}')
         parent.layout().insertWidget(0, titleLabel)
-        self.plot.setSizePolicy(
-            QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding
-        )
+        self.plot.setSizePolicy(QSizePolicy.Policy.MinimumExpanding,
+                                QSizePolicy.Policy.MinimumExpanding)
         parent.layout().insertWidget(1, self.plot)
 
     def setData(self, array, labels=None):

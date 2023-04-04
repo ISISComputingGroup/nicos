@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -137,6 +137,11 @@ class ConstDataset(NexusElementBase):
             dtype = 'S%d' % (len(self.value.encode('utf-8')) + 1)
             dset = h5parent.create_dataset(name, (1,), dtype)
             dset[0] = np.array(self.value.encode('utf-8'), dtype=dtype)
+        elif isinstance(self.value, (tuple, list)):
+            dset = h5parent.create_dataset(name, (len(self.value),),
+                                           dtype=self.dtype)
+            for i, v in enumerate(self.value):
+                dset[i] = v
         else:
             dset = h5parent.create_dataset(name, (1,), dtype=self.dtype)
             dset[0] = self.value
@@ -259,11 +264,11 @@ class DeviceDataset(NexusElementBase):
             return
 
         dset = h5parent[name]
-        devices = (sinkhandler.dataset.devices +
-                   sinkhandler.dataset.environment)
+        devinfo = (sinkhandler.dataset.devvalueinfo +
+                   sinkhandler.dataset.envvalueinfo)
         values = (sinkhandler.dataset.devvaluelist +
                   sinkhandler.dataset.envvaluelist)
-        for dev, val in zip(devices, values):
+        for dev, val in zip(devinfo, values):
             if dev.name == self.device:
                 self.resize_dataset(dset)
                 dset[self.np] = val
@@ -413,6 +418,8 @@ class ImageDataset(NexusElementBase):
         data = results.get(det.name)
         if data is not None:
             array = data[1][self.imageIDX]
+            if array is None:
+                return
             if self.doAppend:
                 idx = self.np + 1
                 if len(dset) < idx:

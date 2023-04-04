@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -33,7 +33,7 @@ from nicos.core import FINAL, INTERMEDIATE, LIVE, NicosError, Param, \
     UsageError, oneof, status
 from nicos.core.constants import SIMULATION
 from nicos.core.params import Attach, Value, listof
-from nicos.devices.entangle import BaseImageChannel, NamedDigitalOutput
+from nicos.devices.entangle import ImageChannel, NamedDigitalOutput
 from nicos.devices.generic.detector import Detector
 
 from nicos_mlz.spheres.devices.doppler import ELASTIC, INELASTIC
@@ -68,7 +68,7 @@ ChopperHisto = namedtuple('ChopperHisto', 'angle '
                                           't_refl t_open')
 
 
-class SISChannel(BaseImageChannel):
+class SISChannel(ImageChannel):
     """
     Spheres SIS ImageChannel
     """
@@ -131,9 +131,7 @@ class SISChannel(BaseImageChannel):
                                    volatile=True),
     }
 
-    def __init__(self, name, **config):
-        BaseImageChannel.__init__(self, name, **config)
-
+    def doInit(self, mode):
         self._block = []
         self._reason = ''
 

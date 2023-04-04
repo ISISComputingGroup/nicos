@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -41,7 +41,7 @@ class ErrorPanel(DefaultErrorPanel):
 
     def __init__(self, parent, client, options):
         DefaultErrorPanel.__init__(self, parent, client, options)
-        self.outView.insert_position = QTextCursor.Start
+        self.outView.insert_position = QTextCursor.MoveOperation.Start
 
     def on_client_connected(self):
         messages = self.client.ask('getmessages', '10000', default=[])
@@ -51,6 +51,5 @@ class ErrorPanel(DefaultErrorPanel):
         self.outView.scrollToBottom()
 
     def on_client_message(self, message):
-        print(message)
         if message[2] >= WARNING:  # show if level is warning or higher
             self.outView.addMessage(message)

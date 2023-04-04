@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -100,7 +100,7 @@ class PlcDeviceControlPanel(Panel):
         self.paramTable.setRowCount(len(parlist))
         for (i, par) in enumerate(parlist):
             nameitem = QTableWidgetItem(par)
-            nameitem.setFlags(nameitem.flags() & ~Qt.ItemIsEditable)
+            nameitem.setFlags(nameitem.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.paramTable.setItem(i, 0, nameitem)
             value = self.client.eval('session.getDevice(%r)._dev.'
                                      'GetParam(%r)' % (devname, par),

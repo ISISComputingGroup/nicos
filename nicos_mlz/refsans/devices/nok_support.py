@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -309,8 +309,8 @@ class DoubleMotorNOK(SequencerMixin, CanReference, PseudoNOK, HasPrecision,
             return False, 'Inclination %.2f out of limit (%.2f, %.2f)!' % (
                 inclination, incmin, incmax)
 
-        for dev in self._devices:
-            res = dev.isAllowed(target_r)
+        for dev, tar in zip(self._devices, targets):
+            res = dev.isAllowed(tar)
             if not res[0]:
                 return res
 
@@ -357,15 +357,16 @@ class DoubleMotorNOK(SequencerMixin, CanReference, PseudoNOK, HasPrecision,
         multiReset(self._motors)
 
     def doWriteMode(self, mode):
-        self.log.debug('DoubleMotorNOK arg:%s  self:%s', mode, self.mode)
-        target = self.doRead(0)
-        self.log.debug('DoubleMotorNOK target %s', target)
-        target = [pos + self.masks[mode] for pos in target]
-        self.log.debug('DoubleMotorNOK target %s', target)
-        sequence = [SeqDev(d, t + ofs, stoppable=True)
-                    for d, t, ofs in zip(self._devices, target, self.offsets)]
-        self.log.debug('Seq_4: %r', sequence)
-        self._startSequence(sequence)
+        pass
+        # self.log.debug('DoubleMotorNOK arg:%s  self:%s', mode, self.mode)
+        # target = self.doRead(0)
+        # self.log.debug('DoubleMotorNOK target %s', target)
+        # target = [pos + self.masks[mode] for pos in target]
+        # self.log.debug('DoubleMotorNOK target %s', target)
+        # sequence = [SeqDev(d, t + ofs, stoppable=True)
+        #             for d, t, ofs in zip(self._devices, target, self.offsets)]
+        # self.log.debug('Seq_4: %r', sequence)
+        # self._startSequence(sequence)
 
     def doStatus(self, maxage=0):
         self.log.debug('DoubleMotorNOK status')
@@ -427,24 +428,3 @@ class DoubleMotorNOKIPC(DoubleMotorNOK):
         # GO
         self.log.debug('Seq_4: %r', sequence)
         self._startSequence(sequence)
-
-
-class MotorEncoderDifference(Readable):
-
-    attached_devices = {
-        'motor': Attach('moving motor', Moveable),
-        'analog': Attach('analog encoder maybe poti', Readable),
-    }
-
-    parameters = {
-        'absolute': Param('Value is absolute or signed.', type=bool,
-                          settable=True, default=True),
-    }
-
-    def doRead(self, maxage=0):
-        dif = self._attached_analog.read(maxage) - \
-            self._attached_motor.read(maxage)
-        return abs(dif) if self.absolute else dif
-
-    def doStatus(self, maxage=0):
-        return status.OK, ''

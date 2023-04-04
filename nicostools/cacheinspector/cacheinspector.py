@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -47,14 +47,14 @@ class StatusBarHandler(Handler):
         if self._statusbar:
             msg = record.message
             palette = self._statusbar.palette()
-            color = Qt.black
+            color = Qt.GlobalColor.black
             if record.levelno == WARNING:
-                color = Qt.darkMagenta
+                color = Qt.GlobalColor.darkMagenta
                 msg = 'Warning: ' + msg
             elif record.levelno == ERROR:
-                color = Qt.red
+                color = Qt.GlobalColor.red
                 msg = 'Error: ' + msg
-            palette.setColor(QPalette.WindowText, color)
+            palette.setColor(QPalette.ColorRole.WindowText, color)
             self._statusbar.setPalette(palette)
             self._statusbar.showMessage(msg)
 
@@ -83,7 +83,7 @@ class CacheInspector(CICacheClient):
         self._qtapp.setOrganizationName('nicos')
         self._qtapp.setApplicationName('cacheinspector')
         self._window = MainWindow(self)
-        self._window.setWindowIcon(QIcon(':/inspector'))
+        QApplication.setWindowIcon(QIcon(':/inspector'))
         session._qthandler.setStatusbar(self._window.statusBar())
 
     def start(self):

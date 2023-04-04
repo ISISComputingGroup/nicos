@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,15 +23,16 @@
 #   Matt Clarke <matt.clarke@ess.eu>
 #
 # *****************************************************************************
-
 """Helpers for working with tables."""
+
+from nicos.guisupport.qt import QApplication, Qt
 
 from nicos_ess.utilities.table_utils import convert_table_to_clipboard_text, \
     extract_table_from_clipboard_text
-from nicos.guisupport.qt import QApplication, Qt
 
 
 class Clipboard:
+
     def __init__(self):
         self.clipboard = QApplication.instance().clipboard()
 
@@ -46,6 +47,7 @@ class Clipboard:
 
 
 class TableHelper:
+
     def __init__(self, table_view, model, clipboard):
         self.table_view = table_view
         self.model = model
@@ -75,7 +77,7 @@ class TableHelper:
 
     def clear_selected(self):
         for index in self.table_view.selectedIndexes():
-            self.model.setData(index, '', Qt.EditRole)
+            self.model.setData(index, '', Qt.ItemDataRole.EditRole)
 
     def cut_selected_to_clipboard(self):
         self.copy_selected_to_clipboard()
@@ -92,14 +94,16 @@ class TableHelper:
         if len(copied_table) == 1 and len(copied_table[0]) == 1:
             # Only one value, so put it in all selected cells
             for index in self.table_view.selectedIndexes():
-                self.model.setData(index, copied_table[0][0], Qt.EditRole)
+                self.model.setData(index, copied_table[0][0],
+                                   Qt.ItemDataRole.EditRole)
             return
 
         # Copied data is tabular so insert at top-left most position
         top_left = self.table_view.selectedIndexes()[0]
-        column_indexes = [i for i, _ in enumerate(self.model._headings)
-                          if not self.table_view.isColumnHidden(i)
-                          and i >= top_left.column()]
+        column_indexes = [
+            i for i, _ in enumerate(self.model._headings) if
+            not self.table_view.isColumnHidden(i) and i >= top_left.column()
+        ]
         for row_index, row_data in enumerate(copied_table):
             current_row = top_left.row() + row_index
             if current_row == self.model.num_entries:
@@ -109,4 +113,4 @@ class TableHelper:
 
             for col_index, value in zip(column_indexes, row_data):
                 self.model.setData(self.model.index(current_row, col_index),
-                                   value, Qt.EditRole)
+                                   value, Qt.ItemDataRole.EditRole)

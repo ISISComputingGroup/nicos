@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -81,7 +81,7 @@ devices = dict(
         abslimits = (0, 60),
         precision = 0.05,
     ),
-    cad = device('nicos_mlz.puma.devices.PumaCoupledAxis',
+    cad = device('nicos_mlz.puma.devices.CoupledAxis',
         tt = device('nicos.devices.generic.VirtualMotor',
             unit = 'deg',
             abslimits = (-117, 117),

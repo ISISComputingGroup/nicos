@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -35,7 +35,7 @@ from nicos.protocols.daemon import STATUS_RUNNING
 def decolor_logo(pixmap, color):
     retpix = QPixmap(pixmap.size())
     retpix.fill(color)
-    retpix.setMask(pixmap.createMaskFromColor(Qt.transparent))
+    retpix.setMask(pixmap.createMaskFromColor(Qt.GlobalColor.transparent))
     return retpix
 
 
@@ -49,7 +49,8 @@ class RunningScriptPanel(Panel):
         Panel.__init__(self, parent, client, options)
         loadUi(self, self.ui)
 
-        pxr = decolor_logo(QPixmap("resources/nicos-logo-high.svg"), Qt.white)
+        pxr = decolor_logo(QPixmap("resources/nicos-logo-high.svg"),
+                           Qt.GlobalColor.white)
         self.nicosLabel.setPixmap(pxr)
 
         self.runningCmdLabel.setIndent(10)
@@ -62,12 +63,13 @@ class RunningScriptPanel(Panel):
         if instrument:
             instrument = instrument.split('.')[-1]
             logo = decolor_logo(QPixmap('resources/%s-logo.svg' % instrument),
-                                Qt.white)
+                                Qt.GlobalColor.white)
             if logo.isNull():
                 self.instrumentLabel.setText(instrument.upper())
             else:
                 self.instrumentLabel.setPixmap(logo.scaledToHeight(
-                    self.instrumentLabel.height(), Qt.SmoothTransformation))
+                    self.instrumentLabel.height(),
+                    Qt.TransformationMode.SmoothTransformation))
         else:
             self.instrumentLabel.setText('')
 

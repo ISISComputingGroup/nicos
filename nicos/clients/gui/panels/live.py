@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -61,10 +61,10 @@ except ImportError:
 
 COLORMAPS = OrderedDict(GR_COLORMAPS)
 
-FILENAME = Qt.UserRole
-FILETYPE = Qt.UserRole + 1
-FILETAG = Qt.UserRole + 2
-FILEUID = Qt.UserRole + 3
+FILENAME = Qt.ItemDataRole.UserRole
+FILETYPE = Qt.ItemDataRole.UserRole + 1
+FILETAG = Qt.ItemDataRole.UserRole + 2
+FILEUID = Qt.ItemDataRole.UserRole + 3
 
 DEFAULTS = dict(
     marks='omark',
@@ -203,7 +203,7 @@ class LiveDataPanel(Panel):
 
         self.statusBar = QStatusBar(self, sizeGripEnabled=False)
         policy = self.statusBar.sizePolicy()
-        policy.setVerticalPolicy(QSizePolicy.Fixed)
+        policy.setVerticalPolicy(QSizePolicy.Policy.Fixed)
         self.statusBar.setSizePolicy(policy)
         self.statusBar.setSizeGripEnabled(False)
         self.layout().addWidget(self.statusBar)
@@ -244,7 +244,7 @@ class LiveDataPanel(Panel):
             self.pastFilesWidget.hide()
             self.statusBar.hide()
             # disable interactions with the plot
-            self.setAttribute(Qt.WA_TransparentForMouseEvents)
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
         self.liveitems = []
         self.setLiveItems(1)
@@ -489,7 +489,7 @@ class LiveDataPanel(Panel):
             safeName('data_' + self.fileList.currentItem().data(FILEUID)
                      + suffix))
         ret = newdlg.exec()
-        if ret != QDialog.Accepted:
+        if ret != QDialog.DialogCode.Accepted:
             return
         descr = newdlg.description.text()
         fname = newdlg.filename.text()
@@ -751,6 +751,7 @@ class LiveDataPanel(Panel):
                 and params['det'] not in self._allowed_detectors:
             return
 
+        self._applyPlotSettings(params)
         if params['tag'] == LIVE:
             datacount = len(params['datadescs'])
             self.setLiveItems(datacount)
@@ -764,7 +765,6 @@ class LiveDataPanel(Panel):
                 self._process_livedata(params, [], 0)
         elif params['tag'] == FILE:
             self._process_filenames(params)
-        self._applyPlotSettings(params)
 
     def getDefaultLabels(self, size):
         return numpy.arange(size)
@@ -796,6 +796,11 @@ class LiveDataPanel(Panel):
                 self._datacache[uid] = {}
             self._datacache[uid]['dataarrays'] = arrays
         if display:
+            if uid:
+                if titles is None:
+                    titles = self._datacache[uid].get('titles')
+                if labels is None:
+                    labels = self._datacache[uid].get('labels')
             self._initLiveWidget(arrays[0])
             for widget in self._get_all_widgets():
                 widget.setData(arrays, labels)
@@ -957,8 +962,8 @@ class LiveDataPanel(Panel):
 
         # if multiple datasets have to be displayed in one widget, they have
         # the same dimensions, so we only need the dimensions of one set
-        self.setData(arrays, labels, titles)
         self._applyPlotSettings(params)
+        self.setData(arrays, labels, titles)
 
     def remove_obsolete_cached_files(self):
         """Remove or flag items which are no longer cached.
@@ -982,6 +987,10 @@ class LiveDataPanel(Panel):
     def add_to_flist(self, filename, filetype, tag, uid=None, scroll=True):
         # liveonly mode doesn't display a filelist
         if self._liveOnlyIndex is not None:
+            return
+        # no duplicate filenames
+        if any(self.fileList.item(i).data(FILENAME) == filename
+               for i in range(self.fileList.count())):
             return
 
         shortname = path.basename(filename)
@@ -1024,7 +1033,7 @@ class LiveDataPanel(Panel):
                                    ";;".join(ftypes.keys()))
         if self._fileopen_filter:
             fdialog.selectNameFilter(self._fileopen_filter)
-        if fdialog.exec() != QDialog.Accepted:
+        if fdialog.exec() != QDialog.DialogCode.Accepted:
             return
         files = fdialog.selectedFiles()
         if not files:
@@ -1275,7 +1284,7 @@ class ImagingControls(QWidget):
                 ob = numpy.subtract(ob, di)
                 # set 0's to 1's to avoid division by 0 errors
                 ob += (ob == 0).astype(ob.dtype)
-            ob = numpy.array(ob, dtype=float)
+            ob = numpy.array(ob, dtype=numpy.float64)
             image = numpy.divide(image, ob)
         return image
 
@@ -1323,7 +1332,7 @@ class ImagingLiveDataPanel(LiveDataPanel):
 
         if self.controls.autoScale():
             cdf = histogram.cumsum()
-            cdf_normalized = cdf.astype(float) / cdf.max()
+            cdf_normalized = cdf.astype(numpy.float64) / cdf.max()
             maxValue = round(binedges[numpy.argmax(cdf_normalized > 0.99)])
             minValue = round(binedges[numpy.argmax(cdf_normalized > 0.01)])
             self.controls.setRange(minValue, maxValue)
@@ -1354,7 +1363,6 @@ class ImagingLiveDataPanel(LiveDataPanel):
             self.initLiveWidget(IntegralLiveWidget)
         else:
             self.initLiveWidget(ImagingLiveWidget)
-            # self.initLiveWidget(LiveWidget)
         # Set the grayscale as default
         for action in self.actionsColormap.actions():
             if action.data().upper() == 'GRAYSCALE':
@@ -1382,6 +1390,7 @@ class ImagingLiveDataPanel(LiveDataPanel):
         last_item.setData(FILENAME, item.data(FILENAME))
         last_item.setData(FILETYPE, item.data(FILETYPE))
         last_item.setData(FILETAG, item.data(FILETAG))
+        self._show()
 
     def add_to_flist(self, filename, filetype, tag, uid=None, scroll=True):
         item = LiveDataPanel.add_to_flist(

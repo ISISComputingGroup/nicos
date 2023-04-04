@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -92,7 +92,7 @@ devices = dict(
         description = 'Status monitor',
         showwatchdog = False,
         title = 'SANS-1',
-        cache = 'sans1ctrl.sans1.frm2',
+        cache = 'ctrl.sans1.frm2.tum.de',
         font = 'Luxi Sans',
         fontsize = 12,  # 12
         loglevel = 'info',

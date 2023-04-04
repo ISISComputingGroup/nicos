@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,10 +26,11 @@
 
 from nicos import session
 from nicos.core import Override
-from nicos.devices.sample import Sample as NicosSample
+
+from nicos_mlz.devices.sample import Sample as NicosSample
 
 
-class Sans1Sample(NicosSample):
+class Sample(NicosSample):
     """A special device to represent a sample.
 
     Represent a set of samples with a currently activated one.

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -80,7 +80,7 @@ class MezeiFlipper(BaseFlipper):
 
 class KFlipper(BaseFlipper):
     """
-    Class for an momentum dependent type flipper consisting of flipper and correction field.
+    Class for a momentum dependent type flipper consisting of flipper and correction field.
 
     So far only used at PANDA, but would work on other TAS-like instruments.
     For the state "on" the two power supplies are moved to the values calculated

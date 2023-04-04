@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -26,49 +26,55 @@
 
 main_window = docked(
     tabbed(
-        ('Experiment', panel('nicos_ess.gui.panels.exp_panel.ExpPanel',
-                             hide_sample=True)),
-        ('Setup', panel('nicos.clients.flowui.panels.setup_panel.SetupsPanel')),
-        ('Cell-holder Configuration',
-            panel('nicos_ess.loki.gui.sample_holder_config.LokiSampleHolderPanel')
-        ),
-        ('  ', panel('nicos.clients.flowui.panels.empty.EmptyPanel')),
-        ('Instrument interaction',
-         hsplit(
-             vbox(
-                 panel(
-                     'nicos.clients.flowui.panels.cmdbuilder.CommandPanel',
-                      modules=['nicos.clients.gui.cmdlets'],
-                    ),
-                 tabbed(
-                     ('Output',
-                      panel('nicos.clients.flowui.panels.console.ConsolePanel',
-                            hasinput=False)),
-                     ('Scan Plot',
-                      panel('nicos.clients.flowui.panels.scans.ScansPanel')),
-                     ('Detector Image',
-                      panel('nicos.clients.flowui.panels.live.MultiLiveDataPanel')),
-                     ('Script Status',
-                      panel('nicos.clients.flowui.panels.status.ScriptStatusPanel',
-                            eta=True)),
-                 ),
-
-             ), # vsplit
-             panel(
-                 'nicos.clients.flowui.panels.devices.DevicesPanel',
-                 dockpos='right',
-                 param_display={'Exp': ['lastpoint', 'lastscan']},
-                 filters=[],
-             ),
-         ),  # hsplit
+        ('Experiment',
+         panel('nicos_ess.gui.panels.exp_panel.ExpPanel', hide_sample=True)),
+        ('Instrument Setup',
+         panel('nicos.clients.flowui.panels.setup_panel.SetupsPanel')),
+        ('Sample Configuration',
+         panel('nicos_ess.loki.gui.sample_holder_config.LokiSampleHolderPanel')
          ),
+        ('  ', panel('nicos.clients.flowui.panels.empty.EmptyPanel')),
+        (
+            'Instrument Interaction',
+            hsplit(
+                vbox(
+                    panel(
+                        'nicos.clients.flowui.panels.cmdbuilder.CommandPanel',
+                        modules=['nicos.clients.gui.cmdlets'],
+                    ),
+                    tabbed(
+                        ('Output',
+                         panel(
+                             'nicos.clients.flowui.panels.console.ConsolePanel',
+                             hasinput=False)),
+                        ('Scan Plot',
+                         panel('nicos.clients.flowui.panels.scans.ScansPanel')
+                         ),
+                        ('Detector Image',
+                         panel(
+                             'nicos.clients.flowui.panels.live.MultiLiveDataPanel'
+                         )),
+                        ('Script Status',
+                         panel(
+                             'nicos.clients.flowui.panels.status.ScriptStatusPanel',
+                             eta=True)),
+                    ),
+                ),  # vsplit
+                panel(
+                    'nicos.clients.flowui.panels.devices.DevicesPanel',
+                    dockpos='right',
+                    param_display={'Exp': ['lastpoint', 'lastscan']},
+                    filters=[],
+                ),
+            ),  # hsplit
+        ),
         (
             'Script Builder',
             panel('nicos_ess.loki.gui.scriptbuilder.LokiScriptBuilderPanel',
                   tools=None),
         ),
         (
-            'Batch file generation',
+            'Scripting',
             panel('nicos.clients.flowui.panels.editor.EditorPanel',
                   tools=None),
         ),
@@ -76,16 +82,20 @@ main_window = docked(
             'History',
             panel('nicos.clients.flowui.panels.history.HistoryPanel'),
         ),
-        ('Logs',
+        (
+            'Logs',
             tabbed(
-                ('Errors', panel('nicos.clients.gui.panels.errors.ErrorPanel')),
-                ('Log files', panel(
-                    'nicos.clients.gui.panels.logviewer.LogViewerPanel')),
+                ('Errors',
+                 panel('nicos.clients.gui.panels.errors.ErrorPanel')),
+                ('Log files',
+                 panel('nicos.clients.gui.panels.logviewer.LogViewerPanel')),
             ),
-         ),
+        ),
         position='left',
+        margins=(0, 0, 0, 0),
+        textpadding=(30, 20),
     ),  # tabbed
-    )  # docked
+)  # docked
 
 windows = []
 
@@ -96,4 +106,5 @@ tools = [
 
 options = {
     'facility': 'ess',
+    'mainwindow_class': 'nicos.clients.flowui.mainwindow.MainWindow',
 }

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -39,8 +39,8 @@ class DownTimeTool(DlgUtils, QDialog):
         QDialog.__init__(self, parent)
         DlgUtils.__init__(self, self.toolName)
         loadUi(self, 'tools/downtime.ui')
-        self.sendBtn = self.buttonBox.addButton('&Send',
-                                                QDialogButtonBox.AcceptRole)
+        self.sendBtn = self.buttonBox.addButton(
+            '&Send', QDialogButtonBox.ButtonRole.AcceptRole)
         self.sendBtn.setIcon(QIcon(':/mail'))
         self.sendBtn.setDisabled(True)
 

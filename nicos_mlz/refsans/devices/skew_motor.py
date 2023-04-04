@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -41,7 +41,7 @@ class SkewRead(Readable):
     }
 
     def _read_devices(self, maxage=0):
-        return [d.read(maxage) for d in self._adevs.values()]
+        return self._attached_one.read(maxage), self._attached_two.read(maxage)
 
     def doRead(self, maxage=0):
         return sum(self._read_devices(maxage)) / 2.
@@ -63,12 +63,6 @@ class SkewMotor(HasOffset, SkewRead, Motor):
                       '"two"',
                       type=float, default=0., settable=True, unit='main'),
     }
-
-    def _read_devices(self, maxage=0):
-        return self._attached_one.read(maxage), self._attached_two.read(maxage)
-
-    def doRead(self, maxage=0):
-        return sum(self._read_devices(maxage)) / 2.
 
     def doIsAtTarget(self, pos, target):
         if target is None:

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -423,7 +423,7 @@ class TestDevice:
         AddSetup('device')
         pdev = session.getDevice('privdev')
         with session.withUserLevel(GUEST):
-            assert raises(AccessError, set, pdev, 'description', 'foo')
+            assert raises(AccessError, set, pdev, 'unit', 'foo')
 
     def test_privileged_disable(self, session, log):
         AddSetup('device')
@@ -472,6 +472,7 @@ class TestDevice:
         assert raises(UsageError, release)
         assert raises(UsageError, release, ())
         assert raises(UsageError, unfix, ())
+        assert raises(UsageError, fix, (motor, motor))
 
     def test_disable_and_enable(self, session, log):
         """Check disable() and enable() commands."""
@@ -554,10 +555,10 @@ class TestDevice:
         axis = session.getDevice('axis')
 
         # create a description with more than 40 chars
-        motor.description = 'Blaahh ' * 10
+        motor._setROParam('description', 'Blaahh ' * 10)
         with log.assert_msg_matches([r'\.{3}']):
             ListParams(motor)
-        motor.description = ''
+        motor._setROParam('description', '')
         # ListParams of the 'aliased' device
         with log.assert_msg_matches(r'\.alias\s*->'):
             ListParams(alias)

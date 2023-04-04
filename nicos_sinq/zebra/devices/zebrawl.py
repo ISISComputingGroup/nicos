@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -56,12 +56,15 @@ class ZebraWavelength(Monochromator):
     _wait_dev = []
 
     def doRead(self, maxage=0):
+        excluded = ['mcvl', 'mcvu']
         for key, data in self._wl_map.items():
             isValid = True
             for entry in data:
                 mot, val = entry
+                if mot in excluded:
+                    continue
                 if isinstance(val, float):
-                    if abs(self._adevs[mot].read(0) - val) > .1:
+                    if not self._adevs[mot].isAtTarget(target=val):
                         isValid = False
                         break
                 else:

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -83,6 +83,13 @@ main_window = docked(
                     'nicos.clients.gui.panels.logviewer.LogViewerPanel')),
             ),
          ),
+        (
+            'Elog',
+            panel('nicos_sinq.gui.panels.elog.ElogPanel',
+                  types=['Routine', 'General', 'Detail', 'Serious', 'Other'],
+                  categories=['Cryostat', 'Beamline', 'Vacuum', 'Settings', 'Detectors', 'Electronics', 'DAQ', 'Computer', 'Network', 'Software',
+'Other']),
+        ),
 
 
         ('  ', panel('nicos.clients.flowui.panels.empty.EmptyPanel')),
@@ -104,4 +111,5 @@ tools = [
 
 options = {
     'facility': 'sinq',
+    'mainwindow_class': 'nicos_sinq.gui.mainwindow.MainWindow',
 }

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,13 +25,12 @@
 #   AÜC Hardal <umit.hardal@ess.eu>
 #
 # *****************************************************************************
-
 """NICOS GUI experiment setup window."""
 from copy import deepcopy
 
-from nicos.clients.gui.panels.setup_panel import ProposalDelegate, \
-    combineUsers
+from nicos.clients.gui.panels.setup_panel import ProposalDelegate, combineUsers
 from nicos.clients.gui.utils import dialogFromUi, loadUi
+from nicos.core import ADMIN
 from nicos.guisupport.qt import QDialogButtonBox, QHeaderView, QIntValidator, \
     QListWidgetItem, Qt, pyqtSlot
 from nicos.guisupport.tablemodel import TableModel
@@ -41,8 +40,14 @@ from nicos_ess.gui.panels.panel import PanelBase
 
 
 class ProposalSettings:
-    def __init__(self, proposal_id='', title='', users=None,
-                 local_contacts=None, abort_on_error='', notifications=None,
+
+    def __init__(self,
+                 proposal_id='',
+                 title='',
+                 users=None,
+                 local_contacts=None,
+                 abort_on_error='',
+                 notifications=None,
                  samples=None):
         self.proposal_id = proposal_id
         self.title = title
@@ -72,7 +77,8 @@ class ExpPanel(PanelBase):
 
     def __init__(self, parent, client, options):
         PanelBase.__init__(self, parent, client, options)
-        loadUi(self, findResource('nicos_ess/gui/panels/ui_files/exp_panel.ui'))
+        loadUi(self,
+               findResource('nicos_ess/gui/panels/ui_files/exp_panel.ui'))
 
         self.old_settings = ProposalSettings()
         self.new_settings = ProposalSettings()
@@ -83,29 +89,30 @@ class ExpPanel(PanelBase):
         self.users_model.data_updated.connect(self._check_for_changes)
         self.userTable.setModel(self.users_model)
         self.userTable.horizontalHeader().setSectionResizeMode(
-            QHeaderView.Interactive)
+            QHeaderView.ResizeMode.Interactive)
 
         self.contacts_model = TableModel(['name', 'email', 'affiliation'])
         self.contacts_model.insert_row(0)
         self.contacts_model.data_updated.connect(self._check_for_changes)
         self.contactsTable.setModel(self.contacts_model)
         self.contactsTable.horizontalHeader().setSectionResizeMode(
-            QHeaderView.Stretch)
+            QHeaderView.ResizeMode.Stretch)
 
-        self.samples_model = TableModel(['name', 'formula', 'number of',
-                                         'mass/volume', 'density'],
-                                        mappings={'number of': 'number_of',
-                                                  'mass/volume': 'mass_volume'},
-                                        transposed=True)
+        self.samples_model = TableModel(
+            ['name', 'formula', 'number of', 'mass/volume', 'density'],
+            mappings={
+                'number of': 'number_of',
+                'mass/volume': 'mass_volume'
+            },
+            transposed=True)
         self.samples_model.data_updated.connect(self._check_for_changes)
         self.sampleTable.setModel(self.samples_model)
         self.sampleTable.horizontalHeader().setSectionResizeMode(
-            QHeaderView.Interactive)
+            QHeaderView.ResizeMode.Interactive)
 
         self.proposalNum.setValidator(QIntValidator(0, 999999999))
 
-        self._text_controls = (self.propTitle, self.proposalNum,
-                               self.proposalQuery)
+        self._text_controls = (self.propTitle, self.proposalNum)
         self._tables = (self.sampleTable, self.contactsTable, self.userTable)
 
         self.hide_samples = options.get('hide_sample', False)
@@ -115,24 +122,25 @@ class ExpPanel(PanelBase):
         self.initialise_connection_status_listeners()
 
     def _setup_button_box_and_warn_label(self):
-        self.buttonBox.setLayoutDirection(Qt.RightToLeft)
-        self.buttonBox.addButton('Discard Changes', QDialogButtonBox.ResetRole)
+        self.buttonBox.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.buttonBox.addButton('Discard Changes',
+                                 QDialogButtonBox.ButtonRole.ResetRole)
 
         self.applyWarningLabel.setStyleSheet('color: red')
         self.applyWarningLabel.setVisible(False)
 
     def on_buttonBox_clicked(self, button):
         role = self.buttonBox.buttonRole(button)
-        if role == QDialogButtonBox.ApplyRole:
+        if role == QDialogButtonBox.ButtonRole.ApplyRole:
             self.applyChanges()
-        elif role == QDialogButtonBox.ResetRole:
+        elif role == QDialogButtonBox.ButtonRole.ResetRole:
             self.discardChanges()
 
     def _set_buttons_and_warning_behaviour(self, value):
         for button in self.buttonBox.buttons():
             role = self.buttonBox.buttonRole(button)
             button.setEnabled(value)
-            if role == QDialogButtonBox.ResetRole:
+            if role == QDialogButtonBox.ButtonRole.ResetRole:
                 button.setVisible(value)
         self.applyWarningLabel.setVisible(value)
 
@@ -155,11 +163,12 @@ class ExpPanel(PanelBase):
             self._update_proposal_info()
 
     def _update_proposal_info(self):
-        values = self.client.eval('session.experiment.proposal, '
-                                  'session.experiment.title, '
-                                  'session.experiment.users, '
-                                  'session.experiment.localcontact, '
-                                  'session.experiment.errorbehavior', None)
+        values = self.client.eval(
+            'session.experiment.proposal, '
+            'session.experiment.title, '
+            'session.experiment.users, '
+            'session.experiment.localcontact, '
+            'session.experiment.errorbehavior', None)
         notif_emails = self.client.eval(
             'session.experiment.propinfo["notif_emails"]', [])
 
@@ -179,8 +188,8 @@ class ExpPanel(PanelBase):
         self.proposalNum.setText(self.old_settings.proposal_id)
         self.propTitle.setText(self.old_settings.title)
         self.errorAbortBox.setChecked(self.old_settings.abort_on_error)
-        self.notifEmails.setPlainText(
-            '\n'.join(self.old_settings.notifications))
+        self.notifEmails.setPlainText('\n'.join(
+            self.old_settings.notifications))
         self._update_samples_model(self.old_settings.samples)
         self._update_users_model(self.old_settings.users)
         self._update_contacts_model(self.old_settings.local_contacts)
@@ -207,7 +216,7 @@ class ExpPanel(PanelBase):
     def _is_proposal_system_available(self):
         available = self.client.eval('session.experiment._canQueryProposals()',
                                      False)
-        self.findProposalBox.setVisible(available)
+        self.queryDBButton.setEnabled(available)
         self.proposalNum.setReadOnly(available)
         self.propTitle.setReadOnly(available)
         self.userTable.setEnabled(not available)
@@ -239,6 +248,7 @@ class ExpPanel(PanelBase):
         self.errorAbortBox.setEnabled(not viewonly)
         self.queryDBButton.setEnabled(not viewonly)
         self.addUserButton.setEnabled(not viewonly)
+        self.queryDBButton.setEnabled(not viewonly)
         self.deleteUserButton.setEnabled(not viewonly)
         self.addSampleButton.setEnabled(not viewonly)
         self.deleteSampleButton.setEnabled(not viewonly)
@@ -263,15 +273,21 @@ class ExpPanel(PanelBase):
             self.showError(str(error))
 
     def _set_experiment(self):
-        local_contacts = [contact for contact in self.contacts_model.raw_data
-                          if contact.get('name', None)]
+        local_contacts = [
+            contact for contact in self.contacts_model.raw_data
+            if contact.get('name', None)
+        ]
 
-        users = [user for user in self.users_model.raw_data
-                 if any((user.get(field) for field in self._user_fields))]
+        users = [
+            user for user in self.users_model.raw_data
+            if any((user.get(field) for field in self._user_fields))
+        ]
 
-        exp_args = {'title': self.new_settings.title,
-                    'localcontacts': local_contacts,
-                    'users': users}
+        exp_args = {
+            'title': self.new_settings.title,
+            'localcontacts': local_contacts,
+            'users': users
+        }
 
         if self.new_settings.proposal_id != self.old_settings.proposal_id:
             exp_args['proposal'] = self.new_settings.proposal_id
@@ -310,21 +326,25 @@ class ExpPanel(PanelBase):
 
     @pyqtSlot()
     def on_deleteUserButton_clicked(self):
-        to_remove = {index.row()
-                     for index in self.userTable.selectedIndexes()
-                     if index.isValid() and
-                     index.row() < self.users_model.num_entries}
+        to_remove = {
+            index.row()
+            for index in self.userTable.selectedIndexes()
+            if index.isValid() and index.row() < self.users_model.num_entries
+        }
         self.users_model.remove_rows(to_remove)
 
     @pyqtSlot()
     def on_queryDBButton_clicked(self):
         try:
-            proposal = self.proposalQuery.text()
+            kwds = {
+                'fed_id': self.parentwindow.client.login,
+                'admin': self.parentwindow.client.user_level == ADMIN,
+            }
             result = self.client.eval(
-                'session.experiment._queryProposals(%r, {})' % proposal)
+                f'session.experiment._queryProposals(kwds={kwds})')
 
             if result:
-                if len(result) != 1:
+                if len(result) > 1:
                     result = self.choose_proposal(result)
                     if not result:
                         return
@@ -339,7 +359,7 @@ class ExpPanel(PanelBase):
                     self.showError('Proposal might have problems:\n\n' +
                                    '\n'.join(result['warnings']))
                 # now transfer it into gui
-                self.proposalNum.setText(result.get('proposal', proposal))
+                self.proposalNum.setText(result.get('proposal', ''))
                 self.propTitle.setText(result.get('title', ''))
                 self._update_users_model(result.get('users', []))
                 self._update_contacts_model(result.get('localcontacts', []))
@@ -347,7 +367,7 @@ class ExpPanel(PanelBase):
                 self._format_user_table()
                 self._format_sample_table()
             else:
-                self.showError('Querying proposal management system failed')
+                self.showError('No proposals found')
         except Exception as e:
             self.log.warning('error in proposal query', exc=1)
             self.showError(f'Querying proposal management system failed: {e}')
@@ -365,7 +385,7 @@ class ExpPanel(PanelBase):
             prop_copy = deepcopy(prop)
             prop_copy['users'] = [{'name': combineUsers(prop['users'])}]
             item = QListWidgetItem('', dlg.list)
-            item.setData(Qt.UserRole, prop_copy)
+            item.setData(Qt.ItemDataRole.UserRole, prop_copy)
         if not dlg.exec():
             return
         sel = dlg.list.currentRow()
@@ -413,11 +433,6 @@ class ExpPanel(PanelBase):
     def on_experiment_finished(self):
         self._update_proposal_info()
         self._check_for_changes()
-        self.proposalQuery.setText('')
-
-    @pyqtSlot()
-    def on_proposalQuery_returnPressed(self):
-        self.on_queryDBButton_clicked()
 
     @pyqtSlot()
     def on_addSampleButton_clicked(self):
@@ -426,9 +441,10 @@ class ExpPanel(PanelBase):
 
     @pyqtSlot()
     def on_deleteSampleButton_clicked(self):
-        to_remove = {index.column()
-                     for index in self.sampleTable.selectedIndexes()
-                     if index.isValid() and
-                     index.column() < self.samples_model.num_entries}
+        to_remove = {
+            index.column()
+            for index in self.sampleTable.selectedIndexes() if index.isValid()
+            and index.column() < self.samples_model.num_entries
+        }
         self.samples_model.remove_rows(to_remove)
         self._format_sample_table()

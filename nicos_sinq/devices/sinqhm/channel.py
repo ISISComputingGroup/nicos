@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,7 @@ import numpy
 from nicos.core import Attach, Override, Param, Value, dictof, status
 from nicos.devices.generic import ImageChannelMixin, PassiveChannel
 
-from nicos_ess.devices.datasinks.imagesink.histogramdesc import \
+from nicos_sinq.devices.imagesink import \
     HistogramDesc, HistogramDimDesc
 from nicos_sinq.devices.sinqhm.configurator import HistogramConfBank
 from nicos_sinq.devices.sinqhm.connector import HttpConnector
@@ -186,16 +186,17 @@ class ReshapeHistogramImageChannel(HistogramImageChannel):
 class HistogramMemoryChannel(PassiveChannel):
     """ Channel which configures the histogram memory start and stop.
 
-    For staring and stopping data acquisition the following paths
-    are to be used:
-    startdaq.egi initializes the histogram memory data and
-        eventual counters to zero and starts data acquisition.
-    stopdaq.egi stops data acquisition.
-    pausedaq.egi pauses data acquisition. The data in the histogram
-        memory is not modified.
-    continuedaq.egi continues a paused data acquisition.
+    For starting and stopping data acquisition the following paths are to be
+    used:
 
-    The attached *connector* is used to talk to the server
+    - startdaq.egi initializes the histogram memory data and
+      eventual counters to zero and starts data acquisition.
+    - stopdaq.egi stops data acquisition.
+    - pausedaq.egi pauses data acquisition. The data in the histogram
+      memory is not modified.
+    - continuedaq.egi continues a paused data acquisition.
+
+    The attached `connector` is used to talk to the server
     """
     attached_devices = {
         'connector': Attach('HTTP Connector for Histogram Memory Server',

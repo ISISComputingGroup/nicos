@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,7 @@
 
 """ NIAG shutter devices """
 
-from nicos.core import Attach, Moveable, MoveError, Override, Param, \
+from nicos.core import Attach, MoveError, Moveable, Override, Param, \
     PositionError, Readable, anytype, dictof, listof, multiReset, \
     multiStatus, none_or, status
 from nicos.core.mixins import HasTimeout

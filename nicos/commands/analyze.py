@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -57,7 +57,7 @@ def _getData(columns=None, dataset=None):
         # Can happen with manualscan
         xresults = dataset.envvaluelists
     yresults = dataset.detvaluelists
-    while dataset.continuation:
+    while dataset.chain:
         i -= 1
         dataset = dslist[i]
         if dataset.devices:

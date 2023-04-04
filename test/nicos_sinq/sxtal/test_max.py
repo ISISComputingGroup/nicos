@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,31 +24,31 @@
 
 import pytest
 
-from nicos.core.utils import multiWait
-
 from nicos_sinq.sxtal.commands import Center, Max
+
+from test.utils import approx
 
 session_setup = 'sinq_sxtal'
 
 
 @pytest.mark.parametrize('omstart', [
-  2.9,
-  1.,
-  4.,
-  0.,
-  5.,
+    2.9,
+    1.,
+    4.,
+    0.,
+    5.,
 ])
 def test_max(session, omstart):
+    session.getDevice('gausscount').rate = 10000
     om = session.getDevice('om')
     det = session.getDevice('det')
     session.experiment.setDetectors([det])
 
-    om.start(omstart)
-    multiWait([om])
+    om.maw(omstart)
 
     Max(om, .2, t=.05)
 
-    assert(abs(om.read() - 3.0) < .05)
+    assert om.read(0) == approx(3, abs=0.06)
 
 
 def test_max_away(session, log):
@@ -56,8 +56,7 @@ def test_max_away(session, log):
     det = session.getDevice('det')
     session.experiment.setDetectors([det])
 
-    om.start(20.)
-    multiWait([om])
+    om.maw(20.)
 
     with log.assert_errors(r'Peak out of range'):
         Max(om, .2, t=.05)
@@ -72,8 +71,8 @@ def test_center(session):
     sample = session.getDevice('Sample')
     rfl = sample.getRefList()
     rfl.clear()
-    posoff = (positions[0]+1., positions[1]-1.,
-              positions[2]+1., positions[3]-1)
+    posoff = (positions[0] + 1., positions[1] - 1., positions[2] + 1.,
+              positions[3] - 1)
     rfl.append((1, 0, 1), posoff, ())
 
     devs = []
@@ -85,4 +84,4 @@ def test_center(session):
     for mot, pos in zip(devs, positions):
         # Virtual counters in NICOS have an enormous jitter, this explains
         # the large tolerance.
-        assert(abs(mot.read(0) - pos) < .3)
+        assert mot.read(0) == approx(pos, abs=0.3)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -91,7 +91,7 @@ class SimResultFrame(QWidget):
         loadUi(self, 'panels/simresult.ui')
         self.simOutStack.setCurrentIndex(0)
         hdr = self.simRanges.header()
-        hdr.setSectionResizeMode(QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
 
         self.panel = panel
         self.simuuid = None
@@ -137,7 +137,7 @@ class SimResultFrame(QWidget):
                 item = QTreeWidgetItem([devname, dmin, '-', dmax, '', aliascol])
                 self.simRanges.addTopLevelItem(item)
 
-        self.simRanges.sortByColumn(0, Qt.AscendingOrder)
+        self.simRanges.sortByColumn(0, Qt.SortOrder.AscendingOrder)
 
     def on_simErrorsOnly_toggled(self, on):
         self.simOutStack.setCurrentIndex(on)
@@ -178,7 +178,7 @@ class EditorPanel(Panel):
         Panel.__init__(self, parent, client, options)
         loadUi(self, 'panels/editor.ui')
 
-        self.window = parent
+        self.parent_window = parent
         self.custom_font = None
         self.custom_back = None
 
@@ -403,9 +403,9 @@ class EditorPanel(Panel):
             self.currentEditor.beginUndoAction()
             if self.currentEditor.text():
                 res = OverwriteQuestion().exec()
-                if res == QMessageBox.Apply:
+                if res == QMessageBox.StandardButton.Apply:
                     self.currentEditor.clear()
-                elif res == QMessageBox.Cancel:
+                elif res == QMessageBox.StandardButton.Cancel:
                     return
             # append() and setText() would clear undo history in QScintilla,
             # therefore we use these calls
@@ -419,17 +419,18 @@ class EditorPanel(Panel):
         self.enableFileActions(index >= 0)
         if index == -1:
             self.currentEditor = None
-            self.window.setWindowTitle('%s editor' % self.mainwindow.instrument)
+            self.parent_window.setWindowTitle(
+                '%s editor' % self.mainwindow.instrument)
             return
         editor = self.editors[index]
         fn = self.filenames[editor]
         if fn:
-            self.window.setWindowTitle('%s[*] - %s editor' %
-                                       (fn, self.mainwindow.instrument))
+            self.parent_window.setWindowTitle('%s[*] - %s editor' %
+                                              (fn, self.mainwindow.instrument))
         else:
-            self.window.setWindowTitle('New[*] - %s editor' %
-                                       self.mainwindow.instrument)
-        self.window.setWindowModified(editor.isModified())
+            self.parent_window.setWindowTitle('New[*] - %s editor' %
+                                              self.mainwindow.instrument)
+        self.parent_window.setWindowModified(editor.isModified())
         self.actionSave.setEnabled(editor.isModified())
         self.actionUndo.setEnabled(editor.isModified())
         self.currentEditor = editor
@@ -453,7 +454,7 @@ class EditorPanel(Panel):
         if editor is self.currentEditor:
             self.actionSave.setEnabled(dirty)
             self.actionUndo.setEnabled(dirty)
-            self.window.setWindowModified(dirty)
+            self.parent_window.setWindowModified(dirty)
             index = self.tabber.currentIndex()
             tt = self.tabber.tabText(index).rstrip('*')
             self.tabber.setTabText(index, tt + (dirty and '*' or ''))
@@ -553,17 +554,17 @@ class EditorPanel(Panel):
             printer.setOutputFileName('')
             printer.setDocName(self.filenames[self.currentEditor])
             # printer.setFullPage(True)
-            if QPrintDialog(printer, self).exec() == QDialog.Accepted:
+            if QPrintDialog(printer, self).exec() == QDialog.DialogCode.Accepted:
                 lexer = self.currentEditor.lexer()
                 bgcolor = lexer.paper(0)
                 # printer prints background color too, so set it to white
-                lexer.setPaper(Qt.white)
+                lexer.setPaper(Qt.GlobalColor.white)
                 printer.printRange(self.currentEditor)
                 lexer.setPaper(bgcolor)
         else:
             printer = QPrinter()
             printer.setOutputFileName('')
-            if QPrintDialog(printer, self).exec() == QDialog.Accepted:
+            if QPrintDialog(printer, self).exec() == QDialog.DialogCode.Accepted:
                 getattr(self.currentEditor, 'print')(printer)
 
     def validateScript(self):
@@ -651,13 +652,19 @@ class EditorPanel(Panel):
                 self.filenames[editor]
         else:
             message = 'Save new file before continuing?'
-        buttons = QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
+        buttons = (QMessageBox.StandardButton.Save |
+                   QMessageBox.StandardButton.Discard |
+                   QMessageBox.StandardButton.Cancel)
         if askonly:
-            buttons = QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+            buttons = (QMessageBox.StandardButton.Yes |
+                       QMessageBox.StandardButton.No |
+                       QMessageBox.StandardButton.Cancel)
         rc = QMessageBox.question(self, 'User Editor', message, buttons)
-        if rc in (QMessageBox.Save, QMessageBox.Yes):
+        if rc in (QMessageBox.StandardButton.Save,
+                  QMessageBox.StandardButton.Yes):
             return self.saveFile(editor)
-        if rc in (QMessageBox.Discard, QMessageBox.No):
+        if rc in (QMessageBox.StandardButton.Discard,
+                  QMessageBox.StandardButton.No):
             return True
         return False
 
@@ -791,14 +798,14 @@ class EditorPanel(Panel):
     @pyqtSlot()
     def on_actionSave_triggered(self):
         self.saveFile(self.currentEditor)
-        self.window.setWindowTitle(
+        self.parent_window.setWindowTitle(
             '%s[*] - %s editor' %
             (self.filenames[self.currentEditor], self.mainwindow.instrument))
 
     @pyqtSlot()
     def on_actionSaveAs_triggered(self):
         self.saveFileAs(self.currentEditor)
-        self.window.setWindowTitle(
+        self.parent_window.setWindowTitle(
             '%s[*] - %s editor' %
             (self.filenames[self.currentEditor], self.mainwindow.instrument))
 

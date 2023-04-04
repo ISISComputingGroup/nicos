@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -36,7 +36,7 @@ from nicos.devices.generic.virtual import VirtualImage
 from nicos.devices.tango import PyTangoDevice
 
 from nicos_mlz.jcns.devices.detector import calculateRate
-from nicos_mlz.jcns.devices.fpga_new import FPGATimerChannel
+from nicos_mlz.jcns.devices.fpga import FPGATimerChannel
 
 RTMODES = ('standard', 'tof', 'realtime', 'realtime_external')
 

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -57,8 +57,10 @@ class Authenticator(LDAPAuthenticator):
     def _connect_to_server(self, username, password):
         error = None
         try:
-            connection = ldap3.Connection(self.uri, user=f'{username}@ESSS.SE',
-                                          password=password, auto_bind=True,
+            connection = ldap3.Connection(self.uri,
+                                          user=f'{username}@ESSS.SE',
+                                          password=password,
+                                          auto_bind=True,
                                           read_only=True)
         except ldap3.core.exceptions.LDAPException as err:
             # this avoids leaking credential details via tracebacks

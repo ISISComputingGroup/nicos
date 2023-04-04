@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -82,21 +82,21 @@ def _handleQScanArgs(args, kwargs, Q, dQ, scaninfo):
         else:
             raise UsageError('unsupported qscan argument: %r' % arg)
     for key, value in kwargs.items():
-        if key == 'h' or key == 'H':
+        if key in ['h', 'H']:
             Q[0] = value
-        elif key == 'k' or key == 'K':
+        elif key in ['k', 'K']:
             Q[1] = value
-        elif key == 'l' or key == 'L':
+        elif key in ['l', 'L']:
             Q[2] = value
-        elif key == 'E' or key == 'e':
+        elif key in ['e', 'E']:
             Q[3] = value
-        elif key == 'dh' or key == 'dH':
+        elif key in ['dh', 'dH']:
             dQ[0] = value
-        elif key == 'dk' or key == 'dK':
+        elif key in ['dk', 'dK']:
             dQ[1] = value
-        elif key == 'dl' or key == 'dL':
+        elif key in ['dl', 'dL']:
             dQ[2] = value
-        elif key == 'dE' or key == 'de':
+        elif key in ['de', 'dE']:
             dQ[3] = value
         elif key in session.devices and \
                 isinstance(session.devices[key], Moveable):

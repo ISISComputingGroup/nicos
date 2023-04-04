@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -273,9 +273,11 @@ class SpaceMap:
         # register event handler to pylab
         pylab.connect('key_press_event', pylab_key_handler)
         def click_handler(event):
-            if not event.inaxes: return
+            if not event.inaxes:
+                return
             canvas = pylab.gcf().canvas
-            if canvas.toolbar.mode: return
+            if canvas.toolbar.mode:
+                return
             hkl = self.display_hkl(event.xdata, event.ydata, self.clicktext)
             if hkl is not None:
                 self.plot_ellipsoid(hkl, event.xdata, event.ydata)

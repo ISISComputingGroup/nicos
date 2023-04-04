@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -141,7 +141,8 @@ class DummyDetector(PassiveChannel):
     }
 
     def valueInfo(self):
-        return Value(self.name, unit=self.unit, type='other', fmtstr=self.fmtstr),
+        return Value(
+            self.name, unit=self.unit, type='other', fmtstr=self.fmtstr),
 
 
 class ActiveChannel(PassiveChannel):
@@ -222,8 +223,9 @@ class RectROIChannel(PostprocessPassiveChannel):
     def getReadResult(self, arrays, _results, _quality):
         if any(self.roi):
             x, y, w, h = self.roi
-            return [arr[y:y + h, x:x + w].sum() for arr in arrays]
-        return [arr.sum() for arr in arrays]
+            return [arr[y:y + h, x:x + w].sum() if arr is not None else 0
+                    for arr in arrays]
+        return [arr.sum() if arr is not None else 0 for arr in arrays]
 
     def valueInfo(self):
         if len(self.readresult) > 1:
@@ -459,7 +461,6 @@ class Detector(Measurable):
     _last_live = 0
     _last_save = 0
     _last_save_index = 0
-    _last_preset = None
     _user_comment = ''
 
     def doInit(self, _mode):
@@ -477,7 +478,6 @@ class Detector(Measurable):
                                  "check the detector setup.", tup[0])
                 continue
             postdev = session.getDevice(tup[0])
-            img_or_passive_devs = [session.getDevice(name) for name in tup[1:]]
             if not isinstance(postdev, PostprocessPassiveChannel):
                 raise ConfigurationError("Device '%s' is not a "
                                          "PostprocessPassiveChannel" %
@@ -485,6 +485,7 @@ class Detector(Measurable):
             if postdev not in self._channels:
                 raise ConfigurationError("Device '%s' has not been configured "
                                          "for this detector" % postdev.name)
+            img_or_passive_devs = [session.getDevice(name) for name in tup[1:]]
             for dev in img_or_passive_devs:
                 if dev not in self._channels:
                     raise ConfigurationError("Device '%s' has not been "
@@ -514,7 +515,7 @@ class Detector(Measurable):
         for dev in self._attached_images + self._attached_others:
             for preset in dev.presetInfo():
                 yield (preset, dev, 'counts')
-        yield ('live', None, None)
+        yield ('live', None, 'other')
 
     def doPreinit(self, mode):
         presetkeys = {}
@@ -540,11 +541,11 @@ class Detector(Measurable):
 
     def _getPreset(self, preset):
         """Returns previous preset if no preset has been set."""
-        if not preset and self._last_preset:
-            return self._last_preset
+        if not preset and self._lastpreset:
+            return self._lastpreset
         if 'live' not in preset:
             # do not store live as previous preset
-            self._last_preset = preset
+            self._lastpreset = preset
         return preset
 
     def doSetPreset(self, **preset):
@@ -557,8 +558,10 @@ class Detector(Measurable):
             controller.iscontroller = False
         self._channel_presets = {}
         for (name, value) in preset.items():
-            if name in self._presetkeys and name != 'live':
+            if name in self._presetkeys:
                 dev = self._presetkeys[name][0]
+                if dev is None:
+                    continue
                 dev.setChannelPreset(name, value)
                 self._channel_presets.setdefault(dev, []).append((name, value))
         self._collectControllers()
@@ -571,12 +574,13 @@ class Detector(Measurable):
                     'controller setting for devices %s ignored by detector',
                     ', '.join(set(self._channel_presets) -
                               set(self._controlchannels)))
-        self.log.debug("    presets: %s", preset)
-        self.log.debug(" presetkeys: %s", self._presetkeys)
-        self.log.debug("controllers: %s", self._controlchannels)
-        self.log.debug("  followers: %s", self._followchannels)
+        self.log.debug('    presets: %s', preset)
+        self.log.debug(' presetkeys: %s', self._presetkeys)
+        self.log.debug('controllers: %s', self._controlchannels)
+        self.log.debug('  followers: %s', self._followchannels)
 
     def doPrepare(self):
+        self._collectControllers()
         for follower in self._followchannels:
             follower.prepare()
         for controller in self._controlchannels:
@@ -837,18 +841,15 @@ class ScanningDetector(SubscanMeasurable):
                             settable=True, internal=True),
     }
 
-    def doInit(self, mode):
-        self._preset = None
-
     def doSetPreset(self, **preset):
-        self._preset = preset
+        self._lastpreset = preset
 
     def doStart(self):
         positions = [[p] for p in self.positions]
         self.readresult = self._processDataset(Scan(
             [self._attached_scandev],
             positions, None, detlist=[self._attached_detector],
-            preset=self._preset, subscan=True).run())
+            preset=self._lastpreset, subscan=True).run())
 
     def valueInfo(self):
         if self.readresult:

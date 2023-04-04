@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -34,9 +34,11 @@ class EFUStatus(Readable):
     This device reports Event Formation Unit status.
     """
     parameters = {
-        'ipconfig': Param('IP and port configuration',
-                          type=host(defaultport=DEFAULT_EFU_PORT),
-                          mandatory=True, userparam=False),
+        'ipconfig':
+            Param('IP and port configuration',
+                  type=host(defaultport=DEFAULT_EFU_PORT),
+                  mandatory=True,
+                  userparam=False),
     }
 
     parameter_overrides = {
@@ -71,6 +73,7 @@ class EFUStatus(Readable):
             stat = int(raw_stat.split()[-1])
             return self._stat_to_status.get(stat, unknown_status)
         except (ValueError, IndexError, CalledProcessError) as e:
-            self.log.error('Could not correctly access EFU status. '
-                           'Error was: %s', e)
+            self.log.error(
+                'Could not correctly access EFU status. '
+                'Error was: %s', e)
             return unknown_status

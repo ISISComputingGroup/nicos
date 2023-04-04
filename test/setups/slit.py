@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -59,6 +59,36 @@ devices = dict(
     slit3 = device('nicos.devices.generic.Slit',
         left = 'm_left',
         right = 'm_right',
+        bottom = 'm_bottom',
+        top = 'm_top',
+        opmode = 'centered',
+        parallel_ref = True,
+    ),
+    hgap = device('nicos.devices.generic.slit.HorizontalGap',
+        left = 'm_left',
+        right = 'm_right',
+    ),
+    hgap2 = device('nicos.devices.generic.slit.HorizontalGap',
+        left = 'm_left',
+        right = 'm_right',
+        coordinates = 'opposite',
+    ),
+    hgap3 = device('nicos.devices.generic.slit.HorizontalGap',
+        left = 'm_left',
+        right = 'm_right',
+        opmode = 'centered',
+        parallel_ref = True,
+    ),
+    vgap = device('nicos.devices.generic.slit.VerticalGap',
+        bottom = 'm_bottom',
+        top = 'm_top',
+    ),
+    vgap2 = device('nicos.devices.generic.slit.VerticalGap',
+        bottom = 'm_bottom',
+        top = 'm_top',
+        coordinates = 'opposite',
+    ),
+    vgap3 = device('nicos.devices.generic.slit.VerticalGap',
         bottom = 'm_bottom',
         top = 'm_top',
         opmode = 'centered',

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -403,7 +403,7 @@ class MultiLiveDataPanel(LiveDataPanel):
             else:
                 widget = LiveWidget(name=info.name, parent=self)
             widget.gr.keepRatio = True
-            widget.gr.setAttribute(Qt.WA_TransparentForMouseEvents)
+            widget.gr.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
             previews.append(LiveWidgetWrapper(title=info.name, widget=widget))
         return previews
 

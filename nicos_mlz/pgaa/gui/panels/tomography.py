@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -144,9 +144,9 @@ class TomographyPanel(Panel):
         if self.current_status != 'idle':
             qwindow = ScriptExecQuestion()
             result = qwindow.exec()
-            if result == QMessageBox.Cancel:
+            if result == QMessageBox.StandardButton.Cancel:
                 return
-            elif result == QMessageBox.Apply:
+            elif result == QMessageBox.StandardButton.Apply:
                 action = 'execute'
         if action == 'queue':
             self.client.run(script)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -212,13 +212,14 @@ class EpicsDevice(DeviceMixinBase):
             for key in self._pvs:
                 self._pvs[key] = HardwareStub(self)
 
-    def _get_pv(self, pvparam, as_string=False):
+    def _get_pv(self, pvparam, as_string=False, count=None):
         # since NICOS devices can be accessed from any thread, we have to
         # ensure that the same context is set on every thread
         if epics.ca.current_context() is None:
             epics.ca.use_initial_context()
         result = self._pvs[pvparam].get(timeout=self.epicstimeout,
-                                        as_string=as_string)
+                                        as_string=as_string,
+                                        count=count)
         if result is None:  # timeout
             raise CommunicationError(self, 'timed out getting PV %r from EPICS'
                                      % self._get_pv_name(pvparam))
@@ -229,7 +230,10 @@ class EpicsDevice(DeviceMixinBase):
             if epics.ca.current_context() is None:
                 epics.ca.use_initial_context()
 
-            self._pvctrls[pvparam] = self._pvs[pvparam].get_ctrlvars()
+            try:
+                self._pvctrls[pvparam] = self._pvs[pvparam].get_ctrlvars()
+            except Exception:
+                self._pvctrls[pvparam] = {}
 
         result = self._pvctrls[pvparam]
         if result is None:

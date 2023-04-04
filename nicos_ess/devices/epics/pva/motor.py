@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -55,19 +55,37 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
     valuetype = float
 
     parameters = {
-        'motorpv': Param('Name of the motor record PV.', type=pvname,
-                         mandatory=True, settable=False, userparam=False),
-        'errormsgpv': Param('Optional PV with error message.', type=pvname,
-                            mandatory=False, settable=False, userparam=False),
-        'errorbitpv': Param('Optional PV with error bit.', type=pvname,
-                            mandatory=False, settable=False, userparam=False),
-        'reseterrorpv': Param('Optional PV with error reset switch.',
-                              type=pvname, mandatory=False, settable=False,
-                              userparam=False),
-        'reference_direction': Param('Reference run direction.',
-                                     type=oneof('forward', 'reverse'),
-                                     default='forward', settable=False,
-                                     userparam=False, mandatory=False),
+        'motorpv':
+            Param('Name of the motor record PV.',
+                  type=pvname,
+                  mandatory=True,
+                  settable=False,
+                  userparam=False),
+        'errormsgpv':
+            Param('Optional PV with error message.',
+                  type=pvname,
+                  mandatory=False,
+                  settable=False,
+                  userparam=False),
+        'errorbitpv':
+            Param('Optional PV with error bit.',
+                  type=pvname,
+                  mandatory=False,
+                  settable=False,
+                  userparam=False),
+        'reseterrorpv':
+            Param('Optional PV with error reset switch.',
+                  type=pvname,
+                  mandatory=False,
+                  settable=False,
+                  userparam=False),
+        'reference_direction':
+            Param('Reference run direction.',
+                  type=oneof('forward', 'reverse'),
+                  default='forward',
+                  settable=False,
+                  userparam=False,
+                  mandatory=False),
     }
 
     parameter_overrides = {
@@ -182,8 +200,9 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
         speed = self._get_valid_speed(value)
 
         if speed != value:
-            self.log.warning('Selected speed %s is outside the parameter '
-                             'limits, using %s instead.', value, speed)
+            self.log.warning(
+                'Selected speed %s is outside the parameter '
+                'limits, using %s instead.', value, speed)
 
         self._put_pv('speed', speed)
 
@@ -247,12 +266,18 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
         done_moving = self._get_pv('donemoving')
         moving = self._get_pv('moving')
         if done_moving == 0 or moving != 0:
+            if self._get_pv('homeforward') or self._get_pv('homereverse'):
+                return status.BUSY, message or 'homing'
             return status.BUSY, message or f'moving to {self.target}'
+
+        enabled = self._get_pv('enable')
+        if not enabled:
+            return status.WARN, 'motor is not enabled'
 
         miss = self._get_pv('miss')
         if miss != 0:
-            return (
-                status.NOTREACHED, message or 'did not reach target position.')
+            return (status.NOTREACHED, message
+                    or 'did not reach target position.')
 
         high_limitswitch = self._get_pv('highlimitswitch')
         if high_limitswitch != 0:
@@ -322,7 +347,7 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
     def doReference(self):
         self._put_pv('home%s' % self.reference_direction, 1)
 
-    def _enable(self, on):
+    def doEnable(self, on):
         what = 1 if on else 0
         self._put_pv('enable', what, False)
 

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,6 +24,7 @@
 # *****************************************************************************
 
 """Dialog for entering authentication data."""
+from collections import OrderedDict
 from os import path
 
 from nicos.clients.base import ConnectionData
@@ -43,7 +44,7 @@ class ConnectionDialog(QDialog):
                           tunnel=''):
         self = cls(parent, connpresets, lastpreset, lastdata, tunnel)
         ret = self.exec()
-        if ret != QDialog.Accepted:
+        if ret != QDialog.DialogCode.Accepted:
             return None, None, None, tunnel
         new_addr = self.presetOrAddr.currentText()
         new_name = preset_name = ''
@@ -77,15 +78,16 @@ class ConnectionDialog(QDialog):
     def __init__(self, parent, connpresets, lastpreset, lastdata, tunnel=''):
         QDialog.__init__(self, parent)
         loadUi(self, self.ui)
-        if hasattr(parent, 'facility_logo'):
+        if hasattr(parent, 'facility_logo') and parent.facility_logo:
             self.logoLabel.setPixmap(QPixmap(parent.facility_logo))
-        self.connpresets = connpresets
+        self.connpresets = OrderedDict(sorted(connpresets.items()))
 
         pal = self.quickList.palette()
-        pal.setColor(QPalette.Window, pal.color(QPalette.Base))
+        pal.setColor(QPalette.ColorRole.Window,
+                     pal.color(QPalette.ColorRole.Base))
         self.quickList.setPalette(pal)
 
-        if len(connpresets) < 3:
+        if len(self.connpresets) < 3:
             self.quickList.hide()
         else:
             self.quickList.setStyleSheet('padding: 10px 5px;')
@@ -93,10 +95,10 @@ class ConnectionDialog(QDialog):
             maxw = 64
             icon = QIcon(':/appicon')
             metric = QFontMetrics(self.quickList.font())
-            for preset in sorted(connpresets):
+            for preset in self.connpresets:
                 item = QListWidgetItem(preset, self.quickList)
                 item.setIcon(icon)
-                maxw = max(maxw, metric.width(preset))
+                maxw = max(maxw, metric.horizontalAdvance(preset))
             self.quickList.setGridSize(QSize(maxw + 8, 72))
             # the automatic sizing still leads to a vertical scrollbar
             hint = self.quickList.sizeHint()
@@ -105,15 +107,16 @@ class ConnectionDialog(QDialog):
             self.quickList.setMinimumSize(hint)
             self.resize(self.sizeHint())
 
-        self.presetOrAddr.addItems(sorted(connpresets))
+        self.presetOrAddr.addItems(self.connpresets)
         if lastdata:
             self.presetOrAddr.setEditText(
                 '%s:%s' % (lastdata.host, lastdata.port))
             self.viewonly.setChecked(lastdata.viewonly)
             self.expertmode.setChecked(lastdata.expertmode)
             self.userName.setText(lastdata.user)
-        if lastpreset:  # prefer preset name
-            self.presetOrAddr.setEditText(lastpreset)
+        if lastpreset and lastpreset in self.connpresets:  # prefer preset name
+            index = list(self.connpresets).index(lastpreset)
+            self.presetOrAddr.setCurrentIndex(index)
         self.password.setFocus()
 
         self.viaFrame.setHidden(not tunnel)

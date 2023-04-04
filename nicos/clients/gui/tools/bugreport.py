@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -76,7 +76,7 @@ class BugreportTool(DlgUtils, QDialog):
         self.stacker.setCurrentIndex(0)
         self.subject.setFocus()
         btn = self.buttonBox.addButton('Login details',
-                                       QDialogButtonBox.ResetRole)
+                                       QDialogButtonBox.ButtonRole.ResetRole)
         btn.clicked.connect(self._queryDetails)
 
         if not redminelib:
@@ -87,7 +87,8 @@ class BugreportTool(DlgUtils, QDialog):
             if not self._queryDetails():
                 return
 
-        self.buttonBox.addButton('Submit', QDialogButtonBox.AcceptRole)
+        self.buttonBox.addButton('Submit',
+                                 QDialogButtonBox.ButtonRole.AcceptRole)
 
         self.titleLabel.setText(
             'Submit a ticket for instrument "%s" (as user %s)'
@@ -116,13 +117,13 @@ class BugreportTool(DlgUtils, QDialog):
         passwdBox.setEchoMode(QLineEdit.Password)
         layout.addWidget(passwdBox)
         buttonbox = QDialogButtonBox(dlg)
-        buttonbox.addButton(QDialogButtonBox.Ok)
-        buttonbox.addButton(QDialogButtonBox.Cancel)
+        buttonbox.addButton(QDialogButtonBox.StandardButton.Ok)
+        buttonbox.addButton(QDialogButtonBox.StandardButton.Cancel)
         buttonbox.accepted.connect(dlg.accept)
         buttonbox.rejected.connect(dlg.reject)
         layout.addWidget(buttonbox)
         dlg.setLayout(layout)
-        if dlg.exec() == QDialog.Accepted:
+        if dlg.exec() == QDialog.DialogCode.Accepted:
             rm = redminelib.Redmine(TRACKER_URL, username=userBox.text(),
                                     password=passwdBox.text())
             try:
@@ -193,7 +194,7 @@ class BugreportTool(DlgUtils, QDialog):
         # switch to "thank you" display
         self.stacker.setCurrentIndex(1)
         self.buttonBox.clear()
-        self.buttonBox.addButton(QDialogButtonBox.Close)
+        self.buttonBox.addButton(QDialogButtonBox.StandardButton.Close)
         self.ticketUrl.setText(TICKET_URL % ticket_num)
 
     def on_ticketUrl_released(self):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -39,7 +39,7 @@ from nicos.guisupport.squeezedlbl import SqueezedLabel
 from nicos.guisupport.utils import setBackgroundColor, setBothColors, \
     setForegroundColor
 from nicos.guisupport.widget import NicosWidget, PropDef
-from nicos.utils import findResource
+from nicos.utils import findResource, formatDuration
 
 defaultColorScheme = {
     'fore': {
@@ -174,6 +174,18 @@ class ValueLabel(SqueezedLabel):
             self.setText(self._callback(value, strvalue))
 
 
+class TimeValueLabel(ValueLabel):
+    designer_description = 'Value Label which displays a time in a human ' \
+                           'readable format'
+
+    def __init__(self, parent, designMode=False, **kwds):
+        ValueLabel.__init__(self, parent, designMode, **kwds)
+        self.setFormatCallback(self.formatDuration)
+
+    def formatDuration(self, value, strvalue):
+        return formatDuration(value, precise=False)
+
+
 class ValueDisplay(NicosWidget, QWidget):
     """Value display widget with two labels."""
 
@@ -268,14 +280,14 @@ class ValueDisplay(NicosWidget, QWidget):
         NicosWidget.propertyUpdated(self, pname, value)
 
     def initUi(self):
-        self.namelabel = QLabel(' ', self, textFormat=Qt.RichText)
+        self.namelabel = QLabel(' ', self, textFormat=Qt.TextFormat.RichText)
         self.update_namelabel()
 
         valuelabel = SensitiveSMLabel('----', self, self._label_entered,
                                       self._label_left)
-        valuelabel.setFrameShape(QFrame.Panel)
-        valuelabel.setAlignment(Qt.AlignHCenter)
-        valuelabel.setFrameShadow(QFrame.Sunken)
+        valuelabel.setFrameShape(QFrame.Shape.Panel)
+        valuelabel.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        valuelabel.setFrameShadow(QFrame.Shadow.Sunken)
         valuelabel.setAutoFillBackground(True)
         setBothColors(valuelabel, (self._colorscheme['fore'][UNKNOWN],
                                    self._colorscheme['back'][UNKNOWN]))
@@ -292,7 +304,8 @@ class ValueDisplay(NicosWidget, QWidget):
             new_layout.addWidget(self.namelabel)
             new_layout.addStretch()
             new_layout.addWidget(self.valuelabel)
-            self.namelabel.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            self.namelabel.setAlignment(Qt.AlignmentFlag.AlignLeft |
+                                        Qt.AlignmentFlag.AlignVCenter)
         else:
             new_layout = QVBoxLayout()
             new_layout.addWidget(self.namelabel)
@@ -303,7 +316,7 @@ class ValueDisplay(NicosWidget, QWidget):
             if self.width >= 0:
                 tmplayout.addStretch()
             new_layout.addLayout(tmplayout)
-            self.namelabel.setAlignment(Qt.AlignHCenter)
+            self.namelabel.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         if self.layout():
             sip.delete(self.layout())
         new_layout.setContentsMargins(1, 1, 1, 1)  # save space
@@ -416,7 +429,7 @@ class PictureDisplay(NicosWidget, QWidget):
         NicosWidget.__init__(self)
         self._last_mtime = None
         self.namelabel = QLabel(self)
-        self.namelabel.setAlignment(Qt.AlignHCenter)
+        self.namelabel.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.piclabel = QLabel(self)
         self.piclabel.setScaledContents(True)
         layout = QVBoxLayout()

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -64,7 +64,8 @@ class SqueezedLabel(QLabel, NicosWidget):
         for line in text.split('\n'):
             if fm.horizontalAdvance(line) > labelwidth:
                 squeezed = True
-                new_lines.append(fm.elidedText(line, Qt.ElideRight, labelwidth))
+                new_lines.append(fm.elidedText(line, Qt.TextElideMode.ElideRight,
+                                               labelwidth))
             else:
                 new_lines.append(line)
         if squeezed:

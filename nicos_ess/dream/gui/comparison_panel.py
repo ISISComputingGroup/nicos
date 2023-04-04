@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -68,16 +68,13 @@ class ComparisonPanel(LiveDataPanel):
         self.reference_data_1d = None
         self.reference_data_2d = None
         self._normaliser = NormaliserFactory.create(
-            NormaliserType.NONORMALISER
-        )
+            NormaliserType.NONORMALISER)
         self._show_difference = True
         self._snap_cache = BoundedOrderedDict(maxlen=10)
 
     def init_connections(self):
-        self.norm_cb.currentTextChanged.connect(
-            self._on_norm_change)
-        self.showDifferenceButton.toggled.connect(
-            self._on_show_difference)
+        self.norm_cb.currentTextChanged.connect(self._on_norm_change)
+        self.showDifferenceButton.toggled.connect(self._on_show_difference)
 
     def getToolbars(self):
         return []
@@ -86,9 +83,7 @@ class ComparisonPanel(LiveDataPanel):
         for v in self._available_normalisers:
             self.norm_cb.addItem(v)
 
-        self._plot_1d = ComparisonPlot1D(
-            '', 'x', 'y', 2, parent=self.plot_1d
-        )
+        self._plot_1d = ComparisonPlot1D('', 'x', 'y', 2, parent=self.plot_1d)
         self._plot_2d = ComparisonPlot2D('', parent=self.plot_2d)
 
         self.toolbar = QToolBar()
@@ -166,8 +161,9 @@ class ComparisonPanel(LiveDataPanel):
                     self.fileList.takeItem(index)
 
     def _init_right_click_context_menu(self):
-        self.fileList.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.fileList.customContextMenuRequested.connect(self._show_context_menu)
+        self.fileList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.fileList.customContextMenuRequested.connect(
+            self._show_context_menu)
 
     def _show_context_menu(self):
         menu = QMenu()
@@ -186,8 +182,7 @@ class ComparisonPanel(LiveDataPanel):
 
     def _on_norm_change(self, value):
         self._normaliser = NormaliserFactory.create(
-            self._available_normalisers[value]
-        )
+            self._available_normalisers[value])
         self.on_live_data_update()
 
     def _on_show_difference(self, state):
@@ -211,28 +206,27 @@ class ComparisonPanel(LiveDataPanel):
             x2, y2 = _extract_data(self.reference_data_1d)
             y2 = self._normaliser.normalise(y2, x2)
 
-        self._plot_1d.setData(x1, y1, x2, y2, difference=np.array_equal(x1, x2))
+        self._plot_1d.setData(x1,
+                              y1,
+                              x2,
+                              y2,
+                              difference=np.array_equal(x1, x2))
 
     def _update_2d_plot(self, data_blob=None):
         if not data_blob and not self.reference_data_2d:
             return
 
         if not data_blob and self.reference_data_2d:
-            self._plot_2d.setData(
-                self.reference_data_2d[1], labels=self.reference_data_2d[0]
-            )
+            self._plot_2d.setData(self.reference_data_2d[1],
+                                  labels=self.reference_data_2d[0])
 
         if data_blob:
             labels, data = data_blob
-            if (
-                self.reference_data_2d
-                and data.shape == self.reference_data_2d[1].shape
-            ):
-                data = (
-                    data - self.reference_data_2d[1]
-                    if self._show_difference
-                    else data + self.reference_data_2d[1]
-                )
+            if (self.reference_data_2d
+                    and data.shape == self.reference_data_2d[1].shape):
+                data = (data - self.reference_data_2d[1]
+                        if self._show_difference else data +
+                        self.reference_data_2d[1])
 
             self._plot_2d.setData(data, labels=labels)
 
@@ -288,9 +282,8 @@ class ComparisonPanel(LiveDataPanel):
     def _rename_snapshot(self):
         item = self.fileList.currentItem()
         if self._is_item_snapshot(item):
-            new_name, ok = QInputDialog.getText(
-                self, 'Rename', '', QLineEdit.Normal, item.text()
-            )
+            new_name, ok = QInputDialog.getText(self, 'Rename', '',
+                                                QLineEdit.Normal, item.text())
             if ok and new_name:
                 item.setText(new_name)
                 item.setData(FILENAME, new_name)
@@ -306,8 +299,7 @@ class ComparisonPanel(LiveDataPanel):
             self,
             'Save image',
             str(Path.home())
-            if self.last_save_location is None
-            else self.last_save_location,
+            if self.last_save_location is None else self.last_save_location,
             'Numpy binary files (*.npy)',
             initialFilter='*.npy',
         )[0]

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -211,7 +211,7 @@ devices = dict(
          abslimits = (0, 10),
          unit = 'mm'
     ),
-    configsink = device('nicos_mlz.refsans.devices.datasinks.ConfigObjDatafileSink',
+    configsink = device('nicos_mlz.refsans.datasinks.ConfigObjDatafileSink',
     ),
     vacuum_CB = device('nicos.devices.generic.ManualMove',
         default = 3.5e-6,
@@ -450,6 +450,28 @@ devices = dict(
         value = 'dix_value',
         signal = 'dix_signal',
     ),
+    h2_ctrl_r = device('nicos.devices.generic.VirtualMotor',
+        unit = 'mm',
+        abslimits = (3, 138.),
+        visibility = (),
+    ),
+    h2_ctrl_l = device('nicos.devices.generic.VirtualMotor',
+        unit = 'mm',
+        abslimits = (3, 138.),
+        visibility = (),
+    ),
+    h2_motor_l = device('nicos_mlz.refsans.devices.analogencoder.AnalogMove',
+        device = 'h2_ctrl_l',
+        unit = 'mm',
+        poly = [61.6156,  -1],
+        visibility = (),
+    ),
+    h2_motor_r = device('nicos_mlz.refsans.devices.analogencoder.AnalogMove',
+        device = 'h2_ctrl_r',
+        unit = 'mm',
+        poly = [60.3869,  -1, 0],
+        visibility = (),
+    ),
     h2l = device('nicos.devices.generic.VirtualMotor',
         abslimits = (-69.5, 5),
         unit = 'mm',
@@ -460,12 +482,12 @@ devices = dict(
         unit = 'mm',
         visibility = (),
     ),
-    h2 = device('nicos_mlz.refsans.devices.slits.Gap',
+    h2 = device('nicos.devices.generic.slit.HorizontalGap',
         left = 'h2l',
         right = 'h2r',
         opmode = 'offcentered',
     ),
-    h2opposite = device('nicos_mlz.refsans.devices.slits.Gap',
+    h2opposite = device('nicos.devices.generic.slit.HorizontalGap',
         left = 'h2l',
         right = 'h2r',
         opmode = 'offcentered',

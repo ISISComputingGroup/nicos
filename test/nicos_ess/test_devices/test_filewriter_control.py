@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -76,6 +76,7 @@ class TestFileWriterControl(TestCase):
     @pytest.fixture(autouse=True)
     def prepare(self, session, log):
         self.session = session
+        self.session.experiment.propinfo['proposal'] = '123456'
         self.log = log
         self.mock_dependencies()
         self.filewriter_control = self.get_filewriter_control_device()

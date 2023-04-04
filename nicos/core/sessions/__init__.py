@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -712,8 +712,11 @@ class Session:
             for devname, (_, devconfig) in sorted(devlist.items()):
                 try:
                     explicit = 'namespace' in devconfig.get('visibility',
-                                                            ('namespace',))
-                    self.createDevice(devname, explicit=explicit)
+                                                            set())
+                    dev = self.createDevice(devname, explicit=explicit)
+                    if not explicit and ('namespace' in dev.visibility):
+                        self.explicit_devices.add(devname)
+                        self.export(devname, dev)
                 except Exception:
                     if raise_failed:
                         raise

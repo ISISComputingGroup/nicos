@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -76,7 +76,7 @@ class UsesFastshutter(DeviceMixinBase):
             fastshutter.maw('open')
 
 
-class AntaresIkonLCCD(UsesFastshutter, Andor2LimaCCD):
+class IkonLCCD(UsesFastshutter, Andor2LimaCCD):
     """
     Extension to Andor2LimaCCD; Adds the ability to open a fast shutter before
     the acquisition.
@@ -90,7 +90,7 @@ class AntaresIkonLCCD(UsesFastshutter, Andor2LimaCCD):
         Andor2LimaCCD.doStart(self, **preset)
 
 
-class AntaresNeo(UsesFastshutter, Andor3LimaCCD):
+class Neo(UsesFastshutter, Andor3LimaCCD):
     """
     Extension to Andor3LimaCCD; Adds the ability to open a fast shutter before
     the acquisition.
@@ -199,6 +199,7 @@ class AndorHFRCamera(PyTangoDevice, UsesFastshutter, ImageChannelMixin,
             self._write_presets(preset, val)
         self._write_presets('spoolfile', presets.get(
             'spoolfile', session.experiment.sample.samplename))
+        self._lastpreset = presets
 
     def presetInfo(self):
         return ['exptime', 'number', 'cycletime', 'spoolfile']

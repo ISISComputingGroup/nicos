@@ -36,7 +36,7 @@ change-merged''',
                                       compareType: 'PLAIN',
                                       disableStrictForbiddenFileVerification: false,
                                       branches: [[compareType: 'PLAIN', pattern: 'master'],
-                                                 [compareType: 'REG_EXP', pattern: 'release-3\\.[3-9]'],
+                                                 [compareType: 'REG_EXP', pattern: 'release-3\\.([8,9]|[1-9][0-9]+)'],
                                                  [compareType: 'REG_EXP', pattern: 'feature-.*']
                                                  ],
                                  ]],
@@ -73,7 +73,11 @@ def publishGerrit(name, value) {
 
 
 def refreshVenv(info="" , venv='$NICOS3VENV', checkupdates=false) {
-    sh("./ciscripts/run_venvupdate.sh $venv $info")
+    try {
+        sh("./ciscripts/run_venvupdate.sh $venv $info")
+    } catch(all) { 
+        echo (" Could not run venv update, let's hope the image has all dependencies") 
+    }
 
     if (info?.trim()) {
         archiveArtifacts([allowEmptyArchive: true, artifacts: "pip-*.log"])
@@ -224,8 +228,10 @@ def runSetupcheck() {
     }
 }
 
-def runTests(venv, pyver, withcov, checkpypiupdates=false) {
-    refreshVenv('pytest', venv, checkpypiupdates)
+def runTests(venv, pyver, withcov, checkpypiupdates=false, skipvenvupdate=false) {
+    if (!skipvenvupdate) {
+        refreshVenv('pytest', venv, checkpypiupdates)
+    }
     writeFile file: 'pytest_ini.add', text: """
 addopts = --junit-xml=pytest-${pyver}.xml
   --junit-prefix=$pyver""" + (withcov ? """
@@ -312,18 +318,30 @@ node('dockerhost') {
     stage(name: 'checkout code: ' + GERRIT_PROJECT) {
         checkoutSource()
     }
-def u18 = null;
-def c8 = null;
-   stage('docker setup') {
-   u18 = docker.image('docker.ictrl.frm2.tum.de:5443/jenkins/nicos-jenkins:bionic')
-   u18.pull()
-//c8 = docker.image('docker.ictrl.frm2.tum.de:5443/jenkins/nicos-jenkins:centos8')
-//c8.pull()
-}
+
+    def buildimage_deb = null;
+    def buildimage_rocky = null;
+
+    stage('docker setup') {
+        u18 = docker.image('docker.ictrl.frm2.tum.de:5443/jenkins/nicos-jenkins:bionic')
+        u18.pull()
+        d11 = docker.image('docker.ictrl.frm2.tum.de:5443/jenkins/nicos-jenkins:bullseye')
+        d11.pull()
+        // remove bionic usage fully once we don't support the 3.9 branch anymore
+        if (GERRIT_BRANCH == 'master'  || GERRIT_BRANCH == 'release-3.10') {
+            buildimage_deb = d11
+        } else {
+            buildimage_deb = u18
+        }
+
+        buildimage_rocky = docker.image('docker.ictrl.frm2.tum.de:5443/jenkins/nicos-jenkins:rockylinux8')
+        buildimage_rocky.pull()
+    }
+
     stage(name: 'prepare') {
         withCredentials([string(credentialsId: 'RMAPIKEY', variable: 'RMAPIKEY'),
                          string(credentialsId: 'RMSYSKEY', variable: 'RMSYSKEY')]) {
-           u18.inside(){
+           buildimage_deb.inside(){
                 sh  '''\
 #!/bin/bash
 export PYTHONIOENCODING=utf-8
@@ -339,35 +357,35 @@ try {
         stage(name: 'pylint') {
             ws {
                 checkoutSource()
-                u18.inside('-v /home/git:/home/git') {
+                buildimage_deb.inside('-v /home/git:/home/git') {
                     runPylint('py3')
                 }
             } //ws
         } // stage
     }, isort: {
         stage(name: 'isort') {
-            u18.inside('-v /home/git:/home/git') {
+            buildimage_deb.inside('-v /home/git:/home/git') {
                 runIsort()
             }
         } //stage
     }, setup_check: {
         stage(name: 'Nicos Setup check') {
-            u18.inside('-v /home/git:/home/git') {
+            buildimage_deb.inside('-v /home/git:/home/git') {
                 timeout(5) {
                     runSetupcheck()
                 }
             }
         } //stage
-    }, /*test_python3centos: {
-        stage(name: 'Python3 CentOS tests') {
+    }, test_rocky: {
+        stage(name: 'Python3 RockyLinux tests') {
             ws {
                 checkoutSource()
-                c8.inside('-v /home/git:/home/git') {
-                    runTests('$NICOS3VENV', 'python3-centos', false, true)
+                buildimage_rocky.inside('-v /home/git:/home/git') {
+                    runTests('$NICOS3VENV', 'python3-rocky', false, true, true)
                 } // image.inside
             } // ws
         } // stage
-    },*/ test_python3: {
+    }, test_python3: {
         stage(name: 'Python3 tests') {
             ws {
                 checkoutSource()
@@ -388,10 +406,23 @@ try {
                             if (tries> 5) { error('could not start kafka') }
                         }
                     }
-                    u18.inside("-v /home/git:/home/git -e KAFKA_URI=kafka:9092 --link ${kafka.id}:kafka") {
-                    runTests('$NICOS3VENV', 'python3', GERRIT_EVENT_TYPE == 'change-merged')
-                    } // image.inside
-                } // image.WithRun
+                    def influxdbversion="0.0.2"
+                    docker.image("docker.ictrl.frm2.tum.de:5443/jenkins/influxdb:${influxdbversion}").withRun() { influxdb ->
+                        token = sh (
+                            script: """
+                                docker exec ${influxdb.id} sh -c \"influx config ls --json | jq -r '.default.token'\"
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        buildimage_deb.inside("-v /home/git:/home/git -e KAFKA_URI=kafka:9092 -e INFLUXDB_URI=http://influxdb:8086 --link ${kafka.id}:kafka --link ${influxdb.id}:influxdb") {
+                            sh """
+                                . \$NICOS3VENV/bin/activate
+                                ./bin/nicos-keystore add influxdb --storagepw nicos --password ${token}
+                            """
+                            runTests('$NICOS3VENV', 'python3', GERRIT_EVENT_TYPE == 'change-merged')
+                        } // image.inside
+                    } // influxdb.WithRun
+                } // kafka.WithRun
             } // ws
         } //stage
     }, test_docs: {

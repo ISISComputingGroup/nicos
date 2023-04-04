@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -53,9 +53,10 @@ class TimelineWidget(QGraphicsView):
 
     def __init__(self, parent=None):
         QGraphicsView.__init__(self, QGraphicsScene(), parent)
-        self.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.setRenderHints(QPainter.Antialiasing
-                            | QPainter.SmoothPixmapTransform)
+        self.setAlignment(Qt.AlignmentFlag.AlignLeft |
+                          Qt.AlignmentFlag.AlignVCenter)
+        self.setRenderHints(QPainter.RenderHint.Antialiasing |
+                            QPainter.RenderHint.SmoothPixmapTransform)
 
         # margins set to 0 to simplify calculations
         self.setContentsMargins(0, 0, 0, 0)
@@ -320,7 +321,7 @@ class PreviewDialog(QDialog):
         totime = self.toDateTimeEdit.dateTime().toSecsSinceEpoch()
 
         result = self._client.ask('gethistory', 'echotime/tables',
-                                  str(fromtime), str(totime))
+                                  str(fromtime), str(totime), None)
 
         # Store the history result in the format {datetime: table}
         self._history = {}  # timestamp : table
@@ -396,7 +397,7 @@ class PreviewDialog(QDialog):
             widget.setReadOnly(True)
 
             # Don't show any frame as there is the more fancy table grid
-            widget.setFrameStyle(QFrame.NoFrame)
+            widget.setFrameStyle(QFrame.Shape.NoFrame)
             self.tableWidget.setCellWidget(row,
                                            self._header_labels.index(header),
                                            widget)
@@ -462,7 +463,7 @@ class TunewaveTablePanel(Panel):
         self.tableWidget.installEventFilter(self)
 
         self.tableWidget.verticalHeader().setContextMenuPolicy(
-            Qt.CustomContextMenu)
+            Qt.ContextMenuPolicy.CustomContextMenu)
 
         self.measModeComboBox.currentIndexChanged.connect(self._fill_table)
         self.measModeComboBox.currentIndexChanged.connect(
@@ -496,8 +497,8 @@ class TunewaveTablePanel(Panel):
         """Event filter for the table widget to stop cell editing on enter
         and return keys."""
         if receiver is self.tableWidget and self._edit is not None \
-            and event.type() in [QEvent.KeyPress] \
-                and event.key() in [Qt.Key_Enter, Qt.Key_Return]:
+            and event.type() in [QEvent.Type.KeyPress] \
+                and event.key() in [Qt.Key.Key_Enter, Qt.Key.Key_Return]:
             self._stop_edit()
             return True
         return Panel.eventFilter(self, receiver, event)
@@ -643,8 +644,8 @@ class TunewaveTablePanel(Panel):
             # first column is always echotime
 
             # forbid multiple echotimes with the same value
-            same_value_items = self.tableWidget.findItems(str(value),
-                                                          Qt.MatchExactly)
+            same_value_items = self.tableWidget.findItems(
+                str(value), Qt.MatchFlag.MatchExactly)
 
             for entry in same_value_items:
                 if self.tableWidget.column(entry) == 0 \
@@ -746,8 +747,8 @@ class TunewaveTablePanel(Panel):
             row += 1
 
         # Reenable table sorting
-        self.tableWidget.horizontalHeader().setSortIndicator(0,
-                                                             Qt.AscendingOrder)
+        self.tableWidget.horizontalHeader()\
+            .setSortIndicator(0, Qt.SortOrder.AscendingOrder)
         self.tableWidget.setSortingEnabled(True)
 
         self._adjust_table_sizes()

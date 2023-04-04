@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -47,7 +47,7 @@ class ErrorPanel(Panel):
         loadUi(self, self.ui)
         self.outView.setFullTimestamps(True)
 
-        self.buttonBox.addButton('Clear', QDialogButtonBox.ResetRole)
+        self.buttonBox.addButton('Clear', QDialogButtonBox.ButtonRole.ResetRole)
 
         if client.isconnected:
             self.on_client_connected()
@@ -82,7 +82,7 @@ class ErrorPanel(Panel):
 
     def on_buttonBox_clicked(self, button):
         role = self.buttonBox.buttonRole(button)
-        if role == QDialogButtonBox.ResetRole:
+        if role == QDialogButtonBox.ButtonRole.ResetRole:
             self.outView.clear()
-        elif role == QDialogButtonBox.RejectRole:
+        elif role == QDialogButtonBox.ButtonRole.RejectRole:
             self.closeWindow()

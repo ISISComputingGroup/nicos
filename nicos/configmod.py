@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -186,11 +186,12 @@ def readConfig():
 
     # Now read the whole configuration from both locations, where the
     # local config overrides the instrument specific config.
-    values = {'instrument': instr}
+    values = {}
     environment = {}
     for cfg in (instr_cfg, global_cfg):
         values.update(cfg.get('nicos', {}))
         environment.update(cfg.get('environment', {}))
+    values.update({'instrument': instr})
 
     values['nicos_root'] = nicos_root
     values['setup_package'] = setup_package

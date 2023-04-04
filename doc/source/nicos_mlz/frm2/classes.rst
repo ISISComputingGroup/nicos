@@ -10,6 +10,8 @@
 
 .. module:: nicos_mlz.devices.ccr
 .. autoclass:: CCRControl()
+
+.. module:: nicos_mlz.devices.plc.ccr
 .. autoclass:: PLCLimits()
 
 .. module:: nicos_mlz.devices.amagnet
@@ -46,3 +48,6 @@
 
 .. module:: nicos_mlz.devices.wmirfgen
 .. autoclass:: Frequency()
+
+.. module:: nicos_mlz.devices.rabbit_sink
+.. autoclass:: RabbitSink()

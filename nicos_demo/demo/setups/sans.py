@@ -12,14 +12,14 @@ excludes = ['detector']
 includes = ['source']
 
 devices = dict(
-    Sample = device('nicos_mlz.sans1.devices.sample.Sans1Sample',
+    Sample = device('nicos_mlz.sans1.devices.sample.Sample',
         description = 'sample object',
     ),
     sans = device('nicos.devices.instrument.Instrument',
         description = 'instrument object',
         responsible = 'R. Esponsible <r.esponsible@frm2.tum.de>',
         instrument = 'SANS-V2',
-        website = 'http://www.nicos-controls.org',
+        website = 'https://www.nicos-controls.org',
         operators = ['NICOS developer team'],
         facility = 'NICOS demo instruments',
     ),

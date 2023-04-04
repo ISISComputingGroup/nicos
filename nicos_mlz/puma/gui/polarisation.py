@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -90,11 +90,11 @@ class PlotWidget(QWidget):
         self.plot = MiniPlot(xlabel, ylabel, self, color1=COLOR_BLACK,
                              color2=COLOR_RED, **kwds)
         titleLabel = QLabel(title)
-        titleLabel.setAlignment(Qt.AlignCenter)
+        titleLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         titleLabel.setStyleSheet('QLabel {font-weight: 600}')
         parent.layout().insertWidget(0, titleLabel)
-        self.plot.setSizePolicy(QSizePolicy.MinimumExpanding,
-                                QSizePolicy.MinimumExpanding)
+        self.plot.setSizePolicy(QSizePolicy.Policy.MinimumExpanding,
+                                QSizePolicy.Policy.MinimumExpanding)
         parent.layout().insertWidget(1, self.plot)
 
     def setData(self, x, y1, y2):

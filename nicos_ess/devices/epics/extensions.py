@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,7 +23,6 @@
 #   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
-
 """
 This module contains ESS specific EPICS developments.
 """
@@ -44,9 +43,11 @@ class EpicsMappedMoveable(MappedMoveable, EpicsDigitalMoveableEss):
     """
 
     parameters = {
-        'ignore_stop': Param(
-            'Whether to do anything when stop is called',
-            type=bool, default=False, userparam=False),
+        'ignore_stop':
+            Param('Whether to do anything when stop is called',
+                  type=bool,
+                  default=False,
+                  userparam=False),
     }
 
     def doInit(self, mode):
@@ -107,11 +108,12 @@ class EpicsAnalogMoveableWithUnitsSelector(EpicsAnalogMoveableEss):
         try:
             self._attached_units.doStart(value)
         except InvalidValueError as error:
-            positions = ', '.join(repr(pos)
-                                  for pos in self._attached_units.mapping)
-            raise InvalidValueError(self, f'{value} is an invalid unit choice '
-                                          f'for this device; valid choices are '
-                                          f'{positions}') from error
+            positions = ', '.join(
+                repr(pos) for pos in self._attached_units.mapping)
+            raise InvalidValueError(
+                self, f'{value} is an invalid unit choice '
+                f'for this device; valid choices are '
+                f'{positions}') from error
 
 
 class HasDisablePv(CanDisable):
@@ -170,32 +172,27 @@ class HasDisablePv(CanDisable):
         raw_value = self._get_pv('switchpv:read')
 
         if raw_value not in self.switchstates.values():
-            raise ConfigurationError('State by attached switch device not '
-                                     'recognized.')
+            raise ConfigurationError(
+                self, 'State by attached switch device not recognized.')
 
         return raw_value == self.switchstates['enable']
 
-    @usermethod
-    def enable(self):
-        """
-        Switch the device on (writes the 'enable' of switchstates map to the
-        write-pv specified in switchpvs).
-        """
-        if not self.isEnabled:
-            self._put_pv('switchpv:write', self.switchstates['enable'])
-        else:
-            self.log.info('Device is already switched on')
+    def doEnable(self, on):
+        """Enable/disable the device depending on 'on'.
 
-    @usermethod
-    def disable(self):
+        Writes the 'enable'/'disable' of switchstates map to the write-pv
+        specified in switchpvs.
         """
-        Switch the device off (writes the 'disable' of switchstates map to the
-        write-pv specified in switchpvs).
-        """
-        if self.isEnabled:
-            self._put_pv('switchpv:write', self.switchstates['disable'])
+        if on:
+            if not self.isEnabled:
+                self._put_pv('switchpv:write', self.switchstates['enable'])
+            else:
+                self.log.info('Device is already enabled')
         else:
-            self.log.info('Device is already disabled')
+            if self.isEnabled:
+                self._put_pv('switchpv:write', self.switchstates['disable'])
+            else:
+                self.log.info('Device is already disabled')
 
 
 class EpicsCommandReply(EpicsDevice, Device):
@@ -217,12 +214,18 @@ class EpicsCommandReply(EpicsDevice, Device):
     """
 
     parameters = {
-        'commandpv': Param('PV to issue commands to the asyn controller',
-                           type=pvname, mandatory=True, settable=False,
-                           userparam=False),
-        'replypv': Param('PV that stores the reply generated from execution',
-                         type=pvname, mandatory=False, settable=False,
-                         userparam=False),
+        'commandpv':
+            Param('PV to issue commands to the asyn controller',
+                  type=pvname,
+                  mandatory=True,
+                  settable=False,
+                  userparam=False),
+        'replypv':
+            Param('PV that stores the reply generated from execution',
+                  type=pvname,
+                  mandatory=False,
+                  settable=False,
+                  userparam=False),
     }
 
     def _get_pv_parameters(self):

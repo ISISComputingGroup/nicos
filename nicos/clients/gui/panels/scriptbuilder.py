@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,8 @@
 
 """NICOS GUI multiple cmdlet script-builder input."""
 
-from nicos.clients.gui.cmdlets import all_categories, all_cmdlets
+from nicos.clients.gui.cmdlets import get_priority_sorted_categories, \
+    get_priority_sorted_cmdlets
 from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.utils import loadUi
 from nicos.guisupport.qt import QAction, QMenu, QToolButton, pyqtSlot
@@ -51,7 +52,7 @@ class CommandsPanel(Panel):
         Panel.__init__(self, parent, client, options)
         loadUi(self, 'panels/scriptbuilder.ui')
 
-        self.window = parent
+        self.parent_window = parent
         self.options = options
         self.runBtn.setVisible(False)
         self.mapping = {}
@@ -61,7 +62,7 @@ class CommandsPanel(Panel):
         for module in modules:
             importString(module)  # should register cmdlets
 
-        for cmdlet in all_cmdlets:
+        for cmdlet in get_priority_sorted_cmdlets():
             def callback(on, cmdlet=cmdlet):
                 inst = cmdlet(self, self.client, self.options)
                 inst.cmdletUp.connect(self.on_cmdletUp)
@@ -74,12 +75,12 @@ class CommandsPanel(Panel):
             action.triggered.connect(callback)
             self.mapping.setdefault(cmdlet.category, []).append(action)
 
-        for category in all_categories[::-1]:
+        for category in get_priority_sorted_categories()[::-1]:
             if category not in self.mapping:
                 return
             toolbtn = QToolButton(self)
             toolbtn.setText(category)
-            toolbtn.setPopupMode(QToolButton.InstantPopup)
+            toolbtn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
             menu = QMenu(self)
             menu.addActions(self.mapping[category])
             toolbtn.setMenu(menu)

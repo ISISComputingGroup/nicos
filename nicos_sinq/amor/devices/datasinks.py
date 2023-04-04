@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -32,7 +32,7 @@ from nicos import session
 from nicos.core import FINAL, LIVE
 from nicos.utils import byteBuffer, safeName
 
-from nicos_ess.devices.datasinks.imagesink import ImageKafkaDataSink, \
+from nicos_sinq.devices.imagesink import ImageKafkaDataSink, \
     ImageKafkaDataSinkHandler
 from nicos_sinq.devices.datasinks import SinqNexusFileSink
 

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -100,7 +100,8 @@ class ConfigEditDialog(QDialog):
             QRegularExpressionValidator(QRegularExpression(r'[A-Za-z0-9.,=+-]{1,20}'),
                                         self))
         box = QDialogButtonBox(self)
-        box.setStandardButtons(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        box.setStandardButtons(QDialogButtonBox.StandardButton.Ok |
+                               QDialogButtonBox.StandardButton.Cancel)
         box.accepted.connect(self.maybeAccept)
         box.rejected.connect(self.reject)
         layout.addWidget(self.frm)
@@ -407,9 +408,9 @@ class KWSSamplePanel(Panel):
 
     def on_buttonBox_clicked(self, button):
         role = self.buttonBox.buttonRole(button)
-        if role == QDialogButtonBox.RejectRole:
+        if role == QDialogButtonBox.ButtonRole.RejectRole:
             return
-        do_apply = role == QDialogButtonBox.ApplyRole
+        do_apply = role == QDialogButtonBox.ButtonRole.ApplyRole
         if self.dirty:
             initialdir = self.client.eval('session.experiment.scriptpath', '')
             fn = QFileDialog.getSaveFileName(self, 'Save sample file',

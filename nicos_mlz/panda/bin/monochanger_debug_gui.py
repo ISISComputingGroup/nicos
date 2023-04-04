@@ -2,7 +2,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -476,7 +476,7 @@ class MainWindow(QMainWindow):
         l = QFrame()
         l.setLineWidth(1)
         # l.setMidLineWidth(4)
-        l.setFrameShape(QFrame.HLine)
+        l.setFrameShape(QFrame.Shape.HLine)
         l.setContentsMargins(10, 0, 10, 0)
         self.scrollLayout.addRow(l)
 

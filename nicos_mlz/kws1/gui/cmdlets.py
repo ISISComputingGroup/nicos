@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -68,7 +68,7 @@ class MeasureTable(Cmdlet):
                                 'a daemon to be able to select samples.')
             return
         dlg = SampleDialog(self, self.measdef, self.client)
-        if dlg.exec() != QDialog.Accepted:
+        if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         self.measdef.samplefile = dlg.samplefile
         self.measdef.samples = dlg.toDefs()
@@ -81,7 +81,7 @@ class MeasureTable(Cmdlet):
                                 'a daemon to be able to select settings.')
             return
         dlg = DetsetDialog(self, self.measdef, self.client)
-        if dlg.exec() != QDialog.Accepted:
+        if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         self.measdef.detsets = dlg.toDefs()
         self.updateTable()
@@ -93,7 +93,7 @@ class MeasureTable(Cmdlet):
                                 'a daemon to be able to select devices.')
             return
         dlg = DevicesDialog(self, self.measdef, self.client)
-        if dlg.exec() != QDialog.Accepted:
+        if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         self.measdef.devices = dlg.toDefs()
         self.updateTable()

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -157,7 +157,11 @@ def test_dryrun(session, facility, instr, script):
 
     for modname in needs_modules:
         try:
-            __import__(modname)
+            if modname.find('>=') > 0:
+                modname, minversion = modname.split('>=')
+                pytest.importorskip(modname, minversion=minversion)
+            else:
+                __import__(modname)
         except Exception:
             pytest.skip('required module %r is not available' % modname)
 

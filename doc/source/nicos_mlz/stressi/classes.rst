@@ -1,17 +1,10 @@
 `STRESS-SPEC <http://www.mlz-garching.de/stress-spec>`_
 =======================================================
 
-Slits
------
-
-.. module:: nicos_mlz.stressi.devices.slit
-.. autoclass:: Slit()
-.. autoclass:: TwoAxisSlit()
-
 Data formats
 ------------
 
-.. module:: nicos_mlz.stressi.devices.datasinks
+.. module:: nicos_mlz.stressi.datasinks
 .. autoclass:: CaressScanfileSink()
 .. autoclass:: YamlDatafileSink()
 

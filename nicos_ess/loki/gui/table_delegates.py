@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -23,13 +23,13 @@
 #   Matt Clarke <matt.clarke@ess.eu>
 #
 # *****************************************************************************
-
 """Useful delegates for tables."""
 from nicos.guisupport.qt import QAbstractSpinBox, QComboBox, QDoubleSpinBox, \
     QItemDelegate
 
 
 class LimitsDelegate(QItemDelegate):
+
     def __init__(self, limits=(0, 0), precision=3):
         QItemDelegate.__init__(self)
         self.limits = limits
@@ -48,11 +48,13 @@ class LimitsDelegate(QItemDelegate):
 
 
 class ReadOnlyDelegate(QItemDelegate):
+
     def createEditor(self, parent, option, index):
         return None
 
 
 class ComboBoxDelegate(QItemDelegate):
+
     def __init__(self):
         QItemDelegate.__init__(self)
         self.items = []

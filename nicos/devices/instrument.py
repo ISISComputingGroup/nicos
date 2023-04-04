@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,7 @@
 
 """NICOS Instrument device."""
 
-from nicos.core import Device, Param, listof, mailaddress
+from nicos.core import Device, Override, Param, listof, mailaddress
 
 
 class Instrument(Device):
@@ -53,4 +53,8 @@ class Instrument(Device):
                          settable=False, default='http://www.mlz-garching.de'),
         'operators': Param('Instrument operators', type=listof(str),
                            category='instrument', settable=False),
+    }
+
+    parameter_overrides = {
+        'visibility': Override(default={'metadata'}),
     }

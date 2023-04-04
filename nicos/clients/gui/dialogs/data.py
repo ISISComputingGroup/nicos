@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -31,10 +31,10 @@ class DataExportDialog(QFileDialog):
 
     def __init__(self, viewplot, curvenames, *args):
         QFileDialog.__init__(self, viewplot, *args)
-        self.setOption(self.DontConfirmOverwrite, False)
+        self.setOption(self.Option.DontConfirmOverwrite, False)
         # allow adding some own widgets
-        self.setOption(self.DontUseNativeDialog, True)
-        self.setAcceptMode(QFileDialog.AcceptSave)
+        self.setOption(self.Option.DontUseNativeDialog, True)
+        self.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         layout = self.layout()
         layout.addWidget(QLabel('Curve:', self), 4, 0)
         self.curveCombo = QComboBox(self)

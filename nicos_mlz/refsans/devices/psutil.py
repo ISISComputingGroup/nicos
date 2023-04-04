@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,8 +24,6 @@
 """
 Some helper classes to handle CPU usage
 """
-
-from subprocess import CalledProcessError, check_output
 
 import psutil
 
@@ -56,7 +54,10 @@ class CPUPercentage(CPULoad):
 
 
 class ProcessIdentifier(Readable):
+    """Read CPU percentage for a given process.
 
+    High use of a CPU indicates a process running out of control.
+    """
     _PIDint = None
     _PIDobject = None
 
@@ -69,16 +70,15 @@ class ProcessIdentifier(Readable):
     }
 
     def loadint(self):
-        self.log.debug('Get PID for >%s<', self.pidstr)
-        try:
-            res = check_output(['pidof', self.pidstr]).strip.split()
-            if len(res) == 1:
-                self._PIDint = int(res[0])
+        self.log.debug('Get PID for >%s<', self.processname)
+        self._PIDint = 'nothing found'
+        # Search for processes containing the processname in command line
+        # This is typical for NICOS processes where the main process is the
+        # Python interpreter itself.
+        for p in psutil.process_iter():
+            if any(self.processname in c for c in p.cmdline()):
+                self._PIDint = p.pid
                 self._PIDobject = psutil.Process(self._PIDint)
-            else:
-                self._PIDint = '%d results. PID unchanged' % len(res)
-        except CalledProcessError:
-            self._PIDint = 'nothing found'
 
     def doRead(self, maxage=0):
         if not isinstance(self._PIDint, int):

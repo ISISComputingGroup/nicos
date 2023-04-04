@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2018-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2018-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -34,9 +34,6 @@ class FullScreen1DWidget(LiveWidget1D):
     def __init__(self, parent, **kwargs):
         LiveWidget1D.__init__(self, parent, **kwargs)
         self.plot.viewport = [0.05, .98, 0.1, .98]
-        self.axes.xtick = 5
-        self.axes.majorx = 10
-        self.axes.ticksize = 0.005
         self.gr.update()
         self._zoomed = False
 

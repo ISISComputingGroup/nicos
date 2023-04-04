@@ -12,7 +12,7 @@ sysconfig = dict(
 modules = [
     'nicos.commands.standard', 'nicos_sinq.commands.sics',
     'nicos_sinq.commands.hmcommands', 'nicos_sinq.commands.epicscommands',
-    'nicos_sinq.commands.tableexe',
+    'nicos_sinq.commands.tableexe', 'nicos_sinq.sans.commands.sanscommands'
 ]
 
 devices = dict(
@@ -33,6 +33,7 @@ devices = dict(
         sendmail = False,
         serviceexp = 'Service',
         sample = 'Sample',
+        forcescandata = True,
     ),
     Space = device('nicos.devices.generic.FreeSpace',
         description = 'The amount of free space for storing data',

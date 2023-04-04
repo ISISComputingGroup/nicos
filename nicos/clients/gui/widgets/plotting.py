@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -380,7 +380,7 @@ class ArbitraryFitter(Fitter):
     def begin(self):
         dlg = ArbyFitDialog(self.plot)
         ret = dlg.exec()
-        if ret != QDialog.Accepted:
+        if ret != QDialog.DialogCode.Accepted:
             return
 
         fcnstr, params, values, xmin, xmax = dlg.getFunction()
@@ -489,7 +489,7 @@ class NicosPlot(DlgUtils):
 
     def __init__(self, window, timeaxis=False):
         DlgUtils.__init__(self, 'Plot')
-        self.window = window
+        self.parent_window = window
         self.plotcurves = []
         self.show_all = False
         self.timeaxis = timeaxis
@@ -501,7 +501,7 @@ class NicosPlot(DlgUtils):
 
         self.fitter = None
 
-        font = self.window.user_font
+        font = self.parent_window.user_font
         bold = QFont(font)
         bold.setBold(True)
         larger = scaledFont(font, 1.6)
@@ -622,7 +622,7 @@ class NicosPlot(DlgUtils):
             for _, descr in visible_curves:
                 QListWidgetItem(descr, dlg.list)
             dlg.list.setCurrentRow(0)
-            if dlg.exec() != QDialog.Accepted:
+            if dlg.exec() != QDialog.DialogCode.Accepted:
                 return
             fitcurve = visible_curves[dlg.list.currentRow()][0]
         else:
@@ -643,8 +643,8 @@ class NicosPlot(DlgUtils):
         if not fitcurve:
             return self.showError('Plot must have a visible curve '
                                   'to be fitted.')
-        self.fitter = fitterclass(self, self.window, fitteraction, fitcurve,
-                                  pickmode)
+        self.fitter = fitterclass(self, self.parent_window,
+                                  fitteraction, fitcurve, pickmode)
         self.fitter.begin()
 
     def _getCurveData(self, curve):
@@ -681,23 +681,23 @@ class NicosPlot(DlgUtils):
 
         def checkAll():
             for i in range(dlg.list.count()):
-                dlg.list.item(i).setCheckState(Qt.Checked)
+                dlg.list.item(i).setCheckState(Qt.CheckState.Checked)
         dlg.selectall.clicked.connect(checkAll)
         for i, descr in visible_curves:
             li = QListWidgetItem(descr, dlg.list)
             if len(visible_curves) == 1:
-                li.setCheckState(Qt.Checked)
+                li.setCheckState(Qt.CheckState.Checked)
                 dlg.operation.setFocus()
             else:
-                li.setCheckState(Qt.Unchecked)
-        if dlg.exec() != QDialog.Accepted:
+                li.setCheckState(Qt.CheckState.Unchecked)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         # evaluate selection
         op = dlg.operation.text()
         curves = []
         for i in range(dlg.list.count()):
             li = dlg.list.item(i)
-            if li.checkState() == Qt.Checked:
+            if li.checkState() == Qt.CheckState.Checked:
                 curves.append(i)
 
         # modify curve data
@@ -926,9 +926,9 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
                 msg = "%s (X = %g, Y = %g)" % (self.statusMessage, wc.x, wc.y)
             else:
                 msg = "X = %g, Y = %g" % (wc.x, wc.y)
-            self.window.statusBar.showMessage(msg)
+            self.parent_window.statusBar.showMessage(msg)
         else:
-            self.window.statusBar.clearMessage()
+            self.parent_window.statusBar.clearMessage()
 
     def addPlotCurve(self, plotcurve, replot=False):
         existing_curve = next((c for c in self._axes.getCurves()
@@ -959,6 +959,8 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
                 color = self._color.getNextColorIndex()
                 plotcurve.linecolor = color
                 plotcurve.markercolor = color
+            else:
+                color = plotcurve.linecolor
             plotcurve.markertype = self._markertype if self.hasSymbols \
                 else gr.MARKERTYPE_DOT
             if plotcurve.errorBar1:
@@ -1008,15 +1010,15 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
             item._parent.disabled = not on
 
     def _enterFitMode(self):
-        self.window.statusBar.showMessage(self.statusMessage)
+        self.parent_window.statusBar.showMessage(self.statusMessage)
         self._cursor = self.cursor()
-        self.setCursor(QCursor(Qt.CrossCursor))
+        self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
         self._mouseSelEnabled = self.getMouseSelectionEnabled()
         self.setMouseSelectionEnabled(False)
 
     def _fitRequestPick(self, paramname):
         self.statusMessage = 'Fitting: Click on %s' % paramname
-        self.window.statusBar.showMessage(self.statusMessage)
+        self.parent_window.statusBar.showMessage(self.statusMessage)
 
     def _leaveFitMode(self):
         self.fitter = None
@@ -1031,7 +1033,7 @@ class NicosGrPlot(NicosPlot, InteractiveGRWidget):
                                      linecolor=color, markercolor=color)
         self.addPlotCurve(resultcurve, True)
         resultcurve.markertype = gr.MARKERTYPE_DOT
-        self.window.statusBar.showMessage("Fitting complete")
+        self.parent_window.statusBar.showMessage("Fitting complete")
 
         text = '\n'.join(
             (n + ': ' if n else '') +
@@ -1105,23 +1107,23 @@ class ViewPlot(NicosGrPlot):
             msg = "%s (X = %s, Y = %g)" % (self.statusMessage, ts, wc.y)
         else:
             msg = "X = %s, Y = %g" % (ts, wc.y)
-        self.window.statusBar.showMessage(msg)
+        self.parent_window.statusBar.showMessage(msg)
 
     def addAllCurves(self):
-        for i, series in enumerate(self.view.series.values()):
-            self.addCurve(i, series)
+        for series in self.view.series.values():
+            self.addCurve(series)
         visiblePlotCurves = self._axes.getVisibleCurves()
         if visiblePlotCurves:
             self._axes.curveDataChanged(visiblePlotCurves[-1])
 
-    def addCurve(self, i, series, replot=False):
+    def addCurve(self, series, replot=False):
         plotcurve = None
         n = series.n
         if n > 0:
             color = self._color.getNextColorIndex()
-            nans = np.argwhere(np.isnan(series.y))
-            plotcurve = NicosPlotCurve(np.delete(series.x, nans),
-                                       np.delete(series.y, nans),
+            notfinites = np.argwhere(np.invert(np.isfinite(series.y)))
+            plotcurve = NicosPlotCurve(np.delete(series.x, notfinites),
+                                       np.delete(series.y, notfinites),
                                        legend=series.title,
                                        linecolor=color, markercolor=color)
             plotcurve._parent = series
@@ -1142,9 +1144,9 @@ class ViewPlot(NicosGrPlot):
 
     def pointsAdded(self, series):
         plotcurve = self.series2curve[series]
-        nans = np.argwhere(np.isnan(series.y))
-        plotcurve.x = np.delete(series.x, nans)
-        plotcurve.y = np.delete(series.y, nans)
+        notfinites = np.argwhere(np.invert(np.isfinite(series.y)))
+        plotcurve.x = np.delete(series.x, notfinites)
+        plotcurve.y = np.delete(series.y, notfinites)
         plotcurve.legend = series.title
         if plotcurve.x.size:  # this should imply 'and plotcurve.y.size'
             self._axes.addCurves(plotcurve)
@@ -1163,7 +1165,7 @@ class ViewPlot(NicosGrPlot):
                                'Select curve(s), file name and format',
                                '', 'ASCII data files (*.dat)')
         res = dlg.exec()
-        if res != QDialog.Accepted:
+        if res != QDialog.DialogCode.Accepted:
             return
         if not dlg.selectedFiles():
             return
@@ -1276,19 +1278,19 @@ class DataSetPlot(NicosGrPlot):
         return ''
 
     def addAllCurves(self):
-        for i, curve in enumerate(self.dataset.curves):
-            self.addCurve(i, curve)
+        for curve in self.dataset.curves:
+            self.addCurve(curve)
         visiblePlotCurves = self._axes.getVisibleCurves()
         if visiblePlotCurves:
             self._axes.curveDataChanged(visiblePlotCurves[-1])
 
-    def addCurve(self, i, curve, replot=False):
+    def addCurve(self, curve, replot=False):
         if self.current_xname != 'Default' and \
            self.current_xname not in curve.datax:
             return
         if not curve.datay:
             return
-        plotcurve = NicosPlotCurve([], [], filly=0.1)
+        plotcurve = NicosPlotCurve([], [], filly=0.1, linecolor=0)
         plotcurve._parent = curve
         self.setCurveData(curve, plotcurve)
         self.addPlotCurve(plotcurve, replot)
@@ -1374,7 +1376,7 @@ class DataSetPlot(NicosGrPlot):
                                                  self.dwidth, self.dheight)
         if not curve:
             return
-        self.fitter = GaussFitter(self, self.window, None, curve, False)
+        self.fitter = GaussFitter(self, self.parent_window, None, curve, False)
         self.fitter.begin()
 
     def getViewport(self):

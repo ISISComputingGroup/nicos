@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -21,7 +21,6 @@
 #   Michele Brambilla <michele.brambilla@psi.ch>
 #
 # *****************************************************************************
-
 """Kafka log handler"""
 
 import logging
@@ -38,8 +37,11 @@ def create_kafka_logging_handler(config):
             url = urllib.parse.urlparse(config.kafka_logger)
             if not url.netloc or not url.path[1:]:
                 raise ConfigurationError('kafka_logger: invalid url')
-            kafka_handler = KafkaLoggingHandler(url.netloc, url.path[1:],
-                                                security_protocol='PLAINTEXT', )
+            kafka_handler = KafkaLoggingHandler(
+                url.netloc,
+                url.path[1:],
+                security_protocol='PLAINTEXT',
+            )
             kafka_handler.setLevel(logging.WARNING)
             return kafka_handler
 

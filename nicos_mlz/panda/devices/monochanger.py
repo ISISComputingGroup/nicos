@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -143,7 +143,7 @@ class Changer(BaseSequencer):
 
     positions = ['101', '110', '011', '111']  # CounterClockwise
     monos = ['Heusler', 'PG', 'Si', 'empty frame']  # assigned monos
-    shields = ['110', '110', '110', '110']  # which magzinslot after changing
+    shields = ['110', '110', '110', '110']  # which magazine slot after change
     #    (e.g. Put a PE dummy to 101 and set this to ('101,'*4).split(',')
     valuetype = oneof(*(monos + ['None']))
 
@@ -491,6 +491,7 @@ class Changer(BaseSequencer):
 
     @usermethod
     def printstatusinfo(self):
+        """prints extensive debug information about the state of the changer"""
         self.log.info('PLC is %s',
                       'enabled' if self._attached_enable.read() == 0xef16
                       else 'disabled, you need to set enable_word to the '

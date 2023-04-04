@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -69,7 +69,7 @@ class TracebackDialog(QDialog):
                 message += line
 
         button = QPushButton('To clipboard', self)
-        self.buttonBox.addButton(button, QDialogButtonBox.ActionRole)
+        self.buttonBox.addButton(button, QDialogButtonBox.ButtonRole.ActionRole)
 
         def copy():
             QApplication.clipboard().setText(tb+'\n', QClipboard.Selection)

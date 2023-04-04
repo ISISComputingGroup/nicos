@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -66,8 +66,7 @@ class ExpPanel(MlzExpPanel):
         self._update_proposal_info()
         self.newBox.setVisible(True)
         # check for capability to ask proposal database
-        if self.client.eval('session.experiment._canQueryProposals()',
-                            None):
+        if self.client.eval('session.experiment._canQueryProposals()', False):
             self.propdbInfo.setVisible(True)
             self.queryDBButton.setVisible(True)
         else:
@@ -82,9 +81,9 @@ class ExpPanel(MlzExpPanel):
 
     def on_script_path_button_clicked(self):
         dialog = QFileDialog(self)
-        dialog.setFileMode(QFileDialog.Directory)
-        dialog.setOption(QFileDialog.ShowDirsOnly, True)
-        if dialog.exec() == QDialog.Accepted:
+        dialog.setFileMode(QFileDialog.FileMode.Directory)
+        dialog.setOption(QFileDialog.Option.ShowDirsOnly, True)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
             scriptpath = dialog.selectedFiles()[0]
             self.client.run(f'Exp.scriptpath = "{scriptpath}"')
             self.scriptPathLine.setText(scriptpath)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -71,7 +71,7 @@ def loadBasicWindowSettings(window, settings):
 
 def loadUserStyle(window, settings):
     window.user_font = settings.value('font', QFont('Monospace'), QFont)
-    window.user_color = settings.value('color', QColor(Qt.white), QColor)
+    window.user_color = settings.value('color', QColor(Qt.GlobalColor.white), QColor)
 
 
 def enumerateWithProgress(seq, text, every=1, parent=None, total=None,
@@ -97,7 +97,7 @@ def enumerateWithProgress(seq, text, every=1, parent=None, total=None,
 def showToolText(toolbar, action):
     widget = toolbar.widgetForAction(action)
     if isinstance(widget, QToolButton):
-        widget.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        widget.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
 
 
 def modePrompt(mode):
@@ -118,10 +118,11 @@ class DlgUtils:
         QMessageBox.information(self, self._dlgutils_title, text)
 
     def askQuestion(self, text, select_no=False):
-        defbutton = select_no and QMessageBox.No or QMessageBox.Yes
-        buttons = QMessageBox.Yes | QMessageBox.No
-        return QMessageBox.question(self, self._dlgutils_title, text,
-                                    buttons, defbutton) == QMessageBox.Yes
+        defbutton = select_no and QMessageBox.StandardButton.No or \
+                    QMessageBox.StandardButton.Yes
+        buttons = QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        return QMessageBox.question(self, self._dlgutils_title, text, buttons,
+                                    defbutton) == QMessageBox.StandardButton.Yes
 
     def selectInputFile(self, ctl, text='Choose an input file'):
         previous = ctl.text()
@@ -200,27 +201,34 @@ class ScriptExecQuestion(QMessageBox):
     """Special QMessageBox for asking what to do when a script is running."""
 
     def __init__(self):
-        QMessageBox.__init__(self, QMessageBox.Information, 'Error',
-                             'A script is currently running.  What do you want to do?',
-                             QMessageBox.NoButton)
-        self.b0 = self.addButton('Cancel', QMessageBox.RejectRole)
-        self.b0.setIcon(self.style().standardIcon(QStyle.SP_DialogCancelButton))
-        self.b1 = self.addButton('Queue script', QMessageBox.YesRole)
-        self.b1.setIcon(self.style().standardIcon(QStyle.SP_DialogOkButton))
-        self.b2 = self.addButton('Execute now!', QMessageBox.ApplyRole)
-        self.b2.setIcon(self.style().standardIcon(QStyle.SP_MessageBoxWarning))
+        QMessageBox.__init__(
+            self, QMessageBox.Icon.Information, 'Error',
+            'A script is currently running.  What do you want to do?',
+            QMessageBox.StandardButton.NoButton)
+
+        # Using NoRole to avoid buttons getting rearranged depending on OS
+        self.queueBtn = self.addButton('Queue script',
+                                       QMessageBox.ButtonRole.NoRole)
+        self.queueBtn.setIcon(self.style().standardIcon(
+            QStyle.StandardPixmap.SP_DialogOkButton))
+        self.execBtn = self.addButton('Execute now!',
+                                      QMessageBox.ButtonRole.NoRole)
+        self.execBtn.setIcon(self.style().standardIcon(
+            QStyle.StandardPixmap.SP_MessageBoxWarning))
+        self.cancelBtn = self.addButton('Cancel',
+                                        QMessageBox.ButtonRole.NoRole)
+        self.cancelBtn.setIcon(self.style().standardIcon(
+            QStyle.StandardPixmap.SP_DialogCancelButton))
 
     def exec(self):
-        # According to the docs, exec() returns an "opaque value" if using
-        # non-standard buttons, so we have to check clickedButton(). Do that
-        # here and return a valid QMessageBox button constant.
         QMessageBox.exec(self)
+        # Since our buttons have no role, determine the correct return value
         btn = self.clickedButton()
-        if btn == self.b2:
-            return QMessageBox.Apply  # Execute now
-        elif btn == self.b1:
-            return QMessageBox.Yes    # Queue
-        return QMessageBox.Cancel     # Cancel
+        if btn == self.execBtn:
+            return QMessageBox.StandardButton.Apply
+        elif btn == self.queueBtn:
+            return QMessageBox.StandardButton.Yes
+        return QMessageBox.StandardButton.Cancel
 
 
 class DlgPresets:
@@ -261,7 +269,7 @@ class DlgPresets:
         ctl.setSelected(ctl.findItem(val), 1)
 
     def set_QListWidget(self, ctl, val):
-        ctl.setCurrentItem(ctl.findItems(val, Qt.MatchExactly)[0])
+        ctl.setCurrentItem(ctl.findItems(val, Qt.MatchFlag.MatchExactly)[0])
 
     def set_QComboBox(self, ctl, val):
         if ctl.isEditable():
@@ -336,13 +344,13 @@ class DebugHandler(logging.Handler):
 @contextmanager
 def waitCursor():
     try:
-        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         yield
     finally:
         QApplication.restoreOverrideCursor()
 
 
-def split_query(fromtime, totime, func):
+def split_query(fromtime, totime, interval, func):
     # if requested period is longer than 1 day it will be sequenced
     maxquery = 3600 * 24
     history = []
@@ -350,6 +358,6 @@ def split_query(fromtime, totime, func):
         for sequence in range(int((totime - fromtime) // maxquery)):
             if sequence:
                 fromtime += maxquery
-            history.extend(func(fromtime, fromtime+maxquery))
-    history.extend(func(fromtime, totime))
+            history.extend(func(fromtime, fromtime+maxquery, interval))
+    history.extend(func(fromtime, totime, interval))
     return history

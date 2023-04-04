@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -58,10 +58,10 @@ class EpicsScalerRecord(EpicsDetector):
         'thresholdcounterpv': Param('Optional PV that sets threshold counter',
                                     type=pvname, userparam=False),
         'threshold': Param('Threshold for no beam detection', type=float,
-                           userparam=False, settable=True),
+                           userparam=True, settable=True),
         'thresholdcounter': Param('Threshold counter for no beam detection',
                                   type=float,
-                                  userparam=False, settable=True)
+                                  userparam=True, settable=True)
     }
 
     parameter_overrides = {
@@ -113,8 +113,9 @@ class EpicsScalerRecord(EpicsDetector):
 
     def doStatus(self, maxage=0):
         if self.errormsgpv:
+            to_ignore = ['OK', 'Par out of range']
             message_text = self._get_pv('errormsgpv').strip()
-            if message_text and message_text != 'OK':
+            if message_text and message_text not in to_ignore:
                 return status.ERROR, message_text
 
         cnt = int(self._get_pv('startpv'))

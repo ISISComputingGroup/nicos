@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -589,18 +589,19 @@ class ConnectionHandler:
         self.send_ok_reply(current_script and current_script.text or '')
 
     @command()
-    def gethistory(self, key, fromtime, totime):
+    def gethistory(self, key, fromtime, totime, interval=None):
         """Return history of a cache key, if available.
 
         :param key: cache key (without prefix) to query history
         :param fromtime: start time as Unix timestamp
         :param totime: end time as Unix timestamp
+        :param interval: minimum time between requested data points
         :returns: list of (time, value) tuples
         """
         if not session.cache:
             self.send_ok_reply([])
         history = session.cache.history('', key, float(fromtime),
-                                        float(totime))
+                                        float(totime), interval)
         self.send_ok_reply(history)
 
     @command()

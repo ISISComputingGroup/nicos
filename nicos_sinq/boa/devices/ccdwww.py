@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -27,13 +27,13 @@ import numpy as np
 from nicos import session
 from nicos.core.constants import FINAL, INTERRUPTED
 from nicos.core.device import Moveable
-from nicos.core.params import Attach, Param, Value, oneof, tupleof
+from nicos.core.params import ArrayDesc, Attach, Param, Value, oneof, tupleof
 from nicos.core.status import BUSY, ERROR, OK
 from nicos.core.utils import usermethod
 from nicos.devices.generic import ActiveChannel, ImageChannelMixin
 
-from nicos_ess.devices.datasinks.imagesink.histogramdesc import \
-    HistogramDesc, HistogramDimDesc
+from nicos_sinq.devices.imagesink import\
+                HistogramDesc, HistogramDimDesc
 from nicos_sinq.devices.sinqhm.connector import HttpConnector
 
 
@@ -127,6 +127,7 @@ class CCDWWWImageChannel(ImageChannelMixin, ActiveChannel):
 
     @usermethod
     def configure(self):
+        """send XML configuration data to the CCDWWW"""
         # The XML digested by ccdwww is not very standard in that there
         # is no root, thus manual generation
         xml = '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n'
@@ -223,6 +224,9 @@ class AndorCCD(CCDWWWImageChannel):
         if int(self.triggermode) == 7:
             return ['t', 'm']
         return ['t']
+
+    def arrayInfo(self):
+        return (ArrayDesc(self.name, self.shape, np.uint32), )
 
 
 class CCDCooler(Moveable):

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -145,7 +145,7 @@ class SampleDialog(DlgUtils, QDialog):
 
     def toDefs(self):
         results = []
-        for item in self.selList.findItems('', Qt.MatchContains):
+        for item in self.selList.findItems('', Qt.MatchFlag.MatchContains):
             num = item.data(SAMPLE_NUM)
             results.append(OrderedDict(sample=Sample(
                 'sample', self.client, item.text(),
@@ -267,7 +267,7 @@ class DetsetDialog(QDialog):
 
     def keyPressEvent(self, event):
         # do not close the whole dialog when pressing Enter in an input box
-        if event.key() == Qt.Key_Return:
+        if event.key() == Qt.Key.Key_Return:
             return
         return QDialog.keyPressEvent(self, event)
 
@@ -396,7 +396,7 @@ class DevicesWidget(QWidget):
 
     def keyPressEvent(self, event):
         # do not close the whole dialog when pressing Enter in an input box
-        if event.key() == Qt.Key_Return:
+        if event.key() == Qt.Key.Key_Return:
             return
         return QWidget.keyPressEvent(self, event)
 

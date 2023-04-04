@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,7 +25,7 @@
 
 """Virtual SXTAL devices."""
 
-from time import time as currenttime
+from time import monotonic as currenttime
 
 import numpy as np
 
@@ -85,7 +85,7 @@ class VirtualSXTalDetector(Measurable):
 
     def doStatus(self, maxage=0):
         if 't' in self._lastpreset and self.realtime:
-            if not (currenttime() - self._counting_started >= self._lastpreset['t']):
+            if currenttime() - self._counting_started < self._lastpreset['t']:
                 return status.BUSY, 'counting'
         return status.OK, 'idle'
 

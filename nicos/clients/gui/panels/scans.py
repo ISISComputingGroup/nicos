@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -102,7 +102,7 @@ class ScansPanel(Panel):
 
         self.statusBar = QStatusBar(self, sizeGripEnabled=False)
         policy = self.statusBar.sizePolicy()
-        policy.setVerticalPolicy(QSizePolicy.Fixed)
+        policy.setVerticalPolicy(QSizePolicy.Policy.Fixed)
         self.statusBar.setSizePolicy(policy)
         self.layout().addWidget(self.statusBar)
 
@@ -131,7 +131,7 @@ class ScansPanel(Panel):
         quickfit = QShortcut(QKeySequence("G"), self)
         quickfit.activated.connect(self.on_quickfit)
 
-        self.user_color = Qt.white
+        self.user_color = Qt.GlobalColor.white
         self.user_font = QFont('Monospace')
 
         self.bulk_adding = False
@@ -154,7 +154,7 @@ class ScansPanel(Panel):
         # stack of set uids
         self.setUidStack = []
         # uids of automatically combined datasets -> uid of combined one
-        self.contSetUids = {}
+        self.chainSetUids = {}
 
         self.splitter.setSizes([20, 80])
         self.splitter.restoreState(self.splitterstate)
@@ -487,18 +487,18 @@ class ScansPanel(Panel):
             if self.actionAutoDisplay.isChecked() and not self.data.bulk_adding:
                 self.openDataset(dataset.uid)
             self.no_openset = False
-        # If the dataset is a continuation of another dataset, automatically
+        # If the dataset is chained with another dataset, automatically
         # create a combined dataset.
-        contuids = dataset.continuation
-        if contuids:
-            alluids = tuple(contuids.split(',')) + (dataset.uid,)
+        chain_uids = dataset.chain
+        if chain_uids:
+            alluids = tuple(chain_uids.split(',')) + (dataset.uid,)
             # Did we already create this set?  Then don't create it again.
-            if self.contSetUids.get(alluids) in self.setitems:
+            if self.chainSetUids.get(alluids) in self.setitems:
                 return
             allsets = list(map(self.data.uid2set.get, alluids))
             newuid = self._combine(COMBINE, allsets)
             if newuid:
-                self.contSetUids[alluids] = newuid
+                self.chainSetUids[alluids] = newuid
 
     def on_data_pointsAdded(self, dataset):
         if dataset.uid in self.setplots:
@@ -528,7 +528,7 @@ class ScansPanel(Panel):
                                    ";;".join(ftypes.keys()))
         if self._fileopen_filter:
             fdialog.selectNameFilter(self._fileopen_filter)
-        if fdialog.exec() != QDialog.Accepted:
+        if fdialog.exec() != QDialog.DialogCode.Accepted:
             return
         files = fdialog.selectedFiles()
         if not files:
@@ -592,7 +592,7 @@ class ScansPanel(Panel):
         newdlg.filename.setText(
             safeName('data_%s' % self.currentPlot.dataset.name + suffix))
         ret = newdlg.exec()
-        if ret != QDialog.Accepted:
+        if ret != QDialog.DialogCode.Accepted:
             return
         descr = newdlg.description.text()
         fname = newdlg.filename.text()
@@ -835,9 +835,10 @@ class ScansPanel(Panel):
                 dlg.otherList.setCurrentItem(newitem)
                 # paint the current set in grey to indicate it's not allowed
                 # to be selected
-                newitem.setBackground(self.palette().brush(QPalette.Mid))
-                newitem.setFlags(Qt.NoItemFlags)
-        if dlg.exec() != QDialog.Accepted:
+                newitem.setBackground(self.palette().brush(
+                    QPalette.ColorRole.Mid))
+                newitem.setFlags(Qt.ItemFlag.NoItemFlags)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
             return
         items = dlg.otherList.selectedItems()
         sets = [self.data.uid2set[current]]

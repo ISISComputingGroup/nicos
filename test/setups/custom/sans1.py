@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -52,7 +52,7 @@ devices = dict(
     det1_z = device('nicos_mlz.sans1.devices.detector.DetectorTranslation',
         device = 'det1_z_ax',
         lock = device('nicos_mlz.sans1.devices.hv.VoltageSwitcher',
-            moveable = device('nicos_mlz.sans1.devices.hv.Sans1HV',
+            moveable = device('nicos_mlz.sans1.devices.hv.HV',
                 unit = 'V',
                 fmtstr = '%d',
                 supply = device('nicos.devices.generic.VirtualMotor',

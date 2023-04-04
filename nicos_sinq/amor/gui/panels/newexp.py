@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2018-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2018-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -81,11 +81,11 @@ class AmorNewExpPanel(GenericPanel):
 
         if self.client.viewonly:
             self.finishButton.setVisible(False)
-            self.buttonBox.setStandardButtons(QDialogButtonBox.Close)
+            self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Close)
         else:
             self.finishButton.setVisible(True)
-            self.buttonBox.setStandardButtons(QDialogButtonBox.Apply |
-                                              QDialogButtonBox.Close)
+            self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Apply |
+                                              QDialogButtonBox.StandardButton.Close)
 
     def on_client_experiment(self, data):
         # just reinitialize
@@ -125,9 +125,9 @@ class AmorNewExpPanel(GenericPanel):
 
     def on_buttonBox_clicked(self, button):
         role = self.buttonBox.buttonRole(button)
-        if role == QDialogButtonBox.ApplyRole:
+        if role == QDialogButtonBox.ButtonRole.ApplyRole:
             self.applyChanges()
-        elif role == QDialogButtonBox.RejectRole:
+        elif role == QDialogButtonBox.ButtonRole.RejectRole:
             self.closeWindow()
 
     def applyChanges(self):

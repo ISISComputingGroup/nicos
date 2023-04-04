@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -993,13 +993,14 @@ class DoubleMotorBeckhoffNOK(HasAutoDevices, DoubleMotorBeckhoff):
                 index=idx)
 
     def doWriteMode(self, mode):
-        self.log.debug('DoubleMotorBeckhoffNOK arg:%s  self:%s', mode,
-                       self.mode)
-        target = self.doRead(0)
-        self.log.debug('DoubleMotorBeckhoffNOK target %s', target)
-        target = [pos + self.masks[mode] for pos in target]
-        self.log.debug('DoubleMotorBeckhoffNOK target %s', target)
-        DoubleMotorBeckhoff.doStart(self, target)
+        pass
+        # self.log.debug('DoubleMotorBeckhoffNOK arg:%s  self:%s', mode,
+        #                self.mode)
+        # target = self.doRead(0)
+        # self.log.debug('DoubleMotorBeckhoffNOK target %s', target)
+        # target = [pos + self.masks[mode] for pos in target]
+        # self.log.debug('DoubleMotorBeckhoffNOK target %s', target)
+        # DoubleMotorBeckhoff.doStart(self, target)
 
     def doRead(self, maxage=0):
         self.log.debug('DoubleMotorBeckhoffNOK read')
@@ -1024,9 +1025,7 @@ class DoubleMotorBeckhoffNOK(HasAutoDevices, DoubleMotorBeckhoff):
     def doIsAtTarget(self, pos, target):
         self.log.debug('DoubleMotorBeckhoffNOK doIsAtTarget')
         stat = self.status(0)
-        if stat[0] == status.BUSY:
-            return False
-        return True
+        return stat[0] != status.BUSY
 
     def doStart(self, target):
         self.log.debug('DoubleMotorBeckhoffNOK doStart')
@@ -1034,3 +1033,28 @@ class DoubleMotorBeckhoffNOK(HasAutoDevices, DoubleMotorBeckhoff):
         target = [pos + self.masks[self.mode] for pos in target]
         self.log.debug('target %s %s', target, type(target))
         DoubleMotorBeckhoff.doStart(self, target)
+
+    def _HW_stop(self):
+        self._HW_cmd_bit(6)
+
+    def _HW_clear(self):
+        self._HW_cmd_bit(7)
+
+    def _HW_cmd_bit(self, bit):
+        pass
+
+    def doStop(self):
+        self.log.debug('DoubleMotorBeckhoffNOK doStop %s %s', self.addresses,
+                       self.address)
+        bit = 6
+        value = 1
+        numbits = 1
+        self.log.debug('_writeControlBit doStop DoubleMotorBeckhoffNOK %r, %r',
+                       bit, value)
+        for add in self.addresses:
+            self.log.info('add %d', add)
+            self._dev.WriteOutputWord(
+                (add, (value & ((1 << int(numbits)) - 1)) << int(bit)))
+            session.delay(0.1)
+        session.delay(0.1)
+        BaseSequencer.doStop(self)

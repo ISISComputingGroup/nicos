@@ -8,7 +8,7 @@ devices = dict(
         motorpv=f'{prefix}:m8',
         abslimits=(-10, 10),
         unit='mm',
-        speed=5.,
+        speed=5
     ),
     beam_monitor_switch=device(
         'nicos.devices.generic.Switcher',
@@ -18,6 +18,6 @@ devices = dict(
             'IN': 0,
             'OUT': 5,
         },
-        precision=0.01,
-    )
+        precision=0.01
+    ),
 )

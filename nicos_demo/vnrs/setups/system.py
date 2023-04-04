@@ -2,6 +2,8 @@
 
 description = 'system setup'
 
+group = 'lowlevel'
+
 sysconfig = dict(
     cache = 'localhost',
     instrument = 'NRS',
@@ -17,7 +19,7 @@ devices = dict(
     Sample = device('nicos.devices.experiment.Sample',
         description = 'Default Sample',
     ),
-    Exp = device('nicos_inl.nrs.devices.experiment.ImagingExperiment',
+    Exp = device('nicos.devices.experiment.ImagingExperiment',
         description = 'North radiography station experiment',
         dataroot = 'data/',
         sample = 'Sample',

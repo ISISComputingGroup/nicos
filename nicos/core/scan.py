@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -38,7 +38,8 @@ from nicos.core.constants import FINAL, INTERMEDIATE, SIMULATION, SLAVE
 from nicos.core.errors import LimitError, ModeError, NicosError, UsageError
 from nicos.core.mixins import HasLimits
 from nicos.core.params import Value
-from nicos.core.utils import CONTINUE_EXCEPTIONS, SKIP_EXCEPTIONS, multiWait
+from nicos.core.utils import CONTINUE_EXCEPTIONS, SKIP_EXCEPTIONS, multiWait, \
+    waitForCompletion
 from nicos.utils import Repeater, number_types
 
 
@@ -78,6 +79,11 @@ class Scan:
                                     'any of the detectors: %s -- detectors are'
                                     ' %s', ', '.join(names),
                                     ', '.join(map(str, detlist)))
+        if preset is None:
+            preset = {}
+        if not preset:
+            for det in detlist:
+                preset.update(det.preset())
         if envlist == []:
             # special value [] to suppress all envlist devices
             allenvlist = []
@@ -117,8 +123,8 @@ class Scan:
         self._scaninfo = scaninfo
         self._subscan = subscan
         self._guessPlotIndex(xindex)
-        self._continuation = []
-        self._cont_direction = None
+        self._chain = []
+        self._chain_direction = None
         try:
             self._npoints = len(startpositions)  # can be zero if not known
         except TypeError:
@@ -186,8 +192,8 @@ class Scan:
             xindex=self._xindex,
             startpositions=self._startpositions,
             endpositions=self._endpositions,
-            continuation=self._continuation,
-            cont_direction=self._cont_direction,
+            chain=self._chain,
+            chain_direction=self._chain_direction,
         )
         session.elogEvent('scanbegin', self.dataset)
 
@@ -641,6 +647,10 @@ class ContinuousScan(Scan):
 
             self.preparePoint(None, None)
 
+            for det in detlist:
+                det.prepare()
+            for det in detlist:
+                waitForCompletion(det)
             for det in detlist:
                 det.start(t=preset)
             device.move(self._endpositions[0][0])

@@ -6,7 +6,12 @@ sysconfig = dict(
     cache = 'localhost',
     instrument = 'ICON',
     experiment = 'Exp',
-    datasinks = ['conssink', 'dmnsink', 'livesink', 'asciisink', 'shuttersink'],
+    datasinks = [
+        'conssink',
+        'dmnsink',
+        'livesink',
+        'asciisink',
+    ],
     notifiers = ['email'],
 )
 
@@ -41,6 +46,7 @@ devices = dict(
         sendmail = False,
         serviceexp = 'Service',
         sample = 'Sample',
+        elog = False,
     ),
     Space = device('nicos.devices.generic.FreeSpace',
         description = 'The amount of free space for storing data',

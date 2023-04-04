@@ -12,7 +12,7 @@ sysconfig = dict(
     notifiers=['email'],
 )
 
-modules = ['nicos.commands.standard']
+modules = ['nicos.commands.standard', 'nicos_ess.commands']
 
 includes = [
     'notifiers',
@@ -26,25 +26,22 @@ devices = dict(
         instrument='CSPEC',
         responsible='P.P. Deen <pascale.deen@esss.se>',
         website='https://europeanspallationsource.se/instruments/cspec',
-        operators=['European Spallation Source (ESS)',
-                   'Technische Universität München (TUM)',
-                   ]
-    ),
+        operators=[
+            'European Spallation Source (ESS)',
+            'Technische Universität München (TUM)',
+        ]),
     Sample=device(
         'nicos.devices.sample.Sample',
         description='The currently used sample',
     ),
-    Exp=device(
-        'nicos_ess.devices.experiment.EssExperiment',
-        description='experiment object',
-        dataroot='/opt/nicos-data/cspec',
-        sample='Sample',
-        cache_filepath='/opt/nicos-data/cspec/cached_proposals.json'
-    ),
+    Exp=device('nicos_ess.devices.experiment.EssExperiment',
+               description='experiment object',
+               dataroot='/opt/nicos-data',
+               filewriter_root='/opt/nicos-data/cspec',
+               sample='Sample',
+               cache_filepath='/opt/nicos-data/cspec/cached_proposals.json'),
     conssink=device(
-        'nicos.devices.datasinks.ConsoleScanSink',
-        visibility=(),
-    ),
+        'nicos_ess.devices.datasinks.console_scan_sink.ConsoleScanSink'),
     daemonsink=device(
         'nicos.devices.datasinks.DaemonSink',
         visibility=(),

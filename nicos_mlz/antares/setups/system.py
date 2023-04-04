@@ -2,6 +2,8 @@
 
 description = 'system setup'
 
+group = 'lowlevel'
+
 sysconfig = dict(
     cache = 'antareshw.antares.frm2',
     instrument = 'ANTARES',
@@ -16,7 +18,7 @@ modules = ['nicos.commands.basic', 'nicos.commands.standard',
 includes = ['notifiers']
 
 devices = dict(
-    Sample = device('nicos.devices.experiment.Sample',
+    Sample = device('nicos_mlz.devices.sample.Sample',
         description = 'Default Sample',
     ),
     Exp = device('nicos_mlz.antares.devices.Experiment',
@@ -76,7 +78,7 @@ devices = dict(
     ),
     LogSpace = device('nicos.devices.generic.FreeSpace',
         description = 'Free space on the log drive',
-        path = '/antarescontrol/log',
+        path = '/control/log',
         visibility = (),
         warnlimits = (0.5, None),
     ),

@@ -1,6 +1,8 @@
 description = 'Histogram memory connector'
 
-excludes= ['hm_config_sim']
+display_order = 100
+
+excludes = ['hm_config_sim']
 
 devices = dict(
     hm_connector = device('nicos_sinq.devices.sinqhm.connector.HttpConnector',

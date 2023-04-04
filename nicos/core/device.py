@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -286,7 +286,7 @@ class Device(metaclass=DeviceMeta):
         'classes':     Param('Names of device class and all its base classes',
                              type=listof(str), settable=False, userparam=False),
         'description': Param('A description of the device', type=str,
-                             settable=True),
+                             settable=False),
         'visibility':  Param('Selects in which context the device should be '
                              'shown/included',
                              type=setof('metadata', 'namespace', 'devlist'),
@@ -383,9 +383,9 @@ class Device(metaclass=DeviceMeta):
             elif not isinstance(obj, property):
                 # this should also be forbidden at some point, but for now just
                 # emit a warning to make sure it doesn't break the world
-                self.log.warning('Setting a non-parameter attribute %s.%s: '
-                                 'this is deprecated and will be an error '
-                                 'in a future version.', self, name)
+                raise ProgrammingError(
+                    self, f'setting a non-parameter attribute {self}.{name}: '
+                    'name needs to have an underscore prefix')
         object.__setattr__(self, name, value)
 
     def __str__(self):
@@ -750,7 +750,7 @@ class Device(metaclass=DeviceMeta):
             # and rely on saved _params and values
             self._cache = None
 
-    def history(self, name='value', fromtime=None, totime=None):
+    def history(self, name='value', fromtime=None, totime=None, interval=None):
         """Return a history of the parameter *name* (can also be ``'value'`` or
         ``'status'``).
 
@@ -780,7 +780,7 @@ class Device(metaclass=DeviceMeta):
                 totime = parseDateString(totime, enddate=True)
             elif totime < 0:
                 totime = currenttime() + totime * 3600
-            return self._cache.history(self, name, fromtime, totime)
+            return self._cache.history(self, name, fromtime, totime, interval)
 
     def info(self):
         """Return "device information" as an iterable of tuples ``(name,
@@ -1732,7 +1732,7 @@ class Moveable(Waitable):
            :meth:`stop` will try to stop all attached_devices, if any.
            Otherwise this is a no-op.
 
-        The `stop` method will return the device status after stopping.
+        The :meth:`stop` method will return the device status after stopping.
         """
         if self._mode == SLAVE:
             raise ModeError(self, 'stop not possible in slave mode')
@@ -1845,6 +1845,11 @@ class Measurable(Waitable):
         'unit': Override(description='(not used)', mandatory=False),
     }
 
+    parameters = {
+        '_lastpreset': Param('The latest used preset', internal=True,
+                             type=dict, settable=True),
+    }
+
     errorstates = {status.ERROR: NicosError}
 
     def _setMode(self, mode):
@@ -1871,13 +1876,20 @@ class Measurable(Waitable):
            If the dictionary is empty the detector should use its previous
            preset.
 
-           The `presetInfo` method is called to determine the presets that the
+           The :meth:`presetInfo` method is called to determine the presets that the
            class supports.
         """
         if self._sim_intercept:
             self._sim_preset = preset
             return
         self.doSetPreset(**preset)
+
+    @usermethod
+    def preset(self):
+        """Query the current presets for this detector."""
+        if self._sim_intercept:
+            return self._sim_preset
+        return self._lastpreset
 
     @usermethod
     def start(self, **preset):
@@ -1912,8 +1924,10 @@ class Measurable(Waitable):
         """Hook called during measurement.
 
         This can be overridden in subclasses to perform some periodic action
-        while measuring.  The hook is called by `.count` for every detector in
-        a loop.  The *elapsed* argument is the time elapsed since the detector
+        while measuring.  The hook is called by
+        :meth:`nicos.commands.measure.count` for every detector in a loop.
+
+        The *elapsed* argument is the time elapsed since the detector
         was started.
 
         If the hook returns a data quality value from ``nicos.core.data``,
@@ -1995,8 +2009,9 @@ class Measurable(Waitable):
 
         This operation is forbidden in slave mode.
 
-        Called by `.count` if an exception occurs, or if the user calls the
-        `stop()` command (possibly by using the immediate stop button).
+        Called by :meth:`nicos.command.measure.count` if an exception occurs,
+        or if the user calls the :meth:`stop()` command (possibly by using the
+        immediate stop button).
 
         .. method:: doStop()
 

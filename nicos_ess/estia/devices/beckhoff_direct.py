@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -36,14 +36,27 @@ class ADSServer(HasCommunication, Readable):
     """
 
     parameters = {
-        'ip': Param('IP address of Beckhoff terminal', type=ipv4,
-                    preinit=True, mandatory=True),
-        'amsnetid': Param('ID of Beckhoff terminal', type=str, preinit=True,
-                          mandatory=True),
-        'port': Param('ADS port of PLC terminal', type=int, preinit=True,
-                      mandatory=True),
-        'timeout': Param('Communication timeout for pyads', type=float,
-                         prefercache=False, preinit=True, default=5.0),
+        'ip':
+            Param('IP address of Beckhoff terminal',
+                  type=ipv4,
+                  preinit=True,
+                  mandatory=True),
+        'amsnetid':
+            Param('ID of Beckhoff terminal',
+                  type=str,
+                  preinit=True,
+                  mandatory=True),
+        'port':
+            Param('ADS port of PLC terminal',
+                  type=int,
+                  preinit=True,
+                  mandatory=True),
+        'timeout':
+            Param('Communication timeout for pyads',
+                  type=float,
+                  prefercache=False,
+                  preinit=True,
+                  default=5.0),
     }
 
     parameter_overrides = {
@@ -89,13 +102,20 @@ class PT100(Readable):
     """
 
     parameters = {
-        'attribute': Param('Index of the axis to be read', type=str,
-                           default='nTempM1', ),
+        'attribute':
+            Param(
+                'Index of the axis to be read',
+                type=str,
+                default='nTempM1',
+            ),
     }
 
     parameter_overrides = {
-        'unit': Override(default='C', mandatory=False, settable=False,
-                         userparam=False),
+        'unit':
+            Override(default='C',
+                     mandatory=False,
+                     settable=False,
+                     userparam=False),
     }
 
     attached_devices = {

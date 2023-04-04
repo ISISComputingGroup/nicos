@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -24,12 +24,13 @@
 
 from nicos.core import Param, Value, status
 from nicos.devices.epics import EpicsReadable
+from nicos.devices.epics.monitor import PyEpicsMonitor
 from nicos.devices.generic.detector import CounterChannelMixin
 
 from nicos_ess.devices.epics.detector import EpicsPassiveChannel
 
 
-class SINQProtonCurrent(EpicsReadable):
+class SINQProtonCurrent(PyEpicsMonitor, EpicsReadable):
     """
     The proton accelerator team provides a PV with the proton charge sent to SINQ. Unfortunately the
     PV causes a non-empty error message that is meaningful for us. This device handles it.

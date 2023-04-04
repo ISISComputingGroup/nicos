@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -28,7 +28,7 @@ import time
 from os import path
 
 from nicos import session
-from nicos.core import Override, Param, absolute_path
+from nicos.core import MASTER, Override, Param, absolute_path
 from nicos.core.data import DataManager
 from nicos.devices.experiment import Experiment
 from nicos.utils import readFile, writeFile
@@ -40,6 +40,8 @@ class SinqDataManager(DataManager):
     numbering scheme
     """
 
+    _pointcounter = 1
+
     def incrementCounters(self, countertype):
         result = []
         exp = session.experiment
@@ -48,6 +50,11 @@ class SinqDataManager(DataManager):
             exp.updateSicsCounterFile(val+1)
             result.append((countertype, val))
             result.append(('counter', val))
+            self._pointcounter = 1
+        elif countertype == 'point':
+            result.append((countertype, self._pointcounter))
+            result.append(('counter', self._pointcounter))
+            self._pointcounter += 1
         return result
 
 
@@ -61,6 +68,7 @@ class SinqExperiment(Experiment):
         'zipdata': Override(default=False),
         'title': Override(settable=True, volatile=False),
         'users': Override(settable=True, volatile=False),
+        'elog': Override(default=False),
     }
 
     parameters = {
@@ -161,4 +169,5 @@ class TomoSinqExperiment(SinqExperiment):
     }
 
     def doInit(self, mode):
-        self.tomo_params = {'status': 'reset'}
+        if mode == MASTER:
+            self.tomo_params = {'status': 'reset'}

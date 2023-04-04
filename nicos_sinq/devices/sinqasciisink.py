@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -35,10 +35,12 @@ from nicos_sinq.sxtal.instrument import SXTalBase
 class SINQAsciiSinkHandler(DataSinkHandler):
     """
     The implementation is as such:
-    - In appendResults() I collect all the scan data which is needed in the
-      scanvalues dictionary. At the first point, the header is generated.
+
+    - In `addSubset()` I collect all the scan data which is needed in the
+      scanvalues dictionary.  At the first point, the header is generated.
       This is the first point where enough data is there to do this.
-    - In end(), the file is actually written
+    - In `end`, the file is actually written
+
     This has the disadvantage that no data is written when NICOS dies on the
     way. But it simplifies the implementation by a lot.
     """
@@ -47,8 +49,9 @@ class SINQAsciiSinkHandler(DataSinkHandler):
 
     def prepare(self):
         self.manager.assignCounter(self.dataset)
-        self.manager.getFilenames(self.dataset, self.sink.filenametemplate,
-                                  self.sink.subdir)
+        _, filepaths = self.manager.getFilenames(
+            self.dataset, self.sink.filenametemplate, self.sink.subdir)
+        self.filename = filepaths[0]
 
     def _findValue(self, dev, par):
         if (dev, par) in self.dataset.metainfo:
@@ -61,7 +64,7 @@ class SINQAsciiSinkHandler(DataSinkHandler):
         with open(self.sink.templatefile, 'r', encoding='utf-8') as fin:
             template = fin.read()
 
-        template = template.replace('!!FILE!!', self.dataset.filepaths[0])
+        template = template.replace('!!FILE!!', self.filename)
 
         time_str = time.strftime('%Y-%m-%d %H:%M:%S',
                                  time.localtime(time.time()))
@@ -134,19 +137,25 @@ class SINQAsciiSinkHandler(DataSinkHandler):
                                     'data', det)
 
     def end(self):
-        with open(self.dataset.filepaths[0], 'w', encoding='utf-8') as out:
+        with open(self.filename, 'w', encoding='utf-8') as out:
             out.write(self.header)
 
             # Do the scan variable and steps line
             steps = []
             out.write('Scanning Variables: ')
             for dev in self.dataset.devices:
-                out.write(dev.name + ',')
                 vals = self.scanvalues[dev.name]
+                if isinstance(dev, SXTalBase):
+                    out.write('h, k, l,')
+                else:
+                    out.write(dev.name + ',')
                 if len(vals) > 1:
                     if isinstance(vals[0], tuple):
-                        hklstep = [v1 - v2 for v1, v2 in zip(vals[1], vals[0])]
-                        steps.append(str(tuple(hklstep)))
+                        hklstep = [v1 - v2 for v1, v2 in
+                                   zip(self.dataset.startpositions[1][0],
+                                       self.dataset.startpositions[0][0])]
+                        for s in hklstep:
+                            steps.append('%.4f' % s)
                     else:
                         steps.append(str(vals[1] - vals[0]))
                 else:
@@ -202,27 +211,30 @@ class SINQAsciiSinkHandler(DataSinkHandler):
 class SINQAsciiSink(FileSink):
     """
     This is a filesink which writes scan data files in the SINQ ASCII format.
+
     The implementation strives to be as compatible as possible to the old
     format as written by SICS. SINQ ASCII files are constructed from a
-    template file. This template file contains ASCII text which is copied
-    verbatim to the output intermixed with place holder strings. These are
+    template file.  This template file contains ASCII text which is copied
+    verbatim to the output intermixed with place holder strings.  These are
     replaced with data from NICOS. In addition, the actual data from the
-    scan is collected and written too. The special placeholders recognized
+    scan is collected and written too.  The special placeholders recognized
     are:
+
     - !!VAR(dev,par)!! is replaced with the value of the parameter par of
-                        device dev. Par can be missing and is then value.
+      device dev. Par can be missing and is then value.
     - !!DRIV(dev)!! replaced by the value of dev
     - !!ZERO(dev)!! replaced by the offset of dev. Dev must be a motor
     - !!SCRIPT(txt)!! replaced by the output of running script txt
-    - !!DATE!!  replaced by the current date and time
+    - !!DATE!! replaced by the current date and time
     - !!FILE!! replaced by the original file path of the scan file
     - !!SCANZERO!! replaced by a list of zero points of the scanned devices
+
     There is some redundancy here but as the goal is to reuse the SICS template
     files as far as possible, this has to be accepted.
 
-    One file per scan is written. This format is designed with single
-    counters in mind, this is not for area detetcor data. Use the
-    NexusFileSink for such data.
+    One file per scan is written. This format is designed with single counters
+    in mind, this is not for area detetcor data.  Use the NexusFileSink for
+    such data.
 
     """
     parameters = {

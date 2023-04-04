@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -179,8 +179,7 @@ class DataManager:
                     dataset.handlers.extend(handlers)
             # Sorting handlers for right execution order
             dataset.handlers = sorted(
-                dataset.handlers,
-                key=lambda _handler: _handler.ordering)
+                dataset.handlers, key=lambda _handler: _handler.ordering)
         if self._current:
             self._current.subsets.append(dataset)
             dataset.number = len(self._current.subsets)

@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -80,7 +80,7 @@ class ToolAction(QAction):
         QAction.__init__(self, icon, text, parent)
         # the default menu rule is TextHeuristicRole, which moves 'setup' to
         # the 'Preferences' Menu on a Mac -> this is not what we want
-        self.setMenuRole(self.NoRole)
+        self.setMenuRole(self.MenuRole.NoRole)
         setups = options.get('setups', '')
         self.setupSpec = setups
         if self.setupSpec:
@@ -100,6 +100,7 @@ class MainWindow(DlgUtils, QMainWindow):
     keepaliveInterval = 12*3600*1000
 
     ui = 'main.ui'
+    default_facility_logo = None
 
     def __init__(self, log, gui_conf, viewonly=False, tunnel=''):
         QMainWindow.__init__(self)
@@ -111,14 +112,7 @@ class MainWindow(DlgUtils, QMainWindow):
         icon.addFile(':/appicon')
         icon.addFile(':/appicon-16')
         icon.addFile(':/appicon-48')
-        self.setWindowIcon(icon)
-
-        if tunnel and SSHTunnelForwarder is None:
-            self.showError('You want to establish a connection to NICOS via '
-                           "a SSH tunnel, but the 'sshtunnel' module is not "
-                           'installed. The tunneling feature will disabled.')
-        self.tunnel = tunnel if SSHTunnelForwarder is not None else ''
-        self.tunnelServer = None
+        QApplication.setWindowIcon(icon)
 
         # hide admin label until we are connected as admin
         self.adminLabel.hide()
@@ -170,6 +164,8 @@ class MainWindow(DlgUtils, QMainWindow):
 
         # panel configuration
         self.gui_conf = gui_conf
+        self.facility_logo = gui_conf.options.get('facility_logo',
+                                                  self.default_facility_logo)
         self.initDataReaders()
         self.mainwindow = self
 
@@ -192,6 +188,14 @@ class MainWindow(DlgUtils, QMainWindow):
         self.instrument = self.gui_conf.name
 
         self.createWindowContent()
+
+        if tunnel and SSHTunnelForwarder is None:
+            self.showError('You want to establish a connection to NICOS via '
+                           "a SSH tunnel, but the 'sshtunnel' module is not "
+                           'installed. The tunneling feature will disabled.')
+        if tunnel:
+            self.tunnel = tunnel if SSHTunnelForwarder is not None else ''
+        self.tunnelServer = None
 
         # timer for reconnecting
         self.reconnectTimer = QTimer(singleShot=True, timeout=self._reconnect)
@@ -397,6 +401,7 @@ class MainWindow(DlgUtils, QMainWindow):
         self.autoreconnect = settings.value('autoreconnect', True, bool)
         self.autosavelayout = settings.value('autosavelayout', True, bool)
         self.allowoutputlinewrap = settings.value('allowoutputlinewrap', False, bool)
+        self.tunnel = settings.value('tunnel', '')
 
         self.update()
 
@@ -426,11 +431,13 @@ class MainWindow(DlgUtils, QMainWindow):
         settings.setValue('lastpreset', self.lastpreset)
         settings.setValue('font', self.user_font)
         settings.setValue('color', self.user_color)
+        settings.setValue('tunnel', self.tunnel)
 
     def closeEvent(self, event):
-        if self.confirmexit and QMessageBox.question(
-                self, 'Quit', 'Do you really want to quit?',
-                QMessageBox.Yes | QMessageBox.No) == QMessageBox.No:
+        if self.confirmexit and \
+           QMessageBox.question(
+               self, 'Quit', 'Do you really want to quit?'
+           ) == QMessageBox.StandardButton.No:
             event.ignore()
             return
 
@@ -499,7 +506,7 @@ class MainWindow(DlgUtils, QMainWindow):
         self.statusLabel.setPixmap(pixmap)
         self.statusLabel.setToolTip('Script status: %s' % status)
         newicon = QIcon()
-        newicon.addPixmap(pixmap, QIcon.Disabled)
+        newicon.addPixmap(pixmap, QIcon.Mode.Disabled)
         self.trayIcon.setIcon(newicon)
         self.trayIcon.setToolTip('%s status: %s' % (self.instrument, status))
         if self.showtrayicon:
@@ -631,15 +638,17 @@ class MainWindow(DlgUtils, QMainWindow):
         # show non-modal dialog box that prompts the user to continue or abort
         prompt_text = data[0]
         dlg = self.promptWindow = QMessageBox(
-            QMessageBox.Information, 'Confirmation required',
-            prompt_text, QMessageBox.Ok | QMessageBox.Cancel, self)
-        dlg.setWindowModality(Qt.NonModal)
+            QMessageBox.Icon.Information, 'Confirmation required',
+            prompt_text,
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+            self)
+        dlg.setWindowModality(Qt.WindowModality.NonModal)
 
         # give the buttons better descriptions
-        btn = dlg.button(QMessageBox.Cancel)
+        btn = dlg.button(QMessageBox.StandardButton.Cancel)
         btn.setText('Abort script')
         btn.clicked.connect(lambda: self.client.tell_action('stop', BREAK_NOW))
-        btn = dlg.button(QMessageBox.Ok)
+        btn = dlg.button(QMessageBox.StandardButton.Ok)
         btn.setText('Continue script')
         btn.clicked.connect(lambda: self.client.tell_action('continue'))
         btn.setFocus()
@@ -691,11 +700,10 @@ class MainWindow(DlgUtils, QMainWindow):
             return
         from nicos.clients.gui.tools.website import WebsiteTool
 
-        # XXX: change URL to current release version
         dlg = WebsiteTool(
             self, self.client,
-            url='http://www.nicos-controls.org')
-        dlg.setWindowModality(Qt.NonModal)
+            url='https://forge.frm2.tum.de/nicos/doc/nicos-master/documentation/')
+        dlg.setWindowModality(Qt.WindowModality.NonModal)
         dlg.show()
 
     @pyqtSlot()
@@ -785,7 +793,7 @@ class MainWindow(DlgUtils, QMainWindow):
     def on_actionPreferences_triggered(self):
         dlg = SettingsDialog(self)
         ret = dlg.exec()
-        if ret == QDialog.Accepted:
+        if ret == QDialog.DialogCode.Accepted:
             dlg.saveSettings()
 
     @pyqtSlot()

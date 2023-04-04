@@ -11,13 +11,14 @@ extension-pkg-whitelist=numpy
     ,OpenGL.GLUT
     ,OpenGL.GLUT.fonts
     ,PyQt5
+    ,PyQt6
     ,nicospyctl.pyctl
     ,quickyaml
     ,lxml.etree
 
 # Add files or directories to the blacklist. They should be base names, not
 # paths.
-ignore=_vendor,.git,gui_rc_qt5.py,corbadevice_idl.py,absdev_idl.py,fbschemas
+ignore=_vendor,.git,gui_rc_qt5.py,gui_rc_qt6.py,corbadevice_idl.py,absdev_idl.py,fbschemas
 
 # Add files or directories matching the regex patterns to the blacklist. The
 # regex matches against base names, not paths.
@@ -25,7 +26,9 @@ ignore-patterns=
 
 # Python code to execute, usually for sys.path manipulation such as
 # pygtk.require().
-init-hook= "
+init-hook="
+ import os, sys, pylint
+ sys.path.append(os.path.dirname(pylint.config.PYLINTRC))
  import numpy
  from nicos.utils.stubs import generate_stubs
  generate_stubs()"

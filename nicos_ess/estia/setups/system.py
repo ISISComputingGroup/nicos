@@ -9,7 +9,7 @@ sysconfig = dict(
     datasinks=['conssink', 'daemonsink'],
 )
 
-modules = ['nicos.commands.standard']
+modules = ['nicos.commands.standard', 'nicos_ess.commands']
 
 includes = ['temp']
 
@@ -25,15 +25,15 @@ devices = dict(
         'nicos.devices.sample.Sample',
         description='The currently used sample',
     ),
-    Exp=device(
-        'nicos_ess.devices.experiment.EssExperiment',
-        description='experiment object',
-        dataroot=configdata('config.ESTIA_DATA_ROOT'),
-        sample='Sample',
-        cache_filepath=f'{configdata("config.ESTIA_DATA_ROOT")}/'
-                       f'cached_proposals.json'
-    ),
-    conssink=device('nicos.devices.datasinks.ConsoleScanSink', ),
+    Exp=device('nicos_ess.devices.experiment.EssExperiment',
+               description='experiment object',
+               dataroot=configdata('config.ESTIA_DATA_ROOT'),
+               filewriter_root=configdata('config.ESTIA_FILEWRITER_ROOT'),
+               sample='Sample',
+               cache_filepath=f'{configdata("config.ESTIA_DATA_ROOT")}'
+               f'/estia/cached_proposals.json'),
+    conssink=device(
+        'nicos_ess.devices.datasinks.console_scan_sink.ConsoleScanSink'),
     daemonsink=device('nicos.devices.datasinks.DaemonSink', ),
     Space=device(
         'nicos.devices.generic.FreeSpace',

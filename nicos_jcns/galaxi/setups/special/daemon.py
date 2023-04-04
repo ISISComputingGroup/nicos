@@ -1,4 +1,4 @@
-description = 'setup for the execution daemon'
+description = 'Setup for the GALAXI execution daemon'
 group = 'special'
 
 devices = dict(
@@ -6,6 +6,7 @@ devices = dict(
         hashing = 'md5',
         passwd = [
             ('guest', '', 'guest'),
+            ('galaxi', 'e6b69d88a756e15f335e729a8f76ef6f', 'user'),
             ('jcns', '51b8e46e7a54e8033f0d7a3393305cdb', 'admin'),
         ],
     ),
@@ -20,7 +21,7 @@ devices = dict(
         },
     ),
     Daemon = device('nicos.services.daemon.NicosDaemon',
-        description = 'Daemon, executing commands and scripts',
+        description = 'Daemon, executing commands and scripts.',
         server = '',
         authenticators = ['Auth', 'LDAPAuth'],
         loglevel = 'debug',

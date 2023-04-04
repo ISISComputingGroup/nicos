@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -44,7 +44,7 @@ class MultiEntry(QWidget):
         self.setButton('+')
         self.button.clicked.connect(self.on_button_click)
         new_layout.addWidget(self.subwidget)
-        new_layout.addSpacerItem(QSpacerItem(15, 1, QSizePolicy.Fixed))
+        new_layout.addSpacerItem(QSpacerItem(15, 1, QSizePolicy.Policy.Fixed))
         new_layout.addWidget(self.button)
         new_layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(new_layout)

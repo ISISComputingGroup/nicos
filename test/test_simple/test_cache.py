@@ -2,7 +2,7 @@
 #  pylint: disable=unidiomatic-typecheck
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,7 @@ from time import sleep
 
 import pytest
 
-from nicos.core.errors import CommunicationError, LimitError
+from nicos.core.errors import CommunicationError, LimitError, CacheLockError
 from nicos.devices.cacheclient import CacheClient
 from nicos.utils import readonlydict, readonlylist
 
@@ -61,6 +61,18 @@ class TestCache:
 
         assert cachedval_local == testval
         assert cachedval[2] == testval
+
+    def test_delete(self, session):
+        cc = session.cache
+        testval = 'test_del'
+        key = 'delvalue'
+        cc.put('testcache', key, testval)
+        cc.flush()
+        assert cc.get_explicit('testcache', key, None)[2] == testval
+
+        cc.delete('testcache', key)
+        cc.flush()
+        assert cc.get_explicit('testcache', key, None)[2] is None
 
     def test_rewrite(self, session):
         cc = session.cache
@@ -116,6 +128,26 @@ class TestCache:
         assert cachedval2[2] == testval2
         assert cachedval5[2] == testval3
         assert cachedval6[2] == cachedval5[2]
+
+    def test_raw(self, session):
+        cc = session.cache
+        cc.put_raw('some/strange/key', [1, 2])
+        cc.flush()
+        assert cc.get_raw('some/strange/key') == [1, 2]
+
+    def test_lock(self, session):
+        cc = session.cache
+        key = 'lock'
+        ses_a, ses_b = 'client1', 'client2'
+        # need to access base class method since lock() is disabled in the
+        # TestCacheClient to avoid implicit master locking
+        CacheClient.lock(cc, key, 5, sessionid=ses_a)
+        assert raises(CacheLockError, CacheClient.lock, cc, key, 5,
+                      sessionid=ses_b)
+        CacheClient.lock(cc, key, unlock=True, sessionid=ses_a)
+        CacheClient.lock(cc, key, 0.01, sessionid=ses_a)
+        sleep(0.1)
+        CacheClient.lock(cc, key, 0.01, sessionid=ses_b)
 
     def test_readonly_objects(self, session):
         cc = session.cache

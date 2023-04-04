@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -43,7 +43,8 @@ class WatchdogDialog(QDialog):
         self.frame.layout().addStretch()
 
         def btn(button):
-            if self.buttonBox.buttonRole(button) == QDialogButtonBox.ResetRole:
+            if self.buttonBox.buttonRole(button) \
+                    == QDialogButtonBox.ButtonRole.ResetRole:
                 for w in self.frame.children():
                     if isinstance(w, QWidget):
                         w.hide()

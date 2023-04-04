@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,7 @@ from threading import Event
 
 import pytest
 
+pytest.importorskip('streaming_data_types', minversion='0.16.0')
 pytest.importorskip('streaming_data_types.deserialise_hs01',
                     'streaming_data_types.serialise_hs01')
 import numpy as np

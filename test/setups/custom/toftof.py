@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -254,12 +254,12 @@ devices = dict(
         abslimits = (-40, 100),
         unit = 'degC',
     ),
-    tofsink = device('nicos_mlz.toftof.devices.datasinks.TofImageSink',
+    tofsink = device('nicos_mlz.toftof.datasinks.TofImageSink',
         filenametemplate = ['%(pointcounter)08d_0000.raw'],
     ),
-    nxsink = device('nicos_mlz.toftof.devices.datasinks.NexusSink',
-        templateclass = 'nicos_mlz.toftof.devices.datasinks.nexustemplate.TofTofNexusLegacyTemplate',
+    nxsink = device('nicos_mlz.toftof.datasinks.NexusSink',
+        templateclass = 'nicos_mlz.toftof.datasinks.nexustemplate.LegacyTemplate',
         filenametemplate = ['TOFTOF%(pointcounter)08d.nxs'],
     ),
-    livesink = device('nicos_mlz.toftof.devices.datasinks.ToftofLiveViewSink'),
+    livesink = device('nicos_mlz.toftof.datasinks.LiveViewSink'),
 )

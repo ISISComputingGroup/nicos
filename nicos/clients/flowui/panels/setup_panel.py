@@ -1,7 +1,7 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
-# Copyright (c) 2009-2022 by the NICOS contributors (see AUTHORS)
+# Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
 #
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
@@ -57,14 +57,15 @@ class ExpPanel(DefaultExpPanel):
                                self.proposalNum, self.sampleName)
         self.applyWarningLabel.setStyleSheet('color: red')
         self.applyWarningLabel.setVisible(False)
-        self.buttonBox.addButton("Discard Changes", QDialogButtonBox.ResetRole)
+        self.buttonBox.addButton("Discard Changes",
+                                 QDialogButtonBox.ButtonRole.ResetRole)
 
     def on_client_connected(self):
         # fill proposal
         self._update_proposal_info()
         self.newBox.setVisible(True)
         # check for capability to ask proposal database
-        if self.client.eval('session.experiment._canQueryProposals()', None):
+        if self.client.eval('session.experiment._canQueryProposals()', False):
             self.propdbInfo.setVisible(True)
             self.queryDBButton.setVisible(True)
         else:
@@ -92,9 +93,9 @@ class ExpPanel(DefaultExpPanel):
 
     def on_buttonBox_clicked(self, button):
         role = self.buttonBox.buttonRole(button)
-        if role == QDialogButtonBox.ApplyRole:
+        if role == QDialogButtonBox.ButtonRole.ApplyRole:
             self.applyChanges()
-        elif role == QDialogButtonBox.ResetRole:
+        elif role == QDialogButtonBox.ButtonRole.ResetRole:
             self.discardChanges()
 
     def discardChanges(self):
@@ -236,16 +237,17 @@ class ExpPanel(DefaultExpPanel):
         for button in self.buttonBox.buttons():
             role = self.buttonBox.buttonRole(button)
             button.setEnabled(value)
-            if role == QDialogButtonBox.ResetRole:
+            if role == QDialogButtonBox.ButtonRole.ResetRole:
                 button.setVisible(value)
         self.applyWarningLabel.setVisible(value)
 
 
 class SetupsPanel(DefaultSetupsPanel):
     def finishUi(self):
-        self.buttonBox.setLayoutDirection(Qt.RightToLeft)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Apply)
-        self.buttonBox.addButton(self._reload_btn, QDialogButtonBox.ResetRole)
+        self.buttonBox.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.StandardButton.Apply)
+        self.buttonBox.addButton(self._reload_btn,
+                                 QDialogButtonBox.ButtonRole.ResetRole)
 
     def setViewOnly(self, viewonly):
         for button in self.buttonBox.buttons():
@@ -263,6 +265,7 @@ class FinishPanel(Panel):
 
     panelName = 'Finish experiment'
     ui = '%s/panels/ui_files/finish_exp.ui' % uipath
+
     def __init__(self, parent, client, options):
         Panel.__init__(self, parent, client, options)
         loadUi(self, self.ui)
