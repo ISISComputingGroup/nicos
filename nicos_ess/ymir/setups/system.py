@@ -35,18 +35,11 @@ devices = dict(
         'nicos_ess.devices.experiment.EssExperiment',
         description='experiment object',
         dataroot='/opt/nicos-data',
-        filewriter_root='/ess/data/ymir',
         sample='Sample',
-        cache_filepath='/opt/nicos-data/ymir/cached_proposals.json'),
+        cache_filepath='/opt/nicos-data/cached_proposals.json'),
     conssink=device(
         'nicos_ess.devices.datasinks.console_scan_sink.ConsoleScanSink',),
     daemonsink=device('nicos.devices.datasinks.DaemonSink',),
-    Space=device(
-        'nicos.devices.generic.FreeSpace',
-        description='The amount of free space for storing data',
-        path=None,
-        minfree=5,
-    ),
     liveview=device('nicos.devices.datasinks.LiveViewSink', ),
     NexusStructure_Basic=device(
         'nicos_ess.devices.datasinks.nexus_structure.NexusStructureJsonFile',
@@ -69,14 +62,14 @@ devices = dict(
     FileWriterStatus=device(
         'nicos_ess.devices.datasinks.file_writer.FileWriterStatus',
         description='Status of the file-writer',
-        brokers=['10.100.1.19:9092'],
+        brokers=['10.100.1.19:8093'],
         statustopic='ymir_filewriter',
         unit='',
     ),
     FileWriterControl=device(
         'nicos_ess.devices.datasinks.file_writer.FileWriterControlSink',
         description='Control for the file-writer',
-        brokers=['10.100.1.19:9092'],
+        brokers=['10.100.1.19:8093'],
         pool_topic='ess_filewriter_pool',
         status='FileWriterStatus',
         nexus='NexusStructure',
@@ -85,6 +78,6 @@ devices = dict(
     SciChat=device(
         'nicos_ess.devices.scichat.ScichatBot',
         description='Sends messages to SciChat',
-        brokers=['10.100.1.19:9092'],
+        brokers=['10.100.1.19:8093'],
     ),
 )

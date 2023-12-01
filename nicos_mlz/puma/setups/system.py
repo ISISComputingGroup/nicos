@@ -1,7 +1,4 @@
-#  -*- coding: utf-8 -*-
-
 description = 'system setup for PUMA'
-
 group = 'lowlevel'
 
 sysconfig = dict(
@@ -65,7 +62,7 @@ devices = dict(
     ),
     LogSpace = device('nicos.devices.generic.FreeSpace',
         description = 'Free space on the log drive',
-        path = '/pumacontrol/log',
+        path = '/control/log',
         visibility = (),
         warnlimits = (0.5, None),
     ),

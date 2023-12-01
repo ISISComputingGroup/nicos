@@ -1,10 +1,6 @@
-#  -*- coding: utf-8 -*-
-
 description = 'Resonance flippers'
 group = 'lowlevel'
 display_order = 24
-
-tango_base = 'tango://resedahw2.reseda.frm2:10000/reseda'
 
 devices = dict(
     hrf_0a = device('nicos.devices.generic.ManualMove',
@@ -13,7 +9,7 @@ devices = dict(
         pollinterval = 60,
         maxage = 120,
         unit = 'A',
-        abslimits = (0, 1),
+        abslimits = (0, 100),
         # precision = 0.02,
     ),
     hrf_0b = device('nicos.devices.generic.ManualMove',
@@ -22,7 +18,7 @@ devices = dict(
         pollinterval = 60,
         maxage = 120,
         unit = 'A',
-        abslimits = (0, 1),
+        abslimits = (0, 100),
         # precision = 0.02,
     ),
     hrf_1a = device('nicos.devices.generic.ManualMove',
@@ -31,7 +27,7 @@ devices = dict(
         pollinterval = 60,
         maxage = 120,
         unit = 'A',
-        abslimits = (0, 1),
+        abslimits = (0, 100),
         # precision = 0.02,
     ),
     hrf_1b = device('nicos.devices.generic.ManualMove',
@@ -40,7 +36,7 @@ devices = dict(
         pollinterval = 60,
         maxage = 120,
         unit = 'A',
-        abslimits = (0, 1),
+        abslimits = (0, 100),
         # precision = 0.02,
     ),
 )

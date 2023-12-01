@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -331,7 +330,6 @@ def calcTasQAngles(UB, planeNormal, ss, a3offset, qe):
 
     QC = tasReflectionToQC(qe, UB)
 
-    # q = 2.*np.pi*np.linalg.norm(QC)
     q = np.linalg.norm(QC)
 
     cos2t = (qe.ki * qe.ki + qe.kf * qe.kf -
@@ -380,8 +378,5 @@ def calcTasQH(ub, angles, ki, kf):
     # 2PI factor
     q = np.sqrt(ki**2 + kf**2 -
                 2. * ki * kf * Cosd(sample_two_theta))
-    # The line below depends on the 2PI conventions.
-    q /= np.pi*2.
-
     qv *= q
     return ubinv.dot(qv)

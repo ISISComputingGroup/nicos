@@ -524,21 +524,8 @@ QMessageBox > QLabel {
 }
 
 /* ----------------------------------------- */
-
-CommandLineEdit[state="DEFAULT"] {
-    font-size: 20;
-    min-height: 22px;
-    border: 2px solid #0094ca;
-    border-radius: 5px;
+Panel[panel='DevicesPanel'] QComboBox {
     background-color: white;
-}
-
-CommandLineEdit[state="BUSY"] {
-    font-size: 20;
-    min-height: 22px;
-    border: 2px solid #0094ca;
-    border-radius: 5px;
-    background-color: #ffdddd;
 }
 
 Panel[panel='ExpPanel'] QLineEdit::focus,
@@ -569,6 +556,27 @@ Panel[panel='CommandPanel'] QPushButton {
     width:80px;
 }
 
+Panel[panel='CommandPanel'] * {
+    background-color: white;
+}
+
+CommandLineEdit[state="DEFAULT"] {
+    font-size: 20;
+    min-height: 22px;
+    border: 2px solid #0094ca;
+    border-radius: 5px;
+    background-color: white;
+}
+
+CommandLineEdit[state="BUSY"] {
+    font-size: 20;
+    min-height: 22px;
+    border: 2px solid #0094ca;
+    border-radius: 5px;
+    background-color: #ffdddd;
+}
+
+
 LiveWidgetWrapper:title {
     subcontrol-origin: margin;
     subcontrol-position: top center;
@@ -586,12 +594,8 @@ LiveWidgetWrapper[state="UNSELECTED"] {
     border-radius: 5px;
 }
 
-QScrollBar:vertical {
-    width: 10px;
-    background-color: none;
-}
-
-QScrollBar:horizontal {
-    width: 10px;
-    background-color: none;
+/* For Auth Dialog */
+QDialog QComboBox {
+    color: black;
+    background-color: white;
 }

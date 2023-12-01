@@ -2,11 +2,30 @@ description = 'Installs the Eulerian cradle into NICOS'
 
 excludes = ['zebratas', 'zebranb', 'zebrakappa']
 
-requires = ['monochromator', 'sample']
+includes = ['monochromator', 'sample']
 
 sysconfig = dict(instrument = 'ZEBRA',)
 
+pvpref = 'SQ:ZEBRA:mcu'
+
 devices = dict(
+    chi = device('nicos_sinq.devices.epics.motor.EpicsMotor',
+        description = 'CHI rotation',
+        motorpv = pvpref + '2:SCH',
+        errormsgpv = pvpref + '2:SCH-MsgTxt',
+        precision = 0.5,
+        can_disable = True,
+        auto_enable = True,
+    ),
+    phi = device('nicos_sinq.devices.epics.motor.EpicsMotor',
+        description = 'PHI rotation',
+        motorpv = pvpref + '2:SPH',
+        errormsgpv = pvpref + '2:SPH-MsgTxt',
+        precision = 0.5,
+        userlimits = (-180, 180),
+        can_disable = True,
+        auto_enable = True,
+    ),
     ZEBRA = device('nicos_sinq.zebra.devices.sinqxtal.SinqEuler',
         description = 'instrument object',
         instrument = 'SINQ ZEBRA',

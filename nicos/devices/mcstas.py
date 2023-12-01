@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -28,6 +27,7 @@
 
 import os
 import shutil
+import socket
 from os import path
 from signal import SIGTERM, SIGUSR2
 from subprocess import PIPE
@@ -38,10 +38,11 @@ from psutil import AccessDenied, NoSuchProcess, Popen
 
 from nicos import session
 from nicos.core import MASTER, ArrayDesc, Attach, Override, Param, Readable, \
-    Value, Waitable, floatrange, intrange, oneof, status, tupleof
+    Value, Waitable, dictof, floatrange, intrange, nonemptystring, oneof, \
+    status, tupleof
 from nicos.core.constants import FINAL, LIVE
-from nicos.devices.generic import ActiveChannel, ImageChannelMixin, \
-    PassiveChannel
+from nicos.devices.generic import ActiveChannel, Detector as BaseDetector, \
+    ImageChannelMixin, PassiveChannel
 from nicos.utils import createThread
 
 # Minimum time to let McStas run before attempting to save data
@@ -60,7 +61,7 @@ class McStasSimulation(Readable):
 
     _mythread = None
     _process = None
-    _started = None
+    _started = False
     _start_time = None
 
     # to be implemented in derived classes
@@ -76,10 +77,11 @@ class McStasSimulation(Readable):
         'mcsiminfo':  Param('Name for the McStas Siminfo file', settable=False,
                             type=str, default='mccode.sim'),
         'neutronspersec':  Param('Approximate simulated neutrons per second '
-                                 'for this machine. Tune this parameter '
-                                 'according to your hardware for realistic '
-                                 'count times', settable=True,
-                                 type=floatrange(1e3), default=1e6),
+                                 'for machines running this device. Tune this '
+                                 'parameter according to your hardware for '
+                                 'realistic count times',
+                                 type=dictof(nonemptystring, floatrange(1e3)),
+                                 default={'localhost': 1.e6},),
         'intensityfactor': Param('Constant multiplied with simulated McStas '
                                  'intensity to get simulated neutron counts '
                                  'per second', settable=True,
@@ -96,6 +98,7 @@ class McStasSimulation(Readable):
     def doInit(self, mode):
         self._workdir = os.getcwd()
         self._interesting_files = set([self.mcsiminfo])
+        self._hostname = socket.getfqdn()
 
     def doStatus(self, maxage=0):
         if self._started or (self._mythread and self._mythread.is_alive()):
@@ -166,7 +169,7 @@ class McStasSimulation(Readable):
             self.log.debug('still running, finishing up')
             self._send_signal(SIGTERM)
             self._joinProcess()
-        self._started = None
+        self._started = False
         self._mcstas_params = None
 
     def _send_signal(self, sig):
@@ -196,7 +199,12 @@ class McStasSimulation(Readable):
     def _getTime(self):
         """Return elapsed time for simulation."""
         if self._started:
+            if self._start_time is None:
+                # McStas about to be started, preparation still in progress
+                return 0
+            # McStas already running
             return min(monotonic() - self._start_time, self.preselection)
+        # no McStas running or about to run, i.e. finished
         return self.preselection
 
     def _getScaleFactor(self):
@@ -206,9 +214,15 @@ class McStasSimulation(Readable):
     def _getNeutronsToSimulate(self):
         """Return number of neutrons to simulate.
 
-        default: neutronspersec * preselection
+        default: neutronspersec['hostname -f'] * preselection
         """
-        return self.neutronspersec * self.preselection
+        # get the default rate
+        default = self.parameters['neutronspersec'].default.get('localhost')
+        # try first 'hostname -f' and then 'hostname -s' an then take
+        # the default rate
+        return self.neutronspersec.get(
+            self._hostname, self.neutronspersec.get(
+                self._hostname.split('.', 1)[0], default)) * self.preselection
 
     def _run(self):
         """Thread to run McStas simulation executable.
@@ -233,13 +247,38 @@ class McStasSimulation(Readable):
             for line in out.splitlines():
                 self.log.debug('[McStas out] %s', line.decode('utf-8', 'ignore'))
             for line in err.splitlines():
-                self.log.debug('[McStas err] %s', line.decode('utf-8', 'ignore'))
+                func = self.log.warning if b'Error' in line else self.log.debug
+                func('[McStas err] %s', line.decode('utf-8', 'ignore'))
         except OSError as e:
             self.log.error('Execution failed: %s', e)
         if self._process:
             self._process.wait()
         self._process = None
-        self._started = None
+        self._started = False
+
+
+class DetectorMixin:
+    """Detector mixin for McStas simulations.
+
+    In order to read out McStas intermediate data, it needs to be triggered
+    to write data (by a signal).
+    """
+
+    attached_devices = {
+        'mcstas': Attach('McStasSimulation device', McStasSimulation),
+    }
+
+    def duringMeasureHook(self, elapsed):
+        quality = super().duringMeasureHook(elapsed)
+        if quality == LIVE:
+            self._attached_mcstas._saveIntermediate()
+        return quality
+
+
+class Detector(DetectorMixin, BaseDetector):
+    """Detector subclass for McStas simulations that don't require a custom
+    Detector class.
+    """
 
 
 class McStasImage(ImageChannelMixin, PassiveChannel):
@@ -272,9 +311,7 @@ class McStasImage(ImageChannelMixin, PassiveChannel):
 
     def doReadArray(self, quality):
         self.log.debug('quality: %s', quality)
-        if quality == LIVE:
-            self._attached_mcstas._saveIntermediate()
-        elif quality == FINAL:
+        if quality == FINAL:
             self._attached_mcstas._joinProcess()
         self._readpsd(quality)
         return self._buf
@@ -328,7 +365,7 @@ class McStasTimer(ActiveChannel, Waitable):
     }
 
     parameters = {
-        'curvalue':  Param('Current value', settable=True, unit='main'),
+        'curvalue': Param('Current value', settable=True, unit='main'),
     }
 
     parameter_overrides = {

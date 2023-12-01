@@ -1,5 +1,3 @@
-#  -*- coding: utf-8 -*-
-
 description = 'system setup'
 
 group = 'lowlevel'
@@ -25,7 +23,6 @@ devices = dict(
         sample = 'Sample',
         propprefix = 'p',
         serviceexp = 'service',
-        servicescript = '',
         templates = 'templates',
         sendmail = False,
         zipdata = False,

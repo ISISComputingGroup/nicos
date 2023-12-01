@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 description = 'system setup'
 
 group = 'lowlevel'
@@ -35,6 +34,14 @@ devices = dict(
         description = 'Container storing Experiment properties',
         dataroot = '/data',
         sample = 'Sample',
+        managerights = dict(
+            enableDirMode = 0o777,
+            enableFileMode = 0o666,
+            disableDirMode = 0o550,
+            disableFileMode = 0o440,
+            owner = 'nicd',
+            group = 'refsans'
+        ),
     ),
     filesink = device('nicos.devices.datasinks.AsciiScanfileSink',
         description = 'Device saving scanfiles',
@@ -51,7 +58,7 @@ devices = dict(
     ),
     LogSpace = device('nicos.devices.generic.FreeSpace',
         description = 'Free space on the log drive',
-        path = '/refsanscontrol/log',
+        path = '/control/log',
         visibility = (),
         warnlimits = (0.5, None),
     ),

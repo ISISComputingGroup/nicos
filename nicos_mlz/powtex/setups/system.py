@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
 description = 'system setup for POWTEX'
-
 group = 'lowlevel'
 
 sysconfig = dict(
@@ -25,7 +23,6 @@ devices = dict(
         dataroot = '/home/crandau/data',
         sample = 'Sample',
         serviceexp = 'service',
-        servicescript = '',
         templates = 'templates',
         sendmail = False,
         zipdata = False,

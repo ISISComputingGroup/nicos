@@ -1,10 +1,13 @@
-# -*- coding: utf-8 -*-
 # pylint: skip-file
 """
 Created on Thu Oct 08 08:36:34 2015
 
 @author: Stefan Söllradl
 """
+
+# test: needs = astropy
+# test: setups = nectar, servostar, detector
+# test: setupcode = SetDetectors(det)
 
 NewSample('Test_abc')
 Remark('Collimator 40x50mm')
@@ -26,7 +29,7 @@ print('OB and DI Finished')
 
 maw(stx, 20)
 maw(sty, 10)
-tomo(10, 'sry', t=1)
+tomo(10, sry, t=1)
 
 print('Tomo Finished!')
 print('Test finished')

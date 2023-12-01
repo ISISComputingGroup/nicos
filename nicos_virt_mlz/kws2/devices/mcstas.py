@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -28,22 +27,23 @@ import numpy as np
 
 from nicos import session
 from nicos.core import ArrayDesc, Override, Param, listof, oneof
-from nicos.devices.mcstas import McStasImage, McStasSimulation
+from nicos.devices.mcstas import McStasImage, McStasSimulation, DetectorMixin
 
-from nicos_mlz.kws1.devices.daq import RTMODES
+from nicos_mlz.kws1.devices.daq import RTMODES, KWSDetector
 
 
 class KwsSimulation(McStasSimulation):
 
     parameter_overrides = {
         'mcstasprog': Override(default='KWS2pra'),
+        'neutronspersec': Override(default={'localhost': 6e5}),
     }
 
     def _prepare_params(self):
         def param(mcstas, nicos=None, f=lambda x: x):
             val = session.getDevice(nicos or mcstas).read(0)
             return '%s=%s' % (mcstas, f(val))
-        mm2m = lambda x: x/1000
+        mm2m = lambda x: x/1000  # pylint: disable=unnecessary-lambda-assignment
         sel_tilted = session.getDevice('selector_tilted').read(0)
         coll_d = session.getDevice('coll_guides').read(0)
         # sample x/y also selects the sample in the simulation
@@ -117,8 +117,12 @@ class KwsDetectorImage(McStasImage):
         # TODO: non-standard modes
         res = McStasImage.doReadArray(self, quality)
         if self.rebin8x8:
-            res = res[::2,:] + res[1::2,:]  # add up bins
+            res = res[::2, :] + res[1::2, :]  # add up bins
             res = np.pad(res, ((64, 64), (0, 0)), mode='constant')
         if self.mode != 'standard':
             return np.repeat([res], len(self.slices) - 1, 0)
         return res
+
+
+class Detector(DetectorMixin, KWSDetector):
+    pass

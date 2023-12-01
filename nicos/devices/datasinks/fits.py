@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -135,4 +134,4 @@ class FITSFileReader(ImageFileReader):
     @classmethod
     def fromfile(cls, filename):
         hdu_list = pyfits.open(filename)
-        return hdu_list[0].data
+        return numpy.flipud(hdu_list[0].data)

@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -29,6 +28,7 @@ import pytest
 from test.utils import ErrorLogged
 
 pytest.importorskip('streaming_data_types')
+pytest.importorskip('confluent_kafka')
 
 from nicos.commands.measure import count
 from nicos.commands.scan import scan
@@ -41,7 +41,8 @@ from test.nicos_ess.test_devices.test_filewriter_status import \
     create_status_message, create_stop_message_with_error, no_op, \
     prepare_filewriter_status
 
-session_setup = 'ess_filewriter'
+# Set to None because we load the setup after the mocks are in place.
+session_setup = None
 
 
 class TestFileWriterControl(TestCase):
@@ -52,7 +53,7 @@ class TestFileWriterControl(TestCase):
         return thing
 
     def mock_dependencies(self):
-        self.consumer = self.create_patch('kafka.KafkaConsumer')
+        self.consumer = self.create_patch('nicos_ess.devices.kafka.consumer.KafkaConsumer')
         self.consumer.return_value.topics.return_value = ['TEST_controlTopic',
                                                           'TEST_jobPool']
         self.mock_controller = mock.create_autospec(FileWriterController)
@@ -76,9 +77,11 @@ class TestFileWriterControl(TestCase):
     @pytest.fixture(autouse=True)
     def prepare(self, session, log):
         self.session = session
-        self.session.experiment.propinfo['proposal'] = '123456'
         self.log = log
         self.mock_dependencies()
+        self.session.unloadSetup()
+        self.session.loadSetup('ess_filewriter', {})
+        self.session.experiment.propinfo['proposal'] = '123456'
         self.filewriter_control = self.get_filewriter_control_device()
         self.filewriter_status = self.filewriter_control._attached_status
         prepare_filewriter_status(self.filewriter_status)
@@ -123,7 +126,8 @@ class TestFileWriterControl(TestCase):
         self.filewriter_control.stop_job()
 
         self.mock_controller.request_stop.assert_called_once()
-        assert not self.filewriter_status.jobs_in_progress
+        assert self.filewriter_status.jobs_in_progress
+        assert self.filewriter_status.marked_for_stop
 
     def test_stop_job_ignored_if_existing_job_is_already_stopping(self):
         self.mock_controller.request_start.return_value = ('job id 1', "")

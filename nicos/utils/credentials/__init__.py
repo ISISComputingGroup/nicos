@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -25,6 +24,12 @@
 Utility classes to access and store credentials
 
 """
+
+# pylint: disable=unused-import
+try:
+    from keyring.util import properties
+except ImportError:
+    from keyring._compat import properties
 
 
 class NicosKeyStore:

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 description = 'detector setup'
 group = 'basic'
 
@@ -36,7 +34,6 @@ devices = dict(
     ),
     mcstas = device('nicos_virt_mlz.treff.devices.McStasSimulation',
         description = 'McStas simulation',
-        neutronspersec = 1.6e6,
         beamstop = 'beamstop',
         sample_y = 'sample_y',
         sample_x = 'sample_x',
@@ -77,8 +74,9 @@ devices = dict(
         description = 'McStas virtual neutron counts timer channel',
         mcstas = 'mcstas',
     ),
-    det = device('nicos_mlz.maria.devices.detector.MariaDetector',
+    det = device('nicos_virt_mlz.treff.devices.detector.Detector',
         description = 'Jumiom detector',
+        mcstas = 'mcstas',
         shutter = 'expshutter',
         timers = ['timer'],
         monitors = ['mon0', 'mon1'],

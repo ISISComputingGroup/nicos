@@ -1,7 +1,4 @@
-#  -*- coding: utf-8 -*-
-
 description = 'system setup'
-
 group = 'lowlevel'
 
 sysconfig = dict(
@@ -26,7 +23,6 @@ devices = dict(
         mailsender = 'aaron.craft@inl.gov',
         propprefix = '',
         serviceexp = 'service',
-        servicescript = '',
         strictservice = True,
         templates = 'templates',
         sendmail = False,

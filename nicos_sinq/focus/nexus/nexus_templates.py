@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -25,14 +24,14 @@ from copy import deepcopy
 
 from nicos import session
 from nicos.nexus.elements import ConstDataset, DetectorDataset, \
-    DeviceAttribute, DeviceDataset, NamedImageDataset, NexusSampleEnv, \
+    DeviceAttribute, DeviceDataset, NamedImageDataset, \
     NXAttribute, NXLink, NXTime
 from nicos.nexus.nexussink import NexusTemplateProvider
 
 from nicos_sinq.focus.nexus.focus import FocusCoordinates, ScaledImage, \
     SliceTofImage, SumImage
 from nicos_sinq.nexus.specialelements import ConfArray, FixedArray, \
-    TwoThetaArray
+    TwoThetaArray, SaveSampleEnv
 
 focus_default = {"NeXus_Version": "4.4.0",
                  "instrument": "FOCUS at SINQ",
@@ -41,6 +40,7 @@ focus_default = {"NeXus_Version": "4.4.0",
                     "title": DeviceDataset("Exp", "title"),
                     "proposal_title": DeviceDataset("Exp", "title"),
                     "proposal_id": DeviceDataset("Exp", "proposal"),
+                    "comment": DeviceDataset("Exp", "remark"),
                     "start_time": NXTime(),
                     "end_time": NXTime(),
                     "definition": ConstDataset("NXdirecttof", "string"),
@@ -54,9 +54,7 @@ focus_default = {"NeXus_Version": "4.4.0",
                     },
                     "sample:NXsample": {
                         "name": DeviceDataset("Sample", "samplename"),
-                        "temperature": DeviceDataset("temperature", "value",
-                                                     defaultval=0.0),
-                        "hugo": NexusSampleEnv(),
+                        "hugo": SaveSampleEnv(),
                         "distance": ConstDataset(499.7, "float32",
                                                  units=NXAttribute("mm",
                                                                    "string")),
@@ -138,7 +136,7 @@ monochromator = {
     "monochromator2_vertical_curvature": DeviceDataset("m2cv"),
     "x_translation": DeviceDataset("mtx"),
     "y_translation": DeviceDataset("mty"),
-    "monochromator_lift": DeviceDataset("mex"),
+    "monochromator_side": DeviceDataset("mex"),
     "monochromator_rotation": DeviceDataset("mgo"),
     "msl": DeviceDataset("msl"),
     "name": ConstDataset("Graphite Monochromator", "string"),
@@ -190,8 +188,8 @@ upperbank = {
     "time_of_flight": NXLink("/entry1/FOCUS/bank1/time_binning"),
     "polar_angle": NXLink("/entry1/FOCUS/upperbank/theta"),
     "detector_number": FixedArray(0, 1, 110, dtype='int32'),
-    "distance": FixedArray(2000, 0, 110, dtype="float32",
-                           units=NXAttribute("mm", "string")),
+    "distance": TwoThetaArray("sampledist", 0, 110, dytpe="float32",
+                              units=NXAttribute("mm", "string")),
     "azimuthal_angle": ConstDataset(13., dtype="float32",
                                     units=NXAttribute("degree", "string")),
     "summed_counts": SumImage('upper_image', 110, dtype='int32'),
@@ -219,8 +217,8 @@ lowerbank = {
     "time_of_flight": NXLink("/entry1/FOCUS/bank1/time_binning"),
     "polar_angle": NXLink("/entry1/FOCUS/lowerbank/theta"),
     "detector_number": FixedArray(0, 1, 115, dtype='int32'),
-    "distance": FixedArray(2000, 0, 115, dtype="float32",
-                           units=NXAttribute("mm", "string")),
+    "distance": TwoThetaArray("sampledist", 0, 115, dytpe="float32",
+                              units=NXAttribute("mm", "string")),
     "azimuthal_angle": ConstDataset(-13., dtype="float32",
                                     units=NXAttribute("degree", "string")),
     "summed_counts": SumImage('lower_image', 116, dtype='int32'),
@@ -279,6 +277,16 @@ f2d_data = {
     "time_of_flight": NXLink("/entry1/FOCUS/bank1/time_binning"),
 }
 
+be_filter = {
+    "name": ConstDataset("BE-filter", "string"),
+    "state": DeviceDataset("bef"),
+}
+
+sample_slit = {
+     "width": DeviceDataset("slit_width"),
+     "height": DeviceDataset("slit_height"),
+}
+
 
 class FOCUSTemplateProvider(NexusTemplateProvider):
     def getTemplate(self):
@@ -293,6 +301,8 @@ class FOCUSTemplateProvider(NexusTemplateProvider):
         focus["disk_chopper:NXchopper"] = deepcopy(disk_chopper)
         focus["fermi_chopper:NXchopper"] = deepcopy(fermi_chopper)
         focus["flight_path:NXfilter"] = deepcopy(flight_path)
+        focus["be_filter:NXfilter"] = deepcopy(be_filter)
+        focus["sample_slit:NXslit"] = deepcopy(sample_slit)
         focus["monochromator:NXmonochromator"] = deepcopy(monochromator)
         bankcount = 0
         if "middlebank" in session.loaded_setups:

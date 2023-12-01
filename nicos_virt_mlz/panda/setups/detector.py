@@ -1,7 +1,4 @@
-#  -*- coding: utf-8 -*-
-
 description = 'detectors'
-
 group = 'lowlevel'  # is included by panda.py
 
 devices = dict(
@@ -40,8 +37,9 @@ devices = dict(
         fmtstr = '%d',
         visibility = (),
     ),
-    det = device('nicos.devices.generic.Detector',
+    det = device('nicos.devices.mcstas.Detector',
         description = 'combined four channel single counter detector',
+        mcstas = 'mcstas',
         timers = ['timer'],
         monitors = ['mon1', 'mon2'],
         counters = ['det1', 'det2'],

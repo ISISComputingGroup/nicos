@@ -22,21 +22,21 @@ devices = dict(
         'nicos_ess.devices.sample.EssSample',
         description='The currently used sample',
     ),
-    Exp=device('nicos_ess.devices.experiment.EssExperiment',
-               description='experiment object',
-               dataroot='/opt/nicos-data',
-               filewriter_root='/opt/nicos-data/dream',
-               sample='Sample',
-               cache_filepath='/opt/nicos-data/dream/cached_proposals.json'),
+    Exp=device(
+        'nicos_ess.devices.experiment.EssExperiment',
+        description='experiment object',
+        dataroot='/opt/nicos-data',
+        sample='Sample',
+        cache_filepath='/opt/nicos-data/cached_proposals.json'
+    ),
     conssink=device(
-        'nicos_ess.devices.datasinks.console_scan_sink.ConsoleScanSink'),
-    daemonsink=device('nicos.devices.datasinks.DaemonSink', ),
-    liveview=device('nicos.devices.datasinks.LiveViewSink', ),
-    Space=device(
-        'nicos.devices.generic.FreeSpace',
-        description='The amount of free space for storing data',
-        path=None,
-        minfree=5,
+        'nicos_ess.devices.datasinks.console_scan_sink.ConsoleScanSink'
+    ),
+    daemonsink=device(
+        'nicos.devices.datasinks.DaemonSink'
+    ),
+    liveview=device(
+        'nicos.devices.datasinks.LiveViewSink'
     ),
     KafkaForwarderStatus=device(
         'nicos_ess.devices.forwarder.EpicsKafkaForwarder',

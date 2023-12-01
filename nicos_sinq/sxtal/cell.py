@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -129,6 +128,11 @@ def cellFromUBX(UB):
     beta = Acosd(G[2][0] / (a * c))
     gamma = Acosd(G[0][1] / (a * b))  # Change c -> b
     return Cell(a=a, b=b, c=c, alpha=alpha, beta=beta, gamma=gamma)
+
+
+def scatteringVectorLength(B, hkl):
+    psi = B.dot(np.array(hkl, dtype='float64'))
+    return np.sqrt(psi.dot(psi))
 
 
 class Cell():

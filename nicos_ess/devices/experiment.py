@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -30,10 +29,12 @@ from yuos_query.exceptions import BaseYuosException
 from yuos_query.yuos_client import YuosCacheClient
 
 from nicos import session
-from nicos.core import SIMULATION, Override, Param, UsageError, \
-    absolute_path, listof, mailaddress
+from nicos.core import SIMULATION, Override, Param, UsageError, listof, \
+    mailaddress
 from nicos.devices.experiment import Experiment
 from nicos.utils import createThread
+
+from nicos_ess.devices.datamanager import DataManager
 
 
 class EssExperiment(Experiment):
@@ -44,10 +45,6 @@ class EssExperiment(Experiment):
                   category='experiment',
                   mandatory=True,
                   userparam=False),
-        'filewriter_root':
-            Param('Root data path on the file writer server under which all '
-                  'proposal specific paths exist.', mandatory=True,
-                  type=absolute_path),
         'update_interval':
             Param('Time interval (in hrs.) for cache updates',
                   default=1.0,
@@ -59,12 +56,15 @@ class EssExperiment(Experiment):
         'propprefix': Override(default=''),
         'proptype': Override(settable=True),
         'serviceexp': Override(default='Service'),
-        'sendmail': Override(default=False),
-        'zipdata': Override(default=False),
+        'sendmail': Override(default=False, settable=False),
+        'zipdata': Override(default=False, settable=False),
         'users': Override(default=[], type=listof(dict)),
         'localcontact': Override(default=[], type=listof(dict)),
-        'title': Override(settable=True)
+        'title': Override(settable=True),
+        'elog': Override(default=False, settable=False),
     }
+
+    datamanager_class = DataManager
 
     def doInit(self, mode):
         Experiment.doInit(self, mode)
@@ -76,7 +76,7 @@ class EssExperiment(Experiment):
             self._client = YuosCacheClient.create(self.cache_filepath)
             self._update_cache_worker.start()
         except Exception as error:
-            self.log.warn('proposal look-up not available: %s', error)
+            self.log.warning('proposal look-up not available: %s', error)
 
     def doReadTitle(self):
         return self.propinfo.get('title', '')
@@ -131,7 +131,8 @@ class EssExperiment(Experiment):
         Experiment.update(self, title, users, localcontacts)
 
     def proposalpath_of(self, proposal):
-        return path.join(self.filewriter_root, time.strftime('%Y'), proposal)
+        return path.join(session.instrument.name.lower(), time.strftime('%Y'),
+                         proposal, 'raw')
 
     def _check_users(self, users):
         if not users:

@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -26,7 +25,6 @@ import queue
 import time
 from threading import Lock
 
-from kafka import KafkaProducer
 from streaming_data_types.alarm_al00 import Severity, serialise_al00
 from streaming_data_types.logdata_f144 import serialise_f144
 
@@ -34,6 +32,7 @@ from nicos.core import Device, Override, Param, host, listof, status
 from nicos.protocols.cache import cache_load
 from nicos.services.collector import ForwarderBase
 from nicos.utils import createThread
+from nicos_ess.devices.kafka.producer import KafkaProducer
 
 nicos_status_to_al00 = {
     status.OK: Severity.OK,
@@ -69,7 +68,7 @@ def to_f144(dev_name, dev_value, timestamp_ns):
 class CacheKafkaForwarder(ForwarderBase, Device):
     parameters = {
         'brokers':
-            Param('List of kafka hosts to be connected',
+            Param('List of kafka brokers to connect to',
                   type=listof(host(defaultport=9092)),
                   mandatory=True,
                   preinit=True,
@@ -116,14 +115,13 @@ class CacheKafkaForwarder(ForwarderBase, Device):
                                                    start=False)
         while not self._producer:
             try:
-                self._producer = \
-                    KafkaProducer(bootstrap_servers=self._config['brokers'])
+                self._producer = KafkaProducer.create(self.brokers)
             except Exception as error:
                 self.log.error(
                     'Could not connect to Kafka - will try again soon: %s',
                     error)
                 time.sleep(5)
-        self.log.info('Connected to Kafka brokers %s', self._config['brokers'])
+        self.log.info('Connected to Kafka brokers %s', self.brokers)
 
     def _startWorker(self):
         self._worker.start()
@@ -199,11 +197,7 @@ class CacheKafkaForwarder(ForwarderBase, Device):
                 self.log.error('Could not forward data: %s', error)
             self._queue.task_done()
 
-    def doShutdown(self):
-        self._producer.close()
-
     def _send_to_kafka(self, buffer, name):
-        self._producer.send(self.output_topic,
-                            buffer,
-                            key=name.encode('utf-8'))
-        self._producer.flush(timeout=3)
+        self._producer.produce(self.output_topic, buffer,
+                               key=name.encode('utf-8'))
+

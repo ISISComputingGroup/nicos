@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -286,8 +285,18 @@ class FlatfileCacheDatabase(CacheDatabase):
                     self.log.warning('found nullbyte in file %s', fn)
                     continue
                 fields = line.rstrip().split(None, nsplit)
+                if len(fields) != nsplit + 1:
+                    self.log.warning(
+                        'found a corrupted line in file %s: %s', fn, line)
+                    continue
                 if fields[0] == subkey:
-                    time = float(fields[1])
+                    try:
+                        time = float(fields[1])
+                    except Exception:
+                        self.log.exception('Error converting timestamp in '
+                                           'cache file %s/%s/%s-%s',
+                                           year, monthday, category, subkey)
+                        continue
                     value = fields[-1]
                     if value == '-':
                         value = ''

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 description = 'Andor DV936 CCD camera setup'
 group = 'basic'
 
@@ -7,7 +5,10 @@ sysconfig = dict(
     datasinks = ['FITSFileSaver', 'LiveViewSink'],
 )
 
-includes = ['shutter', 'microstep', 'reactor', 'nl1', 'guidehall', 'astrium']
+includes = [
+    'shutter', 'microstep', 'reactor', 'nl1', 'guidehall', 'astrium',
+    'collimator',
+]
 
 tango_base = 'tango://phys.biodiff.frm2:10000/biodiff/'
 tango_ikonl = tango_base + 'detector/ikonl'
