@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -25,15 +24,12 @@
 import time
 from os import path
 
-from nicos.guisupport.qt import QCheckBox, QColor, QDialog, QLineEdit, \
-    QMessageBox, QSizePolicy, QSpacerItem, QTimer, pyqtProperty, pyqtSlot, \
-    uic
+from nicos.guisupport.colors import colors
+from nicos.guisupport.qt import QCheckBox, QDialog, QLineEdit, QMessageBox, \
+    QSizePolicy, QSpacerItem, QTimer, pyqtProperty, pyqtSlot, uic
 from nicos.guisupport.utils import setBackgroundColor
 
 from nicostools.cacheinspector.editdlg import EntryEditDialog
-
-ttlColor = QColor(0xff, 0xfa, 0x66)
-expiredColor = QColor(0xce, 0x9b, 0x9b)
 
 
 class ReadOnlyCheckBox(QCheckBox):
@@ -98,9 +94,9 @@ class EntryWidget(base_class, ui_class):
         entry = self.entry
 
         fm = self.labelTime.fontMetrics()
-        margins = self.labelTime.getContentsMargins()
-        self.labelTime.setMinimumWidth(fm.width(entry.convertTime(1.0)) +
-                                       margins[0] + margins[2] +
+        margins = self.labelTime.contentsMargins()
+        self.labelTime.setMinimumWidth(fm.horizontalAdvance(entry.convertTime(1.0)) +
+                                       margins.left() + margins.right() +
                                        self.labelTime.sizeHint().width())
 
         if self.watcher is None:  # widget is already in watcher
@@ -134,9 +130,9 @@ class EntryWidget(base_class, ui_class):
         entry = self.entry
 
         if entry.expired:
-            setBackgroundColor(self, expiredColor)
+            setBackgroundColor(self, colors.expired_color)
         elif entry.ttl:
-            setBackgroundColor(self, ttlColor)
+            setBackgroundColor(self, colors.ttl_color)
 
         if isinstance(self.widgetValue, ReadOnlyCheckBox):
             self.widgetValue.setChecked(entry.value == 'True')
@@ -150,7 +146,7 @@ class EntryWidget(base_class, ui_class):
             # automatically refresh the value if the entry has a ttl (we don't
             # get timestamp updates from the server unless the value changes)
             time_to_update = max((entry.time + entry.ttl) - time.time(), 0)
-            self.updateTimer.start(time_to_update * 1000)
+            self.updateTimer.start(int(time_to_update * 1000))
 
     def setKey(self):
         """Sets the key locally and on the server."""

@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -30,7 +29,7 @@ from nicos.guisupport.qt import QByteArray, QTableWidgetItem
 from nicos.protocols.cache import cache_load
 from nicos.utils import findResource
 
-from nicos_mlz.toftof.devices.safety_desc import bit_description
+from nicos_mlz.toftof.lib.safety_desc import bit_description
 
 
 class SafetyPanel(Panel):

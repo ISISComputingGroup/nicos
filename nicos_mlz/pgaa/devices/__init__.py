@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -24,7 +23,6 @@
 
 from nicos_mlz.pgaa.devices.attenuator import Attenuator
 from nicos_mlz.pgaa.devices.beamfocus import BeamFocus
-from nicos_mlz.pgaa.devices.datasinks import CHNSink, CSVDataSink, MCASink
 from nicos_mlz.pgaa.devices.dspec import DSPec
 from nicos_mlz.pgaa.devices.pilz import AttenuatorSwitch, Switch
 from nicos_mlz.pgaa.devices.samplechanger import SampleChanger

@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-
 description = 'GALAXI MYTHEN R 1K detector setup'
-
 group = 'optional'
 
 display_order = 12
@@ -37,10 +34,9 @@ devices = dict(
     mythen_imagesink = device('nicos_jcns.devices.dectris.MYTHENImageSink',
         description = 'Saves image data of the MYTHEN detector in a text '
         'file.',
-        filenametemplate = [
-            '%(Exp.users)s_%(session.experiment.sample.filename)s_'
-            '%(scancounter)s.%(pointnumber)s.mythen'
-        ],
+        filenametemplate = ['%(session.experiment.users)s_'
+                            '%(session.experiment.sample.filename)s_'
+                            '%(scancounter)s.%(pointnumber)s.mythen'],
         detectors = ['mythen'],
     ),
 )

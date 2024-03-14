@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -90,7 +89,7 @@ def command(needcontrol=False, needscript=None, name=None):
 
 
 # unique objects
-stop_queue = (object(), '')
+stop_queue = (object(), '', [])
 no_msg = object()
 
 

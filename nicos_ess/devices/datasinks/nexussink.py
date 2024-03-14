@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -172,7 +171,6 @@ class NexusFileWriterStatus(KafkaStatusHandler):
         if not message:
             return
 
-        self._set_next_update(message)
         self._job_in_progress = message.get('job_id', '')
         file_name = message.get('file_being_written', '')
         if file_name:

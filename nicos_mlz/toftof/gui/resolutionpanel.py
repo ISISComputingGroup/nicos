@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -35,7 +34,7 @@ from nicos.guisupport.qt import QDialogButtonBox, QDoubleValidator, QLabel, \
 from nicos.guisupport.widget import NicosWidget
 from nicos.utils import findResource
 
-from nicos_mlz.toftof.devices.calculations import ResolutionAnalysis
+from nicos_mlz.toftof.lib.calculations import ResolutionAnalysis
 
 COLOR_BLACK = GRCOLORS['black']
 COLOR_RED = GRCOLORS['red']

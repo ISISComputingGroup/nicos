@@ -24,7 +24,7 @@ main_window = docked(
                          ),
                         ('Detector Image',
                          panel(
-                             'nicos.clients.flowui.panels.live.MultiLiveDataPanel'
+                             'nicos_ess.gui.panels.live.MultiLiveDataPanel'
                          )),
                         ('Script Status',
                          panel(
@@ -41,7 +41,7 @@ main_window = docked(
             ),  # hsplit
         ),
         (
-            'Batch file generation',
+            'Scripting',
             panel('nicos.clients.flowui.panels.editor.EditorPanel',
                   tools=None),
         ),

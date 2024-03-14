@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -24,8 +23,6 @@
 # *****************************************************************************
 
 import pytest
-
-pytest.importorskip('graypy')
 
 from nicos_ess.nexus.converter import NexusTemplateConverter
 from nicos_ess.nexus.elements import DeviceAttribute, DeviceDataset, \
@@ -178,22 +175,18 @@ class TestNexusTemplate:
         # Brute force: Do nXn comparisons
         for v1 in list1:
             if isinstance(v1, dict):
-                found = False
                 for v2 in list2:
                     if isinstance(v2, dict) and \
                             TestNexusTemplate.compare_dicts(v1, v2)[0]:
-                        found = True
                         break
-                if not found:
+                else:
                     return False, '%s\nNOT FOUND IN\n%s' % (v1, list2)
             elif isinstance(v1, list):
-                found = False
                 for v2 in list2:
                     if isinstance(v2, list) and \
                             TestNexusTemplate.compare_lists(v1, v2)[0]:
-                        found = True
                         break
-                if not found:
+                else:
                     return False, '%s\nNOT FOUND IN\n%s' % (v1, list2)
             elif v1 not in list2:
                 return False, '%s NOT FOUND IN %s' % (v1, list2)

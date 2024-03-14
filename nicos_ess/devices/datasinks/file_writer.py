@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -27,6 +26,7 @@
 import copy
 import json
 import threading
+import time
 import uuid
 from collections import OrderedDict
 from datetime import datetime, timedelta
@@ -34,8 +34,6 @@ from enum import Enum
 from os import path
 from time import time as currenttime
 
-from kafka import KafkaConsumer, KafkaProducer, TopicPartition
-from kafka.errors import KafkaError
 from streaming_data_types import deserialise_answ, deserialise_pl72, \
     deserialise_wrdn, deserialise_x5f2, serialise_6s4t, serialise_pl72
 from streaming_data_types.fbschemas.action_response_answ.ActionOutcome import \
@@ -53,6 +51,8 @@ from nicos.devices.datasinks.file import FileSink
 from nicos.utils import printTable
 
 from nicos_ess.devices.datasinks.nexus_structure import NexusStructureProvider
+from nicos_ess.devices.kafka.consumer import KafkaConsumer
+from nicos_ess.devices.kafka.producer import KafkaProducer
 from nicos_ess.devices.kafka.status_handler import KafkaStatusHandler
 
 
@@ -60,7 +60,7 @@ class JobState(Enum):
     STARTED = 0,
     NOT_STARTED = 1,
     WRITTEN = 2,
-    NOT_WRITTEN = 3,
+    REJECTED = 3,
     FAILED = 4
 
 
@@ -113,10 +113,10 @@ class JobRecord:
             self.error_msg = error_msg
 
     def no_start_ack(self, error_msg):
-        self.state = JobState.NOT_STARTED
+        self.state = JobState.REJECTED
         self.set_error_msg(error_msg)
 
-    def on_stop_ack(self):
+    def on_stop(self):
         self.state = JobState.WRITTEN
 
     def on_lost(self, error_msg):
@@ -125,7 +125,7 @@ class JobRecord:
 
     def is_overdue(self, leeway):
         return self.state == JobState.STARTED \
-               and currenttime() > self.next_update + leeway
+            and currenttime() > self.next_update + leeway
 
     def stop_request(self, stop_time):
         self.stop_time = stop_time
@@ -204,7 +204,7 @@ class FileWriterStatus(KafkaStatusHandler):
         if self._jobs[job_id].error_msg:
             session.log.error(
                 'Job #%s failed to write successfully, '
-                'run `list_jobs` for more details',
+                'run `list_filewriting_jobs` for more details',
                 self._jobs[job_id].job_number)
         del self._jobs[job_id]
 
@@ -220,7 +220,7 @@ class FileWriterStatus(KafkaStatusHandler):
                 # User requested a stop and something went wrong
                 self._job_stopped(result.job_id)
         else:
-            self._jobs[result.job_id].on_stop_ack()
+            self._jobs[result.job_id].on_stop()
             self._job_stopped(result.job_id)
         self._update_cached_jobs()
         self._update_status()
@@ -253,7 +253,6 @@ class FileWriterStatus(KafkaStatusHandler):
         if result.outcome == ActionOutcome.Success:
             self.log.debug('request to stop writing succeeded for job %s',
                            result.job_id)
-            self._jobs[result.job_id].on_stop_ack()
         else:
             self.log.debug('request to stop writing failed for job %s',
                            result.job_id)
@@ -311,7 +310,8 @@ class FileWriterStatus(KafkaStatusHandler):
         with self._lock:
             if job_id in self._jobs:
                 self._jobs[job_id].stop_request(stop_time)
-                if self._jobs[job_id].state != JobState.STARTED:
+                if self._jobs[job_id].state not in (JobState.NOT_STARTED,
+                                                    JobState.STARTED):
                     self._job_stopped(job_id)
                 self._update_cached_jobs()
 
@@ -354,21 +354,19 @@ class FileWriterSinkHandler(DataSinkHandler):
             self.dataset.filenames = [self._current_file]
             return
 
-        filename, _ = self.manager.getFilenames(
-            self.dataset, self.sink.filenametemplate, self.sink.subdir
-        )
+        filename, _ = self.manager.getFilenames(self.dataset,
+                                                self.sink.filenametemplate,
+                                                self.sink.subdir)
         if self.sink.use_instrument_directory:
             proposal_path = session.experiment.proposalpath_of(
-                session.experiment.propinfo.get('proposal')
-            )
-            file_path = path.join(proposal_path, 'raw', filename)
+                session.experiment.propinfo.get('proposal'))
+            file_path = path.join(proposal_path, filename)
         else:
             file_path = path.join(self.sink.subdir, filename)
 
         if hasattr(self.dataset, 'replay_info'):
             # Replaying previous job
-            self.sink._start_job(file_path,
-                                 self.dataset.counter,
+            self.sink._start_job(file_path, self.dataset.counter,
                                  self.dataset.replay_info['structure'],
                                  self.dataset.replay_info['start_time'],
                                  self.dataset.replay_info['stop_time'],
@@ -376,10 +374,15 @@ class FileWriterSinkHandler(DataSinkHandler):
             return
 
         datetime_now = datetime.now()
-        structure = self.sink._attached_nexus.get_structure(
-            self.dataset, datetime_now)
-        self.sink._start_job(file_path, self.dataset.counter,
-                             structure, datetime_now)
+        job_id = str(uuid.uuid1())
+        self.dataset.metainfo[('Exp', 'job_id')] = (job_id, job_id, '',
+                                                    'experiment')
+        structure = self.sink._attached_nexus.get_structure(self.dataset)
+        self.sink._start_job(file_path,
+                             self.dataset.counter,
+                             structure,
+                             datetime_now,
+                             job_id=job_id)
         self._current_file = filename
 
     def end(self):
@@ -420,8 +423,15 @@ class FileWriterController:
         self.timeout_interval = timeout_interval * 2
         self.command_channel = None
 
-    def request_start(self, filename, structure, start_time, stop_time=None):
-        job_id = str(uuid.uuid1())
+    def request_start(self,
+                      filename,
+                      structure,
+                      start_time,
+                      stop_time=None,
+                      job_id=None):
+
+        if not job_id:
+            job_id = str(uuid.uuid1())
 
         if not stop_time:
             stop_time = start_time + timedelta(days=365.25 * 10)
@@ -438,16 +448,23 @@ class FileWriterController:
             control_topic=self.instrument_topic,
         )
 
-        try:
-            producer = KafkaProducer(bootstrap_servers=self.brokers)
-            future = producer.send(self.pool_topic, message)
-            record_metadata = future.get(timeout=self.timeout_interval)
-            producer.close()
-        except KafkaError as error:
-            # If we cannot write to Kafka then we are screwed!
-            raise RuntimeError from error
+        delivered = False
+        delivery_info = None
 
-        return job_id, record_metadata.offset
+        def on_delivery(err, message):
+            nonlocal delivered, delivery_info
+            delivered = True
+            delivery_info = (message.partition(), message.offset())
+
+        producer = KafkaProducer.create(self.brokers)
+        producer.produce(self.pool_topic,
+                         message,
+                         on_delivery_callback=on_delivery)
+
+        while not delivered:
+            time.sleep(0.1)
+
+        return job_id, delivery_info
 
     def request_stop(self, job_id, stop_time, service_id):
         message = serialise_6s4t(
@@ -458,14 +475,8 @@ class FileWriterController:
             run_name='',
         )
 
-        try:
-            producer = KafkaProducer(bootstrap_servers=self.brokers)
-            future = producer.send(self.instrument_topic, message)
-            _ = future.get(timeout=self.timeout_interval)
-            producer.close()
-        except KafkaError as error:
-            # If we cannot write to Kafka then we are screwed!
-            raise RuntimeError from error
+        producer = KafkaProducer.create(self.brokers)
+        producer.produce(self.instrument_topic, message)
 
 
 class FileWriterControlSink(FileSink):
@@ -480,7 +491,7 @@ class FileWriterControlSink(FileSink):
                   userparam=False),
         'pool_topic':
             Param(
-                'Kafka topic where start messages are sent',
+                'List of kafka brokers to connect to',
                 type=str,
                 settable=False,
                 preinit=True,
@@ -497,18 +508,20 @@ class FileWriterControlSink(FileSink):
             ),
         'one_file_per_scan':
             Param(
-                'Whether to write all scan points to one file or a file per point',
+                'Whether to write all scan points to one file or a file per '
+                'point',
                 type=bool,
                 default=True,
                 settable=True,
                 userparam=False,
             ),
-        'use_instrument_directory': Param(
-            'Use the ESS instrument directory',
-            type=bool,
-            default=False,
-            settable=True,
-            userparam=False,
+        'use_instrument_directory':
+            Param(
+                'Use the ESS instrument directory',
+                type=bool,
+                default=False,
+                settable=True,
+                userparam=False,
             ),
     }
 
@@ -533,37 +546,44 @@ class FileWriterControlSink(FileSink):
         self._manual_start = False
         self._handler = None
         self._active_sim_job = False
+        self._consumer = None
         self._controller = FileWriterController(
             self.brokers, self.pool_topic, self._attached_status.statustopic,
             self.timeoutinterval)
+        if mode != SIMULATION:
+            self._consumer = KafkaConsumer.create(self.brokers)
+            self._consumer.subscribe(self.pool_topic)
 
     def start_job(self):
         """Start a new file-writing job."""
         self.check_okay_to_start()
         self._manual_start = False
-        if session.mode == SIMULATION:
+        if self._mode == SIMULATION:
             self._active_sim_job = True
         else:
-            # Begin a point but remove it from the stack immediately to avoid an
-            # orphaned point.
+            # Begin a point but remove it from the stack immediately to avoid
+            # an orphaned point.
             # File-writing won't stop though.
             session.experiment.data.beginPoint()
             self._manual_start = True
             session.experiment.data.finishPoint()
         self.log.info('Filewriting started')
 
-    def _start_job(self,
-                   filename,
-                   counter,
-                   structure,
-                   start_time=None,
-                   stop_time=None,
-                   replay_of=None):
+    def _start_job(
+        self,
+        filename,
+        counter,
+        structure,
+        start_time=None,
+        stop_time=None,
+        replay_of=None,
+        job_id=None,
+    ):
         self.check_okay_to_start()
         start_time = start_time if start_time else datetime.now()
-        job_id, commit = self._controller.request_start(
-            filename, structure, start_time, stop_time)
-        job = JobRecord(job_id, counter, start_time, commit)
+        job_id, commit_info = self._controller.request_start(
+            filename, structure, start_time, stop_time, job_id)
+        job = JobRecord(job_id, counter, start_time, commit_info)
         job.replay_of = replay_of
         job.stop_time = stop_time
         self._attached_status.add_job(job)
@@ -571,8 +591,8 @@ class FileWriterControlSink(FileSink):
     def stop_job(self, job_number=None):
         """Stop a file-writing job.
 
-        :param job_number: the particular job to stop. Only required if there is
-            more than one job running.
+        :param job_number: the particular job to stop. Only required if there
+            is more than one job running.
         """
         if session.mode == SIMULATION:
             self._active_sim_job = False
@@ -617,20 +637,20 @@ class FileWriterControlSink(FileSink):
 
     def check_okay_to_start(self):
         if not session.experiment.propinfo.get('proposal'):
-            if session.mode == SIMULATION:
+            if self._mode == SIMULATION:
                 self.log.warning('no proposal number has been set. '
                                  'When performing the real run a proposal '
                                  'number is required to start writing.')
             else:
-                raise RuntimeError('cannot start writing as proposal number not '
-                                   'set')
+                raise RuntimeError('cannot start writing as proposal number '
+                                   'not set')
         active_jobs = self.get_active_jobs()
         if active_jobs:
             raise RuntimeError('cannot start writing as writing already in '
                                'progress')
 
     def get_active_jobs(self):
-        if session.mode == SIMULATION:
+        if self._mode == SIMULATION:
             if self._active_sim_job:
                 return ['abcd1234-abcd-1234-abcd-abcdef123456']
             return []
@@ -672,6 +692,8 @@ class FileWriterControlSink(FileSink):
         printTable(headers, items, session.log.info)
 
     def replay_job(self, job_number):
+        if self._mode == SIMULATION:
+            return
         self.check_okay_to_start()
         self._manual_start = False
 
@@ -687,17 +709,21 @@ class FileWriterControlSink(FileSink):
             raise RuntimeError('Could not replay job as no stop time defined '
                                'for that job')
 
-        consumer = KafkaConsumer(bootstrap_servers=self.brokers)
-        topic = TopicPartition(self.pool_topic, partition=0)
-        consumer.assign([topic])
-        consumer.seek(topic, job_to_replay.kafka_offset)
-        data = consumer.poll(timeout_ms=5000, max_records=1)
-        if not data:
-            raise RuntimeError(
-                'Could not replay job as could not retrieve job '
-                'information from Kafka')
+        partition, offset = job_to_replay.kafka_offset
+        self._consumer.seek(self.pool_topic,
+                            partition=partition,
+                            offset=offset)
+        poll_start = time.monotonic()
+        data = self._consumer.poll(timeout_ms=5)
+        time_out_s = 5
+        while not data:
+            data = self._consumer.poll(timeout_ms=5)
+            if not data and time.monotonic() > poll_start + time_out_s:
+                raise RuntimeError(
+                    'Could not replay job as could not retrieve job '
+                    'information from Kafka')
 
-        message = deserialise_pl72(data[topic][0].value)
+        message = deserialise_pl72(data.value())
 
         replay_info = {
             'structure': message.nexus_structure,
@@ -708,3 +734,7 @@ class FileWriterControlSink(FileSink):
         session.experiment.data.beginPoint(replay_info=replay_info)
         self._manual_start = True
         session.experiment.data.finishPoint()
+
+    def doShutdown(self):
+        if self._consumer:
+            self._consumer.close()

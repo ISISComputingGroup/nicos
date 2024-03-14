@@ -1,7 +1,4 @@
-#  -*- coding: utf-8 -*-
-
 description = 'setup for the execution daemon'
-
 group = 'special'
 
 devices = dict(
@@ -38,6 +35,7 @@ devices = dict(
         grouproles = {
             'antares': 'admin',
             'ictrl': 'admin',
+            'nicosdev': 'guest',
             'se': 'guest',
         }
     ),

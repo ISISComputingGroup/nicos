@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2018-2023 by the NICOS contributors (see AUTHORS)
@@ -57,8 +56,8 @@ class RateImageChannel(ImageChannel):
     }
 
     def doInit(self, mode):
-        ImageChannel.doInit(self, mode)
         self._rate_data = [0, 0]
+        ImageChannel.doInit(self, mode)
 
     def doReadArray(self, quality):
         narray = ImageChannel.doReadArray(self, quality)
@@ -73,3 +72,11 @@ class RateImageChannel(ImageChannel):
                       errors='sqrt', unit='cts'),
                 Value(name=self.name + ' (rate)', type='monitor',
                       fmtstr='%.1f', unit='cps'),)
+
+
+class NDPRateImageChannel(RateImageChannel):
+    """Force 1D data."""
+
+    @property
+    def _shape(self):
+        return (self.roisize[0],)

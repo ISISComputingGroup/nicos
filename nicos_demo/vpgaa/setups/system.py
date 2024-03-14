@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 description = 'system setup'
 
 sysconfig = dict(
@@ -35,7 +34,7 @@ devices = dict(
     filesink = device('nicos.devices.datasinks.AsciiScanfileSink'),
     conssink = device('nicos.devices.datasinks.ConsoleScanSink'),
     daemonsink = device('nicos.devices.datasinks.DaemonSink'),
-    livesink = device('nicos_mlz.pgaa.devices.datasinks.LiveViewSink'),
+    livesink = device('nicos_mlz.pgaa.datasinks.LiveViewSink'),
     Space = device('nicos.devices.generic.FreeSpace',
         description = 'The amount of free space for storing data',
         minfree = 5,

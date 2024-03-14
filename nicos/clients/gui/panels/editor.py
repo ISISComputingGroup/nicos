@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -37,6 +36,7 @@ from nicos.clients.gui.panels import Panel
 from nicos.clients.gui.tools import createToolMenu
 from nicos.clients.gui.utils import loadUi, showToolText
 from nicos.clients.gui.widgets.qscintillacompat import QScintillaCompatible
+from nicos.guisupport.colors import colors
 from nicos.guisupport.qt import QAction, QActionGroup, QByteArray, QColor, \
     QDialog, QFileDialog, QFileSystemModel, QFileSystemWatcher, QFont, \
     QFontMetrics, QHBoxLayout, QHeaderView, QInputDialog, QMenu, QMessageBox, \
@@ -483,20 +483,32 @@ class EditorPanel(Panel):
             editor.setUtf8(True)
             editor.setLexer(lexer)
             editor.setAutoIndent(True)
-            editor.setEolMode(QsciScintilla.EolUnix)
+            editor.setEolMode(QsciScintilla.EolMode.EolUnix)
             editor.setIndentationsUseTabs(False)
             editor.setIndentationGuides(True)
             editor.setTabIndents(True)
             editor.setBackspaceUnindents(True)
             editor.setTabWidth(4)
             editor.setIndentationWidth(0)
-            editor.setBraceMatching(QsciScintilla.SloppyBraceMatch)
-            editor.setFolding(QsciScintilla.PlainFoldStyle)
+            editor.setBraceMatching(QsciScintilla.BraceMatch.SloppyBraceMatch)
+            editor.setFolding(QsciScintilla.FoldStyle.PlainFoldStyle)
             editor.setIndentationGuidesForegroundColor(QColor("#CCC"))
-            editor.setWrapMode(QsciScintilla.WrapCharacter)
+            editor.setWrapMode(QsciScintilla.WrapMode.WrapCharacter)
             editor.setMarginLineNumbers(1, True)
             editor.setMarginWidth(
                 1, 5 + 4 * QFontMetrics(editor.font()).averageCharWidth())
+            # colors in dark mode,
+            if not colors.is_light:
+                editor.setCaretForegroundColor(colors.text)
+                lexer.setDefaultPaper(colors.base)
+                lexer.setColor(QColor('lightblue'), QsciLexerPython.Keyword)
+
+                editor.setMarginsBackgroundColor(colors.base)
+                #editor.setMarginsBackgroundColor(colors.palette.window().color())
+                editor.setMarginsForegroundColor(colors.text)
+                editor.setFoldMarginColors(colors.palette.window().color(),
+                                           colors.palette.window().color())
+                editor.setFolding(editor.PlainFoldStyle)
         else:
             editor = QScintillaCompatible(self)
         # editor.setFrameStyle(0)

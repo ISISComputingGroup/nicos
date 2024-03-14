@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -23,11 +22,10 @@
 # *****************************************************************************
 import json
 
-from kafka import KafkaProducer
-
 from nicos import session
 from nicos.core import Device, Param, host, listof, usermethod
 from nicos.core.constants import SIMULATION
+from nicos_ess.devices.kafka.producer import KafkaProducer
 
 
 class ScichatBot(Device):
@@ -56,15 +54,15 @@ class ScichatBot(Device):
     def doInit(self, mode):
         if mode == SIMULATION:
             return
-        self._producer = KafkaProducer(bootstrap_servers=self.brokers)
+        self._producer = KafkaProducer.create(self.brokers)
 
     @usermethod
     def send(self, message):
         """Send the message to SciChat"""
         if not self._producer:
             return
-        self._producer.send(self.scichat_topic, self._create_message(message))
-        self._producer.flush()
+        self._producer.produce(self.scichat_topic,
+                               self._create_message(message))
 
     def _create_message(self, message):
         msg = {

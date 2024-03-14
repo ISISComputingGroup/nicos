@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -19,13 +18,63 @@
 #
 # Module authors:
 #   Nikhil Biyani <nikhil.biyani@psi.ch>
+#   Matt Clarke <matt.clarke@ess.eu>
 #
 # *****************************************************************************
 
-import kafka
+from confluent_kafka import Producer
 
 from nicos.core import DeviceMixinBase, Param, host, listof
 from nicos.core.constants import SIMULATION
+
+from nicos_ess.devices.kafka.utils import create_sasl_config
+
+
+MAX_MESSAGE_SIZE = 209_715_200
+
+
+class KafkaProducer:
+    """Class for wrapping the Confluent Kafka producer."""
+
+    @staticmethod
+    def create(brokers, **options):
+        """Factory method for creating a producer.
+
+        Will automatically apply SSL settings if they are defined in the
+        nicos.conf file.
+
+        :param brokers: The broker addresses to connect to.
+        :param options: Extra configuration options. See the Confluent Kafka
+            documents for the full list of options.
+        """
+        options = {**options, **create_sasl_config()}
+        return KafkaProducer(brokers, **options)
+
+    def __init__(self, brokers, **options):
+        """
+        :param brokers: The broker addresses to connect to.
+        :param options: Extra configuration options. See the Confluent Kafka
+            documents for the full list of options.
+        """
+        config = {
+            'bootstrap.servers': ','.join(brokers),
+            'message.max.bytes': MAX_MESSAGE_SIZE,
+        }
+        self._producer = Producer({**config, **options})
+
+    def produce(self, topic_name, message, partition=-1, key=None,
+                on_delivery_callback=None):
+        """Send a message to Kafka.
+
+        :param topic_name: The topic to send to.
+        :param message: The message.
+        :param partition: Which partition to send to. Optional.
+        :param key: The key to assign. Optional
+        :param on_delivery_callback: The delivery callback. Optional.
+        """
+        self._producer.produce(topic_name, message, partition=partition,
+                               key=key, on_delivery=on_delivery_callback)
+        self._producer.flush()
 
 
 class ProducesKafkaMessages(DeviceMixinBase):
@@ -36,7 +85,7 @@ class ProducesKafkaMessages(DeviceMixinBase):
 
     parameters = {
         'brokers':
-            Param('List of kafka hosts to be connected',
+            Param('List of kafka brokers to connect to',
                   type=listof(host(defaultport=9092)),
                   mandatory=True,
                   preinit=True,
@@ -51,30 +100,23 @@ class ProducesKafkaMessages(DeviceMixinBase):
 
     def doPreinit(self, mode):
         if mode != SIMULATION:
-            self._producer = kafka.KafkaProducer(
-                bootstrap_servers=self.brokers,
+            self._producer = self._create_producer(
                 max_request_size=self.max_request_size)
         else:
             self._producer = None
 
-    def doShutdown(self):
-        if self._producer:
-            self._producer.close()
+    def _create_producer(self, **options):
+        return KafkaProducer.create(self.brokers, **options)
 
     def _setProducerConfig(self, **configs):
-        self.doShutdown()
-        self._producer = kafka.KafkaProducer(bootstrap_servers=self.brokers,
-                                             **configs)
+        self._producer = self._create_producer(**configs)
 
-    def send(self, topic, message, key=None, timestamp=None, partition=None):
+    def send(self, topic, message):
         """
         Produces and flushes the provided message
         :param topic: Topic on which the message is to be produced
         :param message: Message
-        :param key: key, for a compacted topic
-        :param timestamp: message timestamp in milliseconds
-        :param partition: partition on which the message is to be produced
         :return:
         """
-        self._producer.send(topic, message, key, partition, timestamp)
+        self._producer.produce(topic, message)
         self._producer.flush()

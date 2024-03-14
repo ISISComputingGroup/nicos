@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -414,6 +413,9 @@ class QAIScan(QScan):
 
     def finishPoint(self):
         QScan.finishPoint(self)
+
+        if not self.dataset.subsets:
+            return
         sub = self.dataset.subsets[-1]
 
         travel_time = sub.started - self._preparetime
@@ -544,6 +546,7 @@ class QAIScan(QScan):
                 '  t0 = session.clock.time',
                 '  _tasinstr.maw(%s)' % list(p2),
                 '  t1 = session.clock.time',
+                '  printinfo(%s, %s, t1 - t0)' % (list(p1), list(p2)),
                 '  session.log_sender.add_result(t1 - t0)',
                 'except:',
                 '  session.log_sender.add_result(float("inf"))',

@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -123,6 +122,8 @@ class LokiScriptBuilderPanel(PanelBase):
             positions = []
             samples_by_position = {}
             for sample in samples.values():
+                if 'position' not in sample:
+                    continue
                 positions.append(sample['position'])
                 samples_by_position[sample['position']] = {
                     k: v
@@ -474,7 +475,7 @@ class LokiScriptBuilderPanel(PanelBase):
     @pyqtSlot()
     def on_generateScriptButton_clicked(self):
         try:
-            self.tableView.setFocus(False)
+            self.tableView.clearFocus()
             if self.is_data_in_hidden_columns():
                 self.showError(
                     'There is data in unselected optional column(s) '

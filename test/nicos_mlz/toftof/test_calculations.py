@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -26,7 +25,7 @@
 
 import pytest
 
-from nicos_mlz.toftof.devices.calculations import Eres1, ResolutionAnalysis, \
+from nicos_mlz.toftof.lib.calculations import Eres1, ResolutionAnalysis, \
     alpha, calculateChopperDelay, calculateCounterDelay, calculateFrameTime, \
     phi, phi1, speedRatio, t1, t2
 

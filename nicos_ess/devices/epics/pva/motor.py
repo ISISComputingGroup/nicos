@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -29,9 +28,9 @@
 
 import threading
 
-from nicos.core import Override, Param, oneof, pvname, status
+from nicos.core import Moveable, Override, Param, oneof, pvname, status
 from nicos.core.errors import ConfigurationError
-from nicos.core.mixins import CanDisable, HasOffset
+from nicos.core.mixins import CanDisable, HasLimits, HasOffset
 from nicos.devices.abstract import CanReference, Motor
 from nicos.devices.epics.pva.epics_devices import EpicsMoveable
 
@@ -43,12 +42,12 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
     are derived by combining the motorpv-parameter with the predefined field
     names.
 
-    The errorbitpv and reseterrorpv can be provided optionally in case the
+    The has_errorbit and has_reseterror can be provided optionally in case the
     controller supports reporting errors and a reset-mechanism that tries to
     recover from certain errors. If present, these are used when calling the
     reset()-method.
 
-    Another optional PV is the errormsgpv, which contains an error message that
+    Another optional parameter is the has_errormsg, which contains an error message that
     may originate from the motor controller or the IOC. If it is present,
     doStatus uses it for some of the status messages.
     """
@@ -61,21 +60,31 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
                   mandatory=True,
                   settable=False,
                   userparam=False),
-        'errormsgpv':
+        'has_powerauto':
+            Param('Optional PV for auto enable power.',
+                  type=bool,
+                  default=True,
+                  mandatory=False,
+                  settable=False,
+                  userparam=False),
+        'has_errormsg':
             Param('Optional PV with error message.',
-                  type=pvname,
+                  type=bool,
+                  default=True,
                   mandatory=False,
                   settable=False,
                   userparam=False),
-        'errorbitpv':
+        'has_errorbit':
             Param('Optional PV with error bit.',
-                  type=pvname,
+                  type=bool,
+                  default=True,
                   mandatory=False,
                   settable=False,
                   userparam=False),
-        'reseterrorpv':
+        'has_reseterror':
             Param('Optional PV with error reset switch.',
-                  type=pvname,
+                  type=bool,
+                  default=True,
                   mandatory=False,
                   settable=False,
                   userparam=False),
@@ -84,6 +93,20 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
                   type=oneof('forward', 'reverse'),
                   default='forward',
                   settable=False,
+                  userparam=False,
+                  mandatory=False),
+        'position_deadband':
+            Param('Acceptable distance between target and final position.',
+                  type=float,
+                  settable=False,
+                  volatile=True,
+                  userparam=False,
+                  mandatory=False),
+        'pv_desc':
+            Param('The description defined at the EPICS level.',
+                  type=str,
+                  settable=False,
+                  volatile=True,
                   userparam=False,
                   mandatory=False),
     }
@@ -127,7 +150,16 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
         'foff': 'FOFF',
         'units': 'EGU',
         'alarm_status': 'STAT',
-        'alarm_severity': 'SEVR'
+        'alarm_severity': 'SEVR',
+        'position_deadband': 'RDBD',
+        'description': 'DESC',
+    }
+
+    _suffixes = {
+        'powerauto': '-PwrAuto',
+        'errormsg': '-MsgTxt',
+        'errorbit': '-Err',
+        'reseterror': '-ErrRst',
     }
 
     _cache_relations = {
@@ -149,14 +181,9 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
         """
         pvs = set(self._record_fields.keys())
 
-        if self.errormsgpv:
-            pvs.add('errormsgpv')
-
-        if self.errorbitpv:
-            pvs.add('errorbitpv')
-
-        if self.reseterrorpv:
-            pvs.add('reseterrorpv')
+        for suffix in self._suffixes:
+            if getattr(self, 'has_' + suffix):
+                pvs.add(suffix)
 
         return pvs
 
@@ -172,8 +199,8 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
             'alarm_severity',
         }
 
-        if self.errormsgpv:
-            status_pars.add('errormsgpv')
+        if self.has_errormsg:
+            status_pars.add('errormsg')
         return status_pars
 
     def _get_pv_name(self, pvparam):
@@ -190,6 +217,11 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
 
         if motor_field is not None:
             return '.'.join((motor_record_prefix, motor_field))
+
+        motor_suffix = self._suffixes.get(pvparam)
+
+        if motor_suffix is not None:
+            return ''.join((motor_record_prefix, motor_suffix))
 
         return getattr(self, pvparam)
 
@@ -270,8 +302,12 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
                 return status.BUSY, message or 'homing'
             return status.BUSY, message or f'moving to {self.target}'
 
-        enabled = self._get_pv('enable')
-        if not enabled:
+        if self.has_powerauto:
+            powerauto_enabled = self._get_pv('powerauto')
+        else:
+            powerauto_enabled = 0
+
+        if not powerauto_enabled and not self._get_pv('enable'):
             return status.WARN, 'motor is not enabled'
 
         miss = self._get_pv('miss')
@@ -295,8 +331,8 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
 
     def _get_alarm_status(self):
         stat, msg = self.get_alarm_status('readpv')
-        if self.errormsgpv:
-            err_msg = self._get_pv('errormsgpv', as_string=True)
+        if self.has_errormsg:
+            err_msg = self._get_pv('errormsg', as_string=True)
             if stat == status.UNKNOWN:
                 stat = status.ERROR
             if self._motor_status != (stat, err_msg):
@@ -336,13 +372,13 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
         return absmin, absmax
 
     def doReset(self):
-        if self.errorbitpv and self.reseterrorpv:
-            error_bit = self._get_pv('errorbitpv')
+        if self.has_errorbit and self.has_reseterror:
+            error_bit = self._get_pv('errorbit')
             if error_bit == 0:
                 self.log.warning(
                     'Error bit is not set, can not reset error state.')
             else:
-                self._put_pv('reseterrorpv', 1)
+                self._put_pv('reseterror', 1)
 
     def doReference(self):
         self._put_pv('home%s' % self.reference_direction, 1)
@@ -363,3 +399,23 @@ class EpicsMotor(CanDisable, CanReference, HasOffset, EpicsMoveable, Motor):
 
     def doReadUnit(self):
         return self._get_pv('units')
+
+    def _check_in_range(self, curval, userlimits):
+        if userlimits == (0, 0) and self.abslimits == (0, 0):
+            # No limits defined, so must be in range
+            return status.OK, ''
+
+        return HasLimits._check_in_range(self, curval, userlimits)
+
+    def doReadPosition_Deadband(self):
+        return self._get_pv('position_deadband')
+
+    def doReadPv_Desc(self):
+        return self._get_pv('description')
+
+    def isAllowed(self, pos):
+        if self.userlimits == (0, 0) and self.abslimits == (0, 0):
+            # No limits defined
+            return True, ''
+
+        return Moveable.isAllowed(self, pos)

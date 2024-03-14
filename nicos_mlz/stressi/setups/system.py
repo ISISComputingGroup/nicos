@@ -1,10 +1,9 @@
-#  -*- coding: utf-8 -*-
 description = 'system setup'
 
 group = 'lowlevel'
 
 sysconfig = dict(
-    cache = 'stressictrl.stressi.frm2',
+    cache = 'stressictrl.stressi.frm2.tum.de',
     instrument = 'Stressi',
     experiment = 'Exp',
     datasinks = [
@@ -67,7 +66,7 @@ devices = dict(
     ),
     LogSpace = device('nicos.devices.generic.FreeSpace',
         description = 'Space on log drive',
-        path = '/stressicontrol/log',
+        path = '/control/log',
         minfree = 0.5,
         visibility = (),
     ),

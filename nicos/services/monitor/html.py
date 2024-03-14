@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -79,7 +78,7 @@ table { font-family: inherit; font-size: 100%%; }
 .istext { font-family: '%(ff)s', sans-serif !important; }
 .unit   { color: #888888; }
 .fixed  { color: #0000ff; }
-.warnings { font-size: 120%%; }
+.warnings { font-size: 120%%; white-space: pre; }
 </style>
 <title>%(title)s</title>
 </head>

@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -35,7 +34,7 @@ from nicos.core.constants import INTERMEDIATE, SIMULATION
 from nicos.devices.entangle import TOFChannel
 from nicos.devices.generic.detector import Detector as GenericDetector
 
-from nicos_mlz.toftof.devices import calculations as calc
+from nicos_mlz.toftof.lib import calculations as calc
 from nicos_mlz.toftof.devices.chopper import BaseChopperController
 
 

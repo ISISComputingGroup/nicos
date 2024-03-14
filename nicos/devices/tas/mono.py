@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -149,7 +148,10 @@ class Monochromator(HasLimits, HasPrecision, BaseMonochromator):
 
     def _movefoci(self, focmode, hfocuspars, vfocuspars):
         # get goalposition in A
-        lam = from_k(to_k(self.target, self.unit), 'A')
+        target = self.target
+        if target is None:
+            target = self.doRead(0)
+        lam = from_k(to_k(target, self.unit), 'A')
         focusv, focush = self._attached_focusv, self._attached_focush
         if focmode == 'flat':
             if focusv:

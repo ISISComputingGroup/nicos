@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -26,7 +25,7 @@
 from nicos.core import Attach, HasLimits, HasTimeout, Moveable, Override, \
     Param, Readable, intrange, listof, oneof, status, tupleof
 
-from nicos_mlz.toftof.devices import calculations as calc
+from nicos_mlz.toftof.lib import calculations as calc
 
 
 class BaseChopperController(HasTimeout, Readable):

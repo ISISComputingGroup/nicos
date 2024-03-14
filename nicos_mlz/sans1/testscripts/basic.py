@@ -1,8 +1,7 @@
 # pylint: skip-file
 
 # test: subdirs = frm2
-# test: setups = sans1
-# test: setups = selector042
+# test: setups = sans1, selector042
 # test: setupcode = SetDetectors(det1)
 # test: needs = PIL
 
@@ -35,18 +34,18 @@ maw(sa1, '29mm')
 maw(sa2, 8)
 
 # test Huber tower
-maw(st1_x, -200)
-maw(st1_z, 10)
-maw(st1_y, 10)
-maw(st1_phi, 5)
-maw(st1_chi, 5)
-maw(st1_omg, 5)
-maw(st1_x, 0)
-maw(st1_z, 0)
-maw(st1_y, 0)
-maw(st1_phi, 0)
-maw(st1_chi, 0)
-maw(st1_omg, 0)
+maw(st_x, -200)
+maw(st_z, 10)
+maw(st_y, 10)
+maw(st_phi, 5)
+maw(st_chi, 5)
+maw(st_omg, 5)
+maw(st_x, 0)
+maw(st_z, 0)
+maw(st_y, 0)
+maw(st_phi, 0)
+maw(st_chi, 0)
+maw(st_omg, 0)
 
 # test detector
 maw(det1_hv, 'ON')

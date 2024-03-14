@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -29,7 +28,7 @@ import numpy as np
 from nicos.core import Override, Param, intrange
 from nicos.devices.generic.virtual import VirtualImage as BaseImage
 
-from nicos_mlz.toftof.devices import calculations as calc
+from nicos_mlz.toftof.lib import calculations as calc
 
 
 class VirtualImage(BaseImage):

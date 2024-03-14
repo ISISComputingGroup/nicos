@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 description = 'Image plate detector setup'
 group = 'basic'
 
@@ -36,8 +34,9 @@ devices = dict(
         size = (625, 450),
         visibility = (),
     ),
-    imgdet = device('nicos_mlz.biodiff.devices.detector.BiodiffDetector',
+    imgdet = device('nicos_virt_mlz.biodiff.devices.detector.Detector',
         description = 'Image plate detector',
+        mcstas = 'mcstas',
         timers = ['timer'],
         images = ['imgplate'],
         gammashutter = 'gammashutter',

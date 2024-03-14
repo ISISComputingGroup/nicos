@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -35,10 +34,6 @@ from nicos.utils import lazy_property
 from .bus.base import InvalidCommandError, IPCModBus, IPCModBusRS232, \
     IPCModBusSerial, IPCModBusTCP
 
-try:
-    from .bus.taco import IPCModBusTaco, IPCModBusTacoSerial
-except ImportError:
-    pass
 try:
     from .bus.tango import IPCModBusTango
 except ImportError:
@@ -213,6 +208,18 @@ class Coder(NicosCoder):
         except Exception as err:
             raise CommunicationError(
                 self, 'cannot clear alarm for encoder') from err
+
+    def _endatreadalarm(self):
+        """Read alarm for a binary-endat encoder."""
+        if self._type is not None and 'endat-protocol' not in self._type:
+            return
+        try:
+            self._attached_bus.send(self.addr, 155, 185, 3)
+            session.delay(0.5)
+            return self._attached_bus.send(self.addr, 156, 0, 3)
+        except Exception as err:
+            raise CommunicationError(
+                self, 'cannot read alarm for encoder') from err
 
 
 class Resolver(Coder):

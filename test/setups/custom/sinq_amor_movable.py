@@ -7,7 +7,7 @@ def create_epics_motor(controller_id, device_id):
     name of the motor device. The motor pv will be used as follows:
     SQ:AMOR:mot<controller_id>:device_id
     '''
-    return device('nicos_ess.devices.epics.motor.EpicsMotor',
+    return device('nicos.devices.epics.pyepics.motor.EpicsMotor',
                   description='Test motor',
                   motorpv='SQ:AMOR:mot' + controller_id + ':' + device_id,
                   )
@@ -35,10 +35,10 @@ def create_epics_asyn_controller(device_id):
     """
     Creates an asyn controller with the given device id
     """
-    return device('nicos_sinq.devices.epics.extensions.EpicsAsynController',
+    return device('nicos_ess.devices.epics.extensions.EpicsCommandReply',
                   description='Asyn controller for motors in serial1',
-                  commandpv='SQ:AMOR:' + device_id + '.AOUT',
-                  replypv='SQ:AMOR:' + device_id + '.AINP',
+                  commandpv=f'SQ:AMOR:{device_id}.AOUT',
+                  replypv=f'SQ:AMOR:{device_id}.AINP',
                   )
 
 

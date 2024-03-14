@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -32,6 +31,7 @@ from string import ascii_lowercase
 import pytest
 
 pytest.importorskip('streaming_data_types')
+pytest.importorskip('confluent_kafka')
 
 from streaming_data_types.logdata_f142 import serialise_f142
 from streaming_data_types.status_x5f2 import serialise_x5f2
@@ -48,7 +48,8 @@ except ImportError:
 pytest.importorskip('kafka')
 pytest.importorskip('graypy')
 
-session_setup = 'ess_forwarder'
+# Set to None because we load the setup after the mocks are in place.
+session_setup = None
 
 
 def create_stream(
@@ -126,8 +127,10 @@ class TestEpicsKafkaForwarderStatus(TestCase):
     @pytest.fixture(autouse=True)
     def prepare(self, session):
         self.session = session
-        self.mock = self.create_patch('kafka.KafkaConsumer')
+        self.mock = self.create_patch('nicos_ess.devices.kafka.consumer.KafkaConsumer')
         self.mock.return_value.topics.return_value = 'TEST_forwarderStatus'
+        self.session.unloadSetup()
+        self.session.loadSetup('ess_forwarder', {})
         self.device = self.session.getDevice('KafkaForwarder')
         self.device._setROParam('curstatus', (0, ''))
 

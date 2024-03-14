@@ -2,7 +2,7 @@ description = 'TOF counter devices'
 
 group = 'lowlevel'
 
-tango_base = 'tango://cpci3.toftof.frm2:10000/'
+tango_base = 'tango://cpci3.toftof.frm2.tum.de:10000/'
 
 devices = dict(
     timer = device('nicos.devices.entangle.TimerChannel',
@@ -39,6 +39,6 @@ devices = dict(
         pollinterval = None,
         liveinterval = 10.0,
         saveintervals = [30.],
-        detinfofile = '/toftofcontrol/nicos_mlz/toftof/detinfo.dat',
+        detinfofile = '/control/nicos_mlz/toftof/detinfo.dat',
     ),
 )

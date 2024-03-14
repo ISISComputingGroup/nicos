@@ -1,4 +1,3 @@
-#  -*- coding: utf-8 -*-
 # *****************************************************************************
 # NICOS, the Networked Instrument Control System of the MLZ
 # Copyright (c) 2009-2023 by the NICOS contributors (see AUTHORS)
@@ -25,12 +24,14 @@
 """Module to implement generic sinq detector and ControlDetector
 """
 
-from nicos.core import Attach, Measurable, Param, pvname, status, Value
+from nicos.core import Attach, Measurable, Param, Value, pvname, status
 from nicos.devices.generic import Detector
+from nicos.devices.generic.detector import CounterChannelMixin, \
+    TimerChannelMixin
 from nicos.utils import uniq
 
-from nicos_ess.devices.epics.detector import EpicsActiveChannel \
-    as ESSEpicsActiveChannel
+from nicos_sinq.devices.epics.detector import \
+    EpicsActiveChannel as ESSEpicsActiveChannel
 from nicos_sinq.devices.epics.scaler_record import EpicsScalerRecord
 
 
@@ -65,7 +66,7 @@ class EpicsActiveChannel(ESSEpicsActiveChannel):
         return False
 
 
-class EpicsTimerActiveChannel(EpicsActiveChannel):
+class EpicsTimerActiveChannel(TimerChannelMixin, EpicsActiveChannel):
     """
     Manages time presets
     """
@@ -75,7 +76,7 @@ class EpicsTimerActiveChannel(EpicsActiveChannel):
         return (Value('timepreset', unit='sec', fmtstr='%s'), )
 
 
-class EpicsCounterActiveChannel(EpicsActiveChannel):
+class EpicsCounterActiveChannel(CounterChannelMixin, EpicsActiveChannel):
     """
     Manages monitor presets
     """
@@ -93,9 +94,9 @@ class SinqDetector(EpicsScalerRecord):
 
     attached_devices = {
         'timepreset': Attach('Device to set the preset time',
-                             EpicsTimerActiveChannel),
+                             TimerChannelMixin),
         'monitorpreset': Attach('Device to set the monitor preset',
-                                EpicsCounterActiveChannel)
+                                CounterChannelMixin)
     }
 
     parameters = {
@@ -312,9 +313,9 @@ class ControlDetector(Detector):
                 return res
 
     def doInfo(self):
-        res = self._attached_trigger.doInfo()
+        res = self._attached_trigger.info()
         for det in self._attached_followers:
-            res = res + det.doInfo()
+            res = res + det.info()
         return res
 
     def presetInfo(self):
@@ -335,15 +336,15 @@ class ControlDetector(Detector):
         return res
 
     def doRead(self, maxage=0):
-        res = self._attached_trigger.doRead(maxage)
+        res = self._attached_trigger.read(maxage)
         for det in self._attached_followers:
-            res = res + det.doRead(maxage)
+            res = res + det.read(maxage)
         return res
 
     def doReadArrays(self, quality):
-        res = self._attached_trigger.doReadArrays(quality)
+        res = self._attached_trigger.readArrays(quality)
         for det in self._attached_followers:
-            res += det.doReadArrays(quality)
+            res += det.readArrays(quality)
         return res
 
     def doReset(self):
@@ -351,3 +352,6 @@ class ControlDetector(Detector):
         for det in self._attached_slave_detectors:
             det.reset()
         return self.doStatus()
+
+    def _collectControllers(self):
+        self._channels = self._attached_trigger._channels
